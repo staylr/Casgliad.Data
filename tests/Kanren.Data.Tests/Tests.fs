@@ -3,8 +3,7 @@ namespace Kanren.Data.Tests
 open System
 open Expecto
 open Kanren.Data
-open Kanren.Data.Say
-
+(*
 module SayTests =
     [<Tests>]
     let tests =
@@ -24,3 +23,4 @@ module SayTests =
                 }
                 let subject = Say.helloPerson person
                 Expect.equal subject "Hello Jean-Luc Picard. You were born on 2305/07/13 and your favorite number is 4. You like Red." "You didn't say hello" ]
+                *)

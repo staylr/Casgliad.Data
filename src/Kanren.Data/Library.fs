@@ -1,56 +1,44 @@
 namespace Kanren.Data
-open System
-open System.Security.Cryptography
-open System.Text
 
-/// <summary> Initial module </summary>
-module Say =
+open Kanren.Data
+open FSharp.Data.Sql
+open FSharp.Quotations
 
-    /// <summary> Finite list of Colors </summary>
-    type FavoriteColor =
-    | Red
-    | Yellow
-    | Blue
+type varid = int
 
-    /// <summary> A person with many different field types </summary>
-    type Person = {
-        Name : string
-        FavoriteNumber : int
-        FavoriteColor : FavoriteColor
-        DateOfBirth : DateTimeOffset
-    }
+type 'A Var = Var of varid
 
-    /// <summary>Says hello to a specific person</summary>
-    let helloPerson (person : Person) =
-        sprintf
-            "Hello %s. You were born on %s and your favorite number is %d. You like %A."
-            person.Name
-            (person.DateOfBirth.ToString("yyyy/MM/dd"))
-            person.FavoriteNumber
-            person.FavoriteColor
+type 'A Term = 
+    | Var of 'A Var
 
-    /// <summary>
-    /// Adds two integers <paramref name="a"/> and <paramref name="b"/> and returns the result.
-    /// </summary>
-    ///
-    /// <remarks>
-    /// This usually contains some really important information that you'll miss if you don't read the docs.
-    /// </remarks>
-    ///
-    /// <param name="a">An integer.</param>
-    /// <param name="b">An integer.</param>
-    ///
-    /// <returns>
-    /// The sum of two integers.
-    /// </returns>
-    ///
-    /// <exceptions cref="M:System.OverflowException">Thrown when one parameter is max
-    /// and the other is greater than 0.</exceptions>
-    let add a b =
-        a + b
+module Main =
 
+    let rec flattenConjunction flattenedGoals goal =
+        match goal with
+        | Conj goals -> List.fold flattenConjunction flattenedGoals goals
+        | _ -> goal :: flattenedGoals
 
-    /// I do nothing
-    let nothing name =
-        name |> ignore
+    let rec flattenDisjunction flattenedGoals goal =
+        match goal with
+        | Disj goals -> List.fold flattenDisjunction flattenedGoals goals
+        | _ -> goal :: flattenedGoals
 
+    let rec simplifyGoal goal =
+        match goal with
+        | Unify (_, _, _) -> goal
+        | Call (_, _) -> goal
+        | Conj goals -> Conj (goals |> List.fold flattenConjunction [] |> List.rev |> List.map simplifyGoal)
+        | Disj goals -> Disj (goals |> List.fold flattenDisjunction [] |> List.rev |> List.map simplifyGoal)
+        | Exists (v, goal) -> Exists (v, simplifyGoal goal)
+        | Not negGoal -> Not (simplifyGoal negGoal)
+
+    let compile (relation : 'A Relation) =
+        List.map QuotationParser.translateExpr relation.Clauses
+        |> Disj
+        |> simplifyGoal
+
+    [<Relation("rel2")>]
+    let rel2 = { Name = "rel2"; Clauses = [ <@ fun (x, y) -> x = 4 && y = 2 @> ] }
+
+    [<Relation("rel")>]
+    let rel = { Name = "rel"; Clauses = [ <@ fun (x, y, z) -> (x = 1 && y = 2 && z = 3 && call rel2 (x, z)) @> ] }

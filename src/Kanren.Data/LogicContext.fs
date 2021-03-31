@@ -1,0 +1,2 @@
+namespace Kanren.Data
+
