@@ -4,7 +4,7 @@
     <TargetFrameworks>net5.0</TargetFrameworks>
   </PropertyGroup>
   <PropertyGroup>
-    <Title>Kanren.Data</Title>
+    <Title>Kanren.Data.Compilerr</Title>
     <Description>Kanren.Data does the thing!</Description>
 
   </PropertyGroup>
@@ -14,14 +14,19 @@
     
   </PropertyGroup>
   <ItemGroup>
-    <Compile Include="Types.fs" />
-    <Compile Include="LogicContext.fs" />
+    <None Include="Script.fsx" />
+    <Compile Include="Goal.fs" />
+    <Compile Include="Simplify.fs" />
+    <Compile Include="QuotationParser.fs" />
+    <Compile Include="Compile.fs" />
     <Compile Include="AssemblyInfo.fs" />
-    <Compile Include="Library.fs" />
   </ItemGroup>
   <ItemGroup>
     <PackageReference Include="FSharp.Core" Version="5.0.1" />
     <PackageReference Include="SQLProvider" Version="1.2.1" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\Kanren.Data\Kanren.Data.fsproj" />
   </ItemGroup>
   <Import Project="..\..\.paket\Paket.Restore.targets" />
 </Project>
