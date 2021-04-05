@@ -5,9 +5,6 @@ open FSharp.Quotations
 
 [<AutoOpen>]
 module Goal =
-
-    type VarSet = Var Set
-
     type Inst =
         | Ground
         | Free
@@ -21,23 +18,27 @@ module Goal =
     type GoalInfo =
         {
             varSet : VarSet;
-            nonLocals : VarSet;
+            nonLocals : Set<Var>;
             instmapDelta: InstmapDelta;
             determinism: Determinism;
             sourceInfo: SourceInfo Option;
         }
         static member init sourceInfo =
             {
-                varSet = Set.empty;
+                varSet = VarSet.init;
                 nonLocals = Set.empty;
                 instmapDelta = Map.empty;
                 determinism = Determinism.Det;
                 sourceInfo = sourceInfo;
             }
 
+    type UnifyRhs =
+        | Var of Var
+        | Constant of value : obj * constType : System.Type
+
     type GoalExpr =
-        | Unify of lhs : Expr * rhs : Expr * utype: System.Type
-        | Call of func : System.Reflection.PropertyInfo * args : (Expr list)
+        | Unify of lhs : Var * rhs : UnifyRhs
+        | Call of func : System.Reflection.PropertyInfo * args : (Var list)
         | Conj of Goal list
         | Disj of Goal list
         | Exists of var : Var * goal : Goal

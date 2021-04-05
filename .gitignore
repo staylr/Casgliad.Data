@@ -269,3 +269,7 @@ coverage.*.xml
 
 .fake
 .ionide
+/.paket/paket.bootstrapper.exe
+/.paket/paket.exe
+/.paket/paket.lock
+/.paket/paket.dependencies

@@ -13,7 +13,7 @@ module Simplify =
 
     let rec internal simplifyGoal goal =
         match goal.goal with
-        | Unify (_, _, _) -> goal
+        | Unify (_, _) -> goal
         | Call (_, _) -> goal
         | Conj goals -> { goal with goal = Conj (goals |> List.fold flattenConjunction [] |> List.rev |> List.map simplifyGoal) }
         | Disj goals -> { goal with goal = Disj (goals |> List.fold flattenDisjunction [] |> List.rev |> List.map simplifyGoal) }
