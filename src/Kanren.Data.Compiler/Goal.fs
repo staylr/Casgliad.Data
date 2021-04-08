@@ -17,7 +17,6 @@ module Goal =
 
     type GoalInfo =
         {
-            varSet : VarSet;
             nonLocals : Set<Var>;
             instmapDelta: InstmapDelta;
             determinism: Determinism;
@@ -25,7 +24,6 @@ module Goal =
         }
         static member init sourceInfo =
             {
-                varSet = VarSet.init;
                 nonLocals = Set.empty;
                 instmapDelta = Map.empty;
                 determinism = Determinism.Det;
@@ -39,9 +37,16 @@ module Goal =
     type GoalExpr =
         | Unify of lhs : Var * rhs : UnifyRhs
         | Call of func : System.Reflection.PropertyInfo * args : (Var list)
+        | FSharpCall of func : System.Reflection.MethodInfo * returnValue : Var * args : (Var list)
         | Conj of Goal list
         | Disj of Goal list
         | Exists of var : Var * goal : Goal
         | Not of Goal
     and
         Goal = { goal : GoalExpr; info : GoalInfo }
+
+    type ErrorContext =
+        | Goal of Goal
+        | Expr of Expr
+
+    type Error = { Text: string; Location: SourceInfo Option; Context: ErrorContext }

@@ -8,9 +8,9 @@ open Kanren.Data.Compiler
 let g = Kanren.Data.Main.rel.Clauses.Head
 printfn $"{g.CustomAttributes.Head}"
 printfn $"{QuotationParser.getSourceInfo  None g.CustomAttributes.Head}"
-printfn $"{g.ToString (true)}"
+//printfn $"{g.ToString (true)}"
 
-let x = Kanren.Data.Compiler.QuotationParser.translateExpr None g
+let x = Kanren.Data.Compiler.QuotationParser.translateExpr None g { ParserInfo.varset = VarSet.init; ParserInfo.errors = [] }
 printfn $"{(x.ToString ())}"
 
 

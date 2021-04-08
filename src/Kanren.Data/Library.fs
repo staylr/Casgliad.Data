@@ -10,5 +10,5 @@ module Main =
 
     [<Relation("rel")>]
     let rel = { Name = "rel"; Clauses = [ <@ fun (x, y, z) ->
-                                                    (x = 1 && y = 2 && z = 3
+                                                    (x = 1 && y = 2 && z = y + 3 && z < 10
                                                     && call rel2 (x, z)) @> ] }
