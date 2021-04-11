@@ -18,6 +18,8 @@
     <Compile Include="VarSet.fs" />
     <None Include="Script.fsx" />
     <Compile Include="Goal.fs" />
+    <Compile Include="Error.fs" />
+    <Compile Include="ModuleInfo.fs" />
     <Compile Include="Quantification.fs" />
     <Compile Include="Simplify.fs" />
     <Compile Include="QuotationParser.fs" />

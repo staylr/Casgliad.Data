@@ -2,6 +2,9 @@ namespace Kanren.Data.Compiler
 
 [<AutoOpen>]
 module Util =
+
+    type SourceInfo = { File: string; StartLine: int; StartCol: int; EndLine: int; EndCol: int }
+
     let notNull x = match x with | null -> false | _ -> true
 
     let flip f x y = f y x

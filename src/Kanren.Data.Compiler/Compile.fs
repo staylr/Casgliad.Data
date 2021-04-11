@@ -12,7 +12,7 @@ module Compile =
         let parserInfo = { varset = varset'; errors = [] }
         let (parserInfo'', args, goal) = QuotationParser.translateExpr None expr parserInfo
         let goal' = Simplify.simplifyGoal goal
-        if (maxSeverityOfList parserInfo''.errors = ErrorSeverity.Error) then
+        if (Error.maxSeverityOfList parserInfo''.errors = ErrorSeverity.Error) then
             (moduleInfo, parserInfo''.errors)
         else
             let sourceInfo = relationSourceInfo rel
