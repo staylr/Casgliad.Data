@@ -1,6 +1,7 @@
 namespace Kanren.Data.Compiler
 
 open Kanren.Data
+open System.Reflection
 
 open FSharp.Quotations
 
@@ -50,24 +51,28 @@ module QuotationParser =
 
     let rec getVars (varset: VarSet) expr =
         match expr with
-        | ExprShape.ShapeVar v -> varset.addVar(v)
-        | ExprShape.ShapeLambda (v, subExpr) -> getVars (varset.addVar v) subExpr
+        | ExprShape.ShapeVar v -> varset.addQuotationVar(v)
+        | ExprShape.ShapeLambda (v, subExpr) -> getVars (varset.addQuotationVar v) subExpr
         | ExprShape.ShapeCombination (combo, exprs) -> List.fold getVars varset exprs
 
-    let initGoal (sourceInfo:SourceInfo Option) (expr:Expr) (goal:GoalExpr) = { goal = goal; info = GoalInfo.init(getSourceInfo sourceInfo expr) }
-    
+    let initGoal (sourceInfo:SourceInfo Option) (expr:Expr) (goal:GoalExpr) =
+            { goal = goal; info = GoalInfo.init(getSourceInfo sourceInfo expr) }
+ 
+    let unsupportedUnifyRhs sourceInfo (expr: Expr) (parserInfo: ParserInfo) =
+         parserInfo.newError({ Error.Location = sourceInfo; Text = "Unsupported unify RHS"; Context = ErrorContext.Expr expr; Severity = ErrorSeverity.Error })
+   
     let rec translateUnifyRhs sourceInfo rhs parserInfo =
         match rhs with
         | ExprShape.ShapeVar v ->
-            (parserInfo, [], UnifyRhs.Var v)
+            (parserInfo, [], Some (UnifyRhs.Var v))
         | Patterns.Value (value, constType) ->
-            (parserInfo, [], UnifyRhs.Constant(value, constType))
+            (parserInfo, [], Some (UnifyRhs.Constant(value, constType)))
         | Patterns.Call (None, callee, args) ->
             let (argVars, (parserInfo' : ParserInfo, _, extraGoals)) = translateCallArgs sourceInfo false args parserInfo
             let (parserInfo'', returnVar) = parserInfo'.newVar callee.ReturnType
-            (parserInfo'', List.append extraGoals [initGoal sourceInfo rhs (FSharpCall(callee, returnVar, argVars))], UnifyRhs.Var returnVar)
+            (parserInfo'', List.append extraGoals [initGoal sourceInfo rhs (FSharpCall(callee, returnVar, argVars))], Some (UnifyRhs.Var returnVar))
         | _ ->
-            raise(System.Exception($"Unsupported unify rhs: {rhs}"))
+            (unsupportedUnifyRhs sourceInfo rhs parserInfo, [], None)
     and   
         translateCallArg sourceInfo allowDuplicateArgs (parserInfo: ParserInfo, seenArgs: Var Set, extraGoals: Goal list) arg =
             match arg with
@@ -75,8 +80,12 @@ module QuotationParser =
                 (v, (parserInfo, seenArgs.Add(v), extraGoals))
             | _ ->
                 let (parserInfo', var) = parserInfo.newVar(arg.Type)
-                let (parserInfo'', extraGoals', rhs) = translateUnifyRhs sourceInfo arg parserInfo'
-                (var, (parserInfo'', seenArgs, initGoal sourceInfo arg (Unify(var, rhs)) :: extraGoals'))
+                let (parserInfo'', extraGoals', rhsResult) = translateUnifyRhs sourceInfo arg parserInfo'
+                match rhsResult with
+                | Some rhs ->
+                    (var, (parserInfo'', seenArgs, initGoal sourceInfo arg (Unify(var, rhs)) :: extraGoals'))
+                | None ->
+                    (var, (parserInfo'', seenArgs, extraGoals'))
     and
         translateCallArgs sourceInfo allowDuplicateArgs args (parserInfo: ParserInfo) =
             List.mapFold (translateCallArg sourceInfo allowDuplicateArgs) (parserInfo, Set.empty, []) args
@@ -89,14 +98,17 @@ module QuotationParser =
     let rec translateUnify sourceInfo lhs rhs unifyType (parserInfo: ParserInfo) =
             match lhs with
             | ExprShape.ShapeVar v ->
-                let (parserInfo', extraGoals, rhs) = translateUnifyRhs sourceInfo rhs parserInfo
-                (match extraGoals with
-                    | [] ->
-                        (parserInfo', Unify(v, rhs))
-                    | _ :: _ ->
-                        let unifyGoal = initGoal sourceInfo lhs (Unify(v, rhs))
-                        (parserInfo', Conj(List.append extraGoals [unifyGoal]))
-                )
+                let (parserInfo', extraGoals, rhsResult) = translateUnifyRhs sourceInfo rhs parserInfo
+                match rhsResult with
+                | Some parsedRhs ->
+                    match extraGoals with
+                        | [] ->
+                            (parserInfo', Unify(v, parsedRhs))
+                        | _ :: _ ->
+                            let unifyGoal = initGoal sourceInfo lhs (Unify(v, parsedRhs))
+                            (parserInfo', Conj(List.append extraGoals [unifyGoal]))
+                | None ->
+                    (parserInfo', Conj(extraGoals))
             | _ ->
                 match rhs with
                 | ExprShape.ShapeVar v ->
@@ -104,29 +116,34 @@ module QuotationParser =
                 | _ ->
                     let (parserInfo2, lvar) = parserInfo.newVar(unifyType)
                     let (parserInfo3, rvar) = parserInfo2.newVar(unifyType)
-                    let (parserInfo4, extraGoals1, rhs1) = translateUnifyRhs sourceInfo lhs parserInfo3
-                    let (parserInfo5, extraGoals2, rhs2) = translateUnifyRhs sourceInfo rhs parserInfo4
-                    ( parserInfo5, Conj(List.concat [extraGoals1; extraGoals2;
+                    let (parserInfo4, extraGoals1, rhsResult1) = translateUnifyRhs sourceInfo lhs parserInfo3
+                    let (parserInfo5, extraGoals2, rhsResult2) = translateUnifyRhs sourceInfo rhs parserInfo4
+                    match (rhsResult1, rhsResult1) with
+                    | (Some rhs1, Some rhs2) ->
+                        ( parserInfo5, Conj(List.concat [extraGoals1; extraGoals2;
                                         [initGoal sourceInfo lhs (Unify(lvar, rhs1));
                                             initGoal sourceInfo rhs (Unify(rvar, rhs2));
                                             initGoal sourceInfo lhs (Unify(lvar, UnifyRhs.Var rvar)) ]]))
+                    | _ ->
+                        (parserInfo5, Conj(List.append extraGoals1 extraGoals2))
 
     let unsupportedExpression sourceInfo (expr: Expr) (parserInfo: ParserInfo) : (ParserInfo * GoalExpr) =
-            (parserInfo.newError({ Error.Location = sourceInfo; Text = "Unsupported expression"; Context = ErrorContext.Expr expr }),
+            (parserInfo.newError({ Error.Location = sourceInfo; Text = "Unsupported expression"; Context = ErrorContext.Expr expr; Severity = ErrorSeverity.Error }),
                 Disj([]))
 
     let rec translateSubExpr existingSourceInfo expr (parserInfo : ParserInfo) =
             let exprSourceInfo = getSourceInfo existingSourceInfo expr
             match expr with
-            | DerivedPatterns.SpecificCall (<@@ call @@>) (_, _, [Patterns.PropertyGet (None, prop, _); Patterns.NewTuple (args)] ) ->
-                translateCall exprSourceInfo prop args parserInfo
             | DerivedPatterns.SpecificCall (<@@ exists @@>) (_, _, [ExprShape.ShapeLambda (v, expr)] ) ->
                 translateSubExpr exprSourceInfo expr parserInfo
             | DerivedPatterns.SpecificCall (<@@ (=) @@>) (_, [unifyType], [lhs; rhs] ) ->
                 translateUnify exprSourceInfo lhs rhs unifyType parserInfo
             | Patterns.Call(None, callee, args) ->
                 let (parserInfo', var) = parserInfo.newVar(typeof<bool>)
-                translateUnify exprSourceInfo (Expr.Value true) expr typeof<bool> parserInfo' 
+                if (isNull (callee.GetCustomAttribute typeof<RelationAttribute>)) then
+                    translateUnify exprSourceInfo (Expr.Value true) expr typeof<bool> parserInfo'
+                else
+                    translateCall exprSourceInfo callee args parserInfo
             | DerivedPatterns.AndAlso (condExpr, thenExpr) ->
                 let (parserInfo', condGoal) = translateSubExprGoal exprSourceInfo condExpr parserInfo
                 let (parserInfo'', thenGoal) = translateSubExprGoal exprSourceInfo thenExpr parserInfo'
@@ -135,6 +152,11 @@ module QuotationParser =
                 let (parserInfo', condGoal) = translateSubExprGoal exprSourceInfo condExpr parserInfo
                 let (parserInfo'', elseGoal) = translateSubExprGoal exprSourceInfo elseExpr parserInfo'
                 (parserInfo'', Disj([condGoal; elseGoal]))
+            | Patterns.Let (v, binding, expr) ->
+                // Introduces a fresh variable and unifies it immediately.
+                let (parserInfo', unifyGoalExpr) = translateUnify exprSourceInfo (Expr.Var v) binding v.Type parserInfo
+                let (parserInfo'', exprGoal) = translateSubExprGoal exprSourceInfo expr parserInfo'
+                (parserInfo'', Conj([initGoal exprSourceInfo binding unifyGoalExpr; exprGoal]))
             | True' _ ->
                 (parserInfo, Conj([]))
             | False' _ ->
@@ -153,16 +175,20 @@ module QuotationParser =
                 let (parserInfo', goal) = translateSubExpr sourceInfo expr parserInfo
                 (parserInfo', initGoal sourceInfo expr goal)
 
-    let rec translateArgs sourceInfo expr parserInfo =
+    let rec translateArgs sourceInfo expr parserInfo args =
         let exprSourceInfo = getSourceInfo sourceInfo expr
         match expr with
-            | Patterns.Let (_, Patterns.TupleGet (_, _), subExpr) ->
-                translateArgs exprSourceInfo subExpr parserInfo
+            | Patterns.Let (arg, Patterns.TupleGet (_, _), subExpr) ->
+                translateArgs exprSourceInfo subExpr parserInfo (arg :: args)
             | _ ->
-                translateSubExprGoal exprSourceInfo expr parserInfo
+                let (parserInfo', goal) = translateSubExprGoal exprSourceInfo expr parserInfo
+                (parserInfo', args, goal)
 
     let translateExpr sourceInfo expr (parserInfo : ParserInfo) =
         let exprSourceInfo = getSourceInfo sourceInfo expr
         match expr with
-            | Patterns.Lambda (_, subExpr) -> translateArgs exprSourceInfo subExpr parserInfo
-            | _ -> raise (System.Exception($"Expected lambda at top level of clause"))
+            | Patterns.Lambda (_, subExpr) ->
+                translateArgs exprSourceInfo subExpr parserInfo []
+            | _ ->
+                let (parserInfo', goalExpr) = unsupportedExpression sourceInfo expr parserInfo
+                (parserInfo', [], initGoal sourceInfo expr goalExpr)

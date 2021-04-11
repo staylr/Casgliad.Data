@@ -14,9 +14,11 @@
     
   </PropertyGroup>
   <ItemGroup>
+    <Compile Include="Util.fs" />
     <Compile Include="VarSet.fs" />
     <None Include="Script.fsx" />
     <Compile Include="Goal.fs" />
+    <Compile Include="Quantification.fs" />
     <Compile Include="Simplify.fs" />
     <Compile Include="QuotationParser.fs" />
     <Compile Include="Compile.fs" />

@@ -4,14 +4,9 @@ open Kanren.Data
 open Kanren.Data.Compiler
 
 
+let result = Kanren.Data.Compiler.Compile.compileKanrenModule typeof<Kanren.Data.Main.kanren>
 
-let g = Kanren.Data.Main.rel.Clauses.Head
-printfn $"{g.CustomAttributes.Head}"
-printfn $"{QuotationParser.getSourceInfo  None g.CustomAttributes.Head}"
-//printfn $"{g.ToString (true)}"
-
-let x = Kanren.Data.Compiler.QuotationParser.translateExpr None g { ParserInfo.varset = VarSet.init; ParserInfo.errors = [] }
-printfn $"{(x.ToString ())}"
+printfn $"{result}"
 
 
 

@@ -1,6 +1,7 @@
 namespace Kanren.Data
 
 open System.Runtime.InteropServices
+open System.Runtime.CompilerServices
 open FSharp.Quotations
 
 type Determinism =
@@ -19,28 +20,38 @@ type CanFail =
     | CanFail
     | CannotFail
 
-type IRelation = interface
-    abstract member getName: unit -> string
-end
-
-type 'A Relation =
-    { Name: string; Clauses: (('A -> bool) Expr) list }
-    interface IRelation with
-        member x.getName() = x.Name
-
-[<System.AttributeUsage(System.AttributeTargets.Property, AllowMultiple=false)>]
-type RelationAttribute(name : string) =
+[<System.AttributeUsage(System.AttributeTargets.Class, AllowMultiple=false)>]
+type ModuleAttribute(name : string, [<CallerFilePath; Optional; DefaultParameterValue("")>] path: string,
+                                            [<CallerLineNumber; Optional; DefaultParameterValue(0)>] line: int) =
     inherit System.Attribute()
+    member x.Name = name
+    member x.SourcePath = path
+    member x.SourceLine = line
 
-[<System.AttributeUsage(System.AttributeTargets.Property, AllowMultiple=true)>]
-type ModeAttribute(mode: string, [<Optional; DefaultParameterValue(Determinism.Nondet)>] determinism : Determinism) =
+[<System.AttributeUsage(System.AttributeTargets.Method, AllowMultiple=false)>]
+type RelationAttribute(name : string, [<CallerFilePath; Optional; DefaultParameterValue("")>] path: string,
+                                            [<CallerLineNumber; Optional; DefaultParameterValue(0)>] line: int) =
     inherit System.Attribute()
+    member x.Name = name
+    member x.SourcePath = path
+    member x.SourceLine = line
+
+[<System.AttributeUsage(System.AttributeTargets.Method, AllowMultiple=true)>]
+type ModeAttribute(mode: string, determinism: Determinism,
+                                    [<CallerFilePath; Optional; DefaultParameterValue("")>] path: string,
+                                    [<CallerLineNumber; Optional; DefaultParameterValue(0)>] line: int) =
+    inherit System.Attribute()
+    member x.Mode = mode
+    member x.Determinism = determinism
+    member x.SourcePath = path
+    member x.SourceLine = line
 
 [<AutoOpenAttribute>]
 module Bulitins =
-    let call (relation:'A Relation) (argument: 'A) = raise (System.Exception("function 'call' should only occur in quotations"))
     let exists (f: Var -> bool) = raise (System.Exception("function 'exists' should only occur in quotations"))
-    
+
+    let fact (value: 'A) = true
+
     let numSolutions (d : Determinism) =
         match d with
         | Determinism.Fail -> NoSolutions

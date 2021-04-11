@@ -18,5 +18,4 @@ module Simplify =
         | FSharpCall(_, _, _) -> goal
         | Conj goals -> { goal with goal = Conj (goals |> List.fold flattenConjunction [] |> List.rev |> List.map simplifyGoal) }
         | Disj goals -> { goal with goal = Disj (goals |> List.fold flattenDisjunction [] |> List.rev |> List.map simplifyGoal) }
-        | Exists (v, goal) -> { goal with goal = Exists (v, simplifyGoal goal) }
         | Not negGoal -> { goal with goal = Not (simplifyGoal negGoal) }
