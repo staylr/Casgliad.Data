@@ -3,19 +3,18 @@ namespace Kanren.Data
 open Kanren.Data
 
 module Main =
+
     [<Module("kanren")>]
-    type kanren =
-        [<ReflectedDefinition>]
+    type kanren() =
         [<Relation("rel2")>]
         [<Mode("out, out", Determinism.Nondet)>]
-        static member rel2(x, y) = x = 4 && y = 2
+        member this.rel2 = <@ fun (x, y) -> x = 4 && y = 2 @>
 
-        [<ReflectedDefinition>]
         [<Relation("rel")>]
         [<Mode("out, out", Determinism.Nondet)>]
-        static member rel(x, y, z) =
-                        x = 1
-                        && y = 2
-                        && z = y + 3
-                        && z < 10
-                        && kanren.rel2(x, z)
+        member this.rel = <@  fun(x, y, z) ->
+                            x = 1
+                            && y = 2
+                            && z = y + 3
+                            && z < 10
+                            && call this.rel2 (x, z) @>

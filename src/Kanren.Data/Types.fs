@@ -28,7 +28,7 @@ type ModuleAttribute(name : string, [<CallerFilePath; Optional; DefaultParameter
     member x.SourcePath = path
     member x.SourceLine = line
 
-[<System.AttributeUsage(System.AttributeTargets.Method, AllowMultiple=false)>]
+[<System.AttributeUsage(System.AttributeTargets.Property, AllowMultiple=false)>]
 type RelationAttribute(name : string, [<CallerFilePath; Optional; DefaultParameterValue("")>] path: string,
                                             [<CallerLineNumber; Optional; DefaultParameterValue(0)>] line: int) =
     inherit System.Attribute()
@@ -36,7 +36,7 @@ type RelationAttribute(name : string, [<CallerFilePath; Optional; DefaultParamet
     member x.SourcePath = path
     member x.SourceLine = line
 
-[<System.AttributeUsage(System.AttributeTargets.Method, AllowMultiple=true)>]
+[<System.AttributeUsage(System.AttributeTargets.Property, AllowMultiple=true)>]
 type ModeAttribute(mode: string, determinism: Determinism,
                                     [<CallerFilePath; Optional; DefaultParameterValue("")>] path: string,
                                     [<CallerLineNumber; Optional; DefaultParameterValue(0)>] line: int) =
@@ -49,6 +49,7 @@ type ModeAttribute(mode: string, determinism: Determinism,
 [<AutoOpenAttribute>]
 module Bulitins =
     let exists (f: Var -> bool) = raise (System.Exception("function 'exists' should only occur in quotations"))
+    let call (r: ('A -> bool) Expr) (args: 'A) : bool =  raise (System.Exception("function 'call' should only occur in quotations"))
 
     let fact (value: 'A) = true
 

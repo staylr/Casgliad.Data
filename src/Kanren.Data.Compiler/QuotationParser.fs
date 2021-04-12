@@ -123,13 +123,12 @@ module QuotationParser =
             match expr with
             | DerivedPatterns.SpecificCall (<@@ exists @@>) (_, _, [ExprShape.ShapeLambda (v, expr)] ) ->
                 translateSubExpr exprSourceInfo expr parserInfo
+            | DerivedPatterns.SpecificCall (<@@ call @@>) (_, _, [Patterns.PropertyGet(_, callee, []); Patterns.NewTuple(args)]) ->
+                translateCall exprSourceInfo callee args parserInfo
             | DerivedPatterns.SpecificCall (<@@ (=) @@>) (_, [unifyType], [lhs; rhs] ) ->
                 translateUnify exprSourceInfo lhs rhs unifyType parserInfo
             | Patterns.Call(None, callee, args) ->
-                if (isNull (callee.GetCustomAttribute typeof<RelationAttribute>)) then
-                    translateUnify exprSourceInfo (Expr.Value true) expr typeof<bool> parserInfo
-                else
-                    translateCall exprSourceInfo callee args parserInfo
+                translateUnify exprSourceInfo (Expr.Value true) expr typeof<bool> parserInfo
             | DerivedPatterns.AndAlso (condExpr, thenExpr) ->
                 let (parserInfo', condGoal) = translateSubExprGoal exprSourceInfo condExpr parserInfo
                 let (parserInfo'', thenGoal) = translateSubExprGoal exprSourceInfo thenExpr parserInfo'

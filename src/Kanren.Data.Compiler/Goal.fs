@@ -38,7 +38,7 @@ module Goal =
 
     type GoalExpr =
         | Unify of lhs : Var * rhs : UnifyRhs
-        | Call of func : System.Reflection.MethodInfo * args : (Var list)
+        | Call of func : System.Reflection.PropertyInfo * args : (Var list)
         | FSharpCall of func : System.Reflection.MethodInfo * returnValue : Var * args : (Var list)
         | Conj of Goal list
         | Disj of Goal list

@@ -24,28 +24,26 @@ module Compile =
             | Error modeErrors ->
                 (moduleInfo, List.concat (parserInfo''.errors :: modeErrors))
 
-    let compileRelationMethod (moduleInfo, errors) (method: MethodInfo) =
-             let relationAttribute = method.GetCustomAttribute(typeof<RelationAttribute>) :?> RelationAttribute
-             let sourceInfo = relationSourceInfo relationAttribute
-             let modeAttributes = method.GetCustomAttributes(typeof<ModeAttribute>) |> Seq.map (fun x -> x :?> ModeAttribute) |> Seq.toList
-             let expr = Expr.TryGetReflectedDefinition method
-             match expr with
-             | Some relationExpr ->
-                 do
-                    System.Console.WriteLine($"{relationExpr}")
-                 let (moduleInfo', errors') = parseRelation relationAttribute modeAttributes relationExpr moduleInfo
-                 (moduleInfo', errors' :: errors)
-             | None ->
-                 let error = { Text = "missing ReflectedDefinitionAttribute"; Location = Some sourceInfo; Context = ErrorContext.String "RelationAttribute"; Severity = ErrorSeverity.Error }
-                 (moduleInfo, [error] :: errors)
+    let compileRelationMethod (instance: obj) (moduleInfo, errors) (property: PropertyInfo) =
+            let relationAttribute = property.GetCustomAttribute(typeof<RelationAttribute>) :?> RelationAttribute
+            let sourceInfo = relationSourceInfo relationAttribute
+            let modeAttributes = property.GetCustomAttributes(typeof<ModeAttribute>) |> Seq.map (fun x -> x :?> ModeAttribute) |> Seq.toList
+            let expr = property.GetValue(instance) :?> Expr;
+            do
+                System.Console.WriteLine($"{expr}")
+
+            let (moduleInfo', errors') = parseRelation relationAttribute modeAttributes expr moduleInfo
+            (moduleInfo', errors' :: errors)
 
     let compileKanrenModule (moduleType : System.Type) =
         let moduleInfo = ModuleInfo.init
-        
-        let bindingFlags = BindingFlags.Public ||| BindingFlags.NonPublic ||| BindingFlags.Static
 
-        let methods = moduleType.GetMethods(bindingFlags) |> Array.toList
-        let relationMethods = methods |> List.filter (fun (p : MethodInfo) -> notNull (p.GetCustomAttribute typeof<RelationAttribute>))
+        let instance = System.Activator.CreateInstance(moduleType)
+        
+        let bindingFlags = BindingFlags.Public ||| BindingFlags.NonPublic ||| BindingFlags.Instance
+
+        let properties = moduleType.GetProperties(bindingFlags) |> Array.toList
+        let relationProperties = properties |> List.filter (fun (p : PropertyInfo) -> notNull (p.GetCustomAttribute typeof<RelationAttribute>))
      
-        let result = List.fold compileRelationMethod (moduleInfo, []) relationMethods
+        let result = List.fold (compileRelationMethod instance) (moduleInfo, []) relationProperties
         (result, moduleType)
