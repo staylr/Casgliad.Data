@@ -5,15 +5,10 @@ open FSharp.Quotations
 
 [<AutoOpen>]
 module Goal =
-    type Inst =
-        | Ground
-        | Free
-
-    type Mode = Inst * Inst
 
     type SetOfVar = Var Set
 
-    type Instmap = Map<Var, Inst>
+    type Instmap = Map<Var, Kanren.Data.Inst>
 
     type InstmapDelta = Instmap
 

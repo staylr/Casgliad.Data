@@ -8,43 +8,29 @@ module ModuleInfoModule =
 
     type ProcInfo = { ProcId: int; SourceInfo: SourceInfo; Modes: Mode list; Determinism: Determinism; Args: Var list; Goal: Goal; VarSet: VarSet }
 
-    let parseMode (sourceInfo: SourceInfo) (mode: string) =
-        match mode with
-            | "in" ->
-                Result.Ok (Inst.Ground, Inst.Ground)
-            | "out" ->
-                Result.Ok (Inst.Free, Inst.Ground)
-            | _ ->
-                Result.Error (Error.invalidModeError sourceInfo mode)
+    let parseModes (sourceInfo: SourceInfo) (args: Var list) (modes: RelationMode) =
+            if (args.Length = modes.Modes.Length) then
+                Ok modes
+            else
+                Error [(Error.invalidModeListLengthError sourceInfo modes.Modes.Length args.Length)]
 
-    let parseModes (sourceInfo: SourceInfo) (args: Var list) (modeAttr: ModeAttribute) =
-        if (modeAttr.Mode = "") then
-            seq { for i in [1 .. List.length args] -> (Inst.Free, Inst.Ground) }
-                |> List.ofSeq
-                |> Ok
-        else
-            let splitModes = modeAttr.Mode.Split(',', System.StringSplitOptions.RemoveEmptyEntries ||| System.StringSplitOptions.TrimEntries)
-                                |> List.ofArray
-            let results = List.map (parseMode sourceInfo) splitModes
-            combineResults results
+    let relationSourceInfo (relAttr: RelationAttribute) = { File = relAttr.SourcePath; StartLine = relAttr.SourceLine; EndLine = relAttr.SourceLine; StartCol = 0; EndCol = 0 }
 
-    let initProc (args: Var list) (goal: Goal) (varset: VarSet) (procId: int) (modeAttr: ModeAttribute) =
-        let sourceInfo = { File = modeAttr.SourcePath; StartLine = modeAttr.SourceLine; EndLine = modeAttr.SourceLine; StartCol = 0; EndCol = 0 }
-        match (parseModes sourceInfo args modeAttr) with
+    let initProc (relAttr: RelationAttribute) (args: Var list) (goal: Goal) (varset: VarSet) (procId: int) (mode: RelationMode) =
+        let sourceInfo = relationSourceInfo relAttr
+        match (parseModes sourceInfo args mode) with
             | Ok modes ->
-                { ProcId = procId; SourceInfo = sourceInfo; Modes = modes; Determinism = modeAttr.Determinism; Args = args; Goal = goal; VarSet = varset }
+                { ProcId = procId; SourceInfo = sourceInfo; Modes = mode.Modes; Determinism = mode.Determinism; Args = args; Goal = goal; VarSet = varset }
             | Error _ ->
                 raise (System.Exception("invalid modes"))
 
     type RelationInfo = { Name: string; SourceInfo: SourceInfo; Procedures: Map<int, ProcInfo>; }
 
-    let relationSourceInfo (relAttr: RelationAttribute) = { File = relAttr.SourcePath; StartLine = relAttr.SourceLine; EndLine = relAttr.SourceLine; StartCol = 0; EndCol = 0 }
-
-    let initRelation (relAttr: RelationAttribute) (modeAttrs: ModeAttribute list) (args: Var list) (goal: Goal) (varset: VarSet) =
+    let initRelation (relAttr: RelationAttribute) (relation: kanrenBase) (args: Var list) (goal: Goal) (varset: VarSet) =
         let sourceInfo = relationSourceInfo relAttr
-        let procs = List.mapi (initProc args goal varset) modeAttrs
+        let procs = List.mapi (initProc relAttr args goal varset) relation.Modes
         let procMap = List.fold (fun map (proc : ProcInfo) -> Map.add proc.ProcId proc map) Map.empty procs
-        { Name = relAttr.Name; SourceInfo = sourceInfo; Procedures = procMap }
+        { Name = relation.Name; SourceInfo = sourceInfo; Procedures = procMap }
 
     type ModuleInfo = { Relations: Map<string, RelationInfo> }
         with

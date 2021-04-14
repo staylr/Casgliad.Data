@@ -4,7 +4,7 @@ open Kanren.Data
 open Kanren.Data.Compiler
 
 
-let result = Kanren.Data.Compiler.Compile.compileKanrenModule typeof<Kanren.Data.Main.kanren>
+let result = Kanren.Data.Compiler.Compile.compileKanrenModule typeof<Kanren.Data.Main.kanrenTest>
 
 printfn $"{result}"
 

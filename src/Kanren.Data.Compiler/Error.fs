@@ -23,4 +23,5 @@ module Error =
 
     let unsupportedExpressionError sourceInfo expr = { Error.Location = sourceInfo; Text = "Unsupported expression"; Context = ErrorContext.Expr expr; Severity = ErrorSeverity.Error }
     let unsupportedUnifyRhsError sourceInfo expr = { Error.Location = sourceInfo; Text = "Unsupported unify RHS"; Context = ErrorContext.Expr expr; Severity = ErrorSeverity.Error }
-    let invalidModeError sourceInfo mode = { Text = $"invalid mode {mode}"; Context = String "mode attribute"; Location = Some sourceInfo; Severity = ErrorSeverity.Error; }
+    let invalidModeError sourceInfo mode = { Text = $"invalid mode {mode}"; Context = String "mode declarationattribute"; Location = Some sourceInfo; Severity = ErrorSeverity.Error; }
+    let invalidModeListLengthError sourceInfo actual expected = { Text = $"incorrect mode list length {actual}, expected {expected}"; Context = String "mode declaration"; Location = Some sourceInfo; Severity = ErrorSeverity.Error; }

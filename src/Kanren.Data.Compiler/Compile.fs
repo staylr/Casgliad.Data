@@ -6,20 +6,20 @@ open Kanren.Data
 
 module Compile =
 
-    let internal parseRelation (rel: RelationAttribute) (modes: ModeAttribute list) (expr : Expr) (moduleInfo: ModuleInfo) =
+    let internal parseRelation (rel: RelationAttribute) (relation: kanrenBase) (moduleInfo: ModuleInfo) =
         let varset = VarSet.init
-        let varset' = QuotationParser.getVars varset expr
+        let varset' = QuotationParser.getVars varset relation.Body
         let parserInfo = { varset = varset'; errors = [] }
-        let (parserInfo'', args, goal) = QuotationParser.translateExpr None expr parserInfo
+        let (parserInfo'', args, goal) = QuotationParser.translateExpr None relation.Body parserInfo
         let goal' = Simplify.simplifyGoal goal
         if (Error.maxSeverityOfList parserInfo''.errors = ErrorSeverity.Error) then
             (moduleInfo, parserInfo''.errors)
         else
             let sourceInfo = relationSourceInfo rel
-            let modeResult = List.map (parseModes sourceInfo args) modes
+            let modeResult = List.map (parseModes sourceInfo args) relation.Modes
             match combineResults modeResult with
             | Ok _ ->
-                let relation = initRelation rel modes args goal' parserInfo''.varset
+                let relation = initRelation rel relation args goal' parserInfo''.varset
                 (moduleInfo.addRelation(relation), parserInfo''.errors)
             | Error modeErrors ->
                 (moduleInfo, List.concat (parserInfo''.errors :: modeErrors))
@@ -28,11 +28,11 @@ module Compile =
             let relationAttribute = property.GetCustomAttribute(typeof<RelationAttribute>) :?> RelationAttribute
             let sourceInfo = relationSourceInfo relationAttribute
             let modeAttributes = property.GetCustomAttributes(typeof<ModeAttribute>) |> Seq.map (fun x -> x :?> ModeAttribute) |> Seq.toList
-            let expr = property.GetValue(instance) :?> Expr;
+            let relation = property.GetValue(instance) :?> kanrenBase;
             do
-                System.Console.WriteLine($"{expr}")
+                System.Console.WriteLine($"{relation.Body}")
 
-            let (moduleInfo', errors') = parseRelation relationAttribute modeAttributes expr moduleInfo
+            let (moduleInfo', errors') = parseRelation relationAttribute relation moduleInfo
             (moduleInfo', errors' :: errors)
 
     let compileKanrenModule (moduleType : System.Type) =
