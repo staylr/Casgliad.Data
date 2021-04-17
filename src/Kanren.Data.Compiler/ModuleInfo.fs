@@ -26,7 +26,7 @@ module ModuleInfoModule =
 
     type RelationInfo = { Name: string; SourceInfo: SourceInfo; Procedures: Map<int, ProcInfo>; }
 
-    let initRelation (relAttr: RelationAttribute) (relation: kanrenBase) (args: Var list) (goal: Goal) (varset: VarSet) =
+    let initRelation (relAttr: RelationAttribute) (relation: relationBase) (args: Var list) (goal: Goal) (varset: VarSet) =
         let sourceInfo = relationSourceInfo relAttr
         let procs = List.mapi (initProc relAttr args goal varset) relation.Modes
         let procMap = List.fold (fun map (proc : ProcInfo) -> Map.add proc.ProcId proc map) Map.empty procs

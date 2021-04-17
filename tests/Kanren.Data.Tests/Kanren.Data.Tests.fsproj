@@ -7,6 +7,7 @@
     </PropertyGroup>
     <ItemGroup>
         <ProjectReference Include="../../src/Kanren.Data/Kanren.Data.fsproj" />
+        <ProjectReference Include="..\..\src\Kanren.Data.Compiler\Kanren.Data.Compiler.fsproj" />
     </ItemGroup>
         <ItemGroup>
         <Compile Include="AssemblyInfo.fs" />

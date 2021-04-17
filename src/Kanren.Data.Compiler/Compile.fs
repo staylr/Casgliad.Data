@@ -6,11 +6,12 @@ open Kanren.Data
 
 module Compile =
 
-    let internal parseRelation (rel: RelationAttribute) (relation: kanrenBase) (moduleInfo: ModuleInfo) =
+    let internal parseRelation (rel: RelationAttribute) (relation: relationBase) (moduleInfo: ModuleInfo) =
         let varset = VarSet.init
         let varset' = QuotationParser.getVars varset relation.Body
-        let parserInfo = { varset = varset'; errors = [] }
-        let (parserInfo'', args, goal) = QuotationParser.translateExpr None relation.Body parserInfo
+        let sourceInfo = { SourceInfo.File = relation.Path; StartLine = relation.Line; EndLine = relation.Line; StartCol = 0; EndCol = 0 }
+        let parserInfo = ParserInfo.init varset' sourceInfo
+        let (parserInfo'', args, goal) = QuotationParser.translateExpr relation.Body parserInfo
         let goal' = Simplify.simplifyGoal goal
         if (Error.maxSeverityOfList parserInfo''.errors = ErrorSeverity.Error) then
             (moduleInfo, parserInfo''.errors)
@@ -26,9 +27,7 @@ module Compile =
 
     let compileRelationMethod (instance: obj) (moduleInfo, errors) (property: PropertyInfo) =
             let relationAttribute = property.GetCustomAttribute(typeof<RelationAttribute>) :?> RelationAttribute
-            let sourceInfo = relationSourceInfo relationAttribute
-            let modeAttributes = property.GetCustomAttributes(typeof<ModeAttribute>) |> Seq.map (fun x -> x :?> ModeAttribute) |> Seq.toList
-            let relation = property.GetValue(instance) :?> kanrenBase;
+            let relation = property.GetValue(instance) :?> relationBase;
             do
                 System.Console.WriteLine($"{relation.Body}")
 

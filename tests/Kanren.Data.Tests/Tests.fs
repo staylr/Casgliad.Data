@@ -1,26 +1,32 @@
 namespace Kanren.Data.Tests
 
+open FSharp.Quotations;
 open System
 open Expecto
 open Kanren.Data
-(*
-module SayTests =
+open Kanren.Data.Compiler
+
+module QuotationTests =
+    let newParserInfo (expr: Expr) =
+        let varset = QuotationParser.getVars VarSet.init expr
+        let testSourceInfo =
+                match (QuotationParser.getSourceInfo expr) with
+                | Some sourceInfo -> sourceInfo
+                | None -> { SourceInfo.File = "..."; StartLine = 0; EndLine= 0; StartCol = 0; EndCol = 0 }
+        ParserInfo.init varset testSourceInfo
+
     [<Tests>]
     let tests =
-        testList "samples" [
-            testCase "Add two integers" <| fun _ ->
-                let subject = Say.add 1 2
-                Expect.equal subject 3 "Addition works"
-            testCase "Say nothing" <| fun _ ->
-                let subject = Say.nothing ()
-                Expect.equal subject () "Not an absolute unit"
-            testCase "Say hello all" <| fun _ ->
-                let person = {
-                    Name = "Jean-Luc Picard"
-                    FavoriteNumber = 4
-                    FavoriteColor = Red
-                    DateOfBirth = DateTimeOffset.Parse("July 13, 2305")
-                }
-                let subject = Say.helloPerson person
-                Expect.equal subject "Hello Jean-Luc Picard. You were born on 2305/07/13 and your favorite number is 4. You like Red." "You didn't say hello" ]
-                *)
+        testList "QuotationParser" [
+            testCase "Simple" <| fun _ ->
+                let expr = <@ fun (x, y) -> x = 4 && y = 2 @>
+                let (parserInfo, args, goal) = QuotationParser.translateExpr expr (newParserInfo expr)
+                Expect.equal (List.length args) 2 "Found args"
+                match goal.goal with
+                | Conj([{ goal = Unify(var1, Constant(arg1, _)) }; { goal = Unify(var2, Constant(arg2, _)) }]) ->
+                    Expect.equal var1.Name "x" "x"
+                    Expect.equal var2.Name "y" "y"
+                    Expect.equal arg1 (upcast 4)  "const 1"
+                    Expect.equal arg1 (upcast 2) "const 1"
+                | _ -> raise(Exception($"invalid goal {goal.goal}"))
+        ]
