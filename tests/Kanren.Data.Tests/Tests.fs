@@ -20,7 +20,7 @@ module QuotationTests =
         testList "QuotationParser" [
             testCase "Simple" <| fun _ ->
                 let expr = <@ fun (x, y) -> x = 4 && y = 2 @>
-                let (parserInfo, args, goal) = QuotationParser.translateExpr expr (newParserInfo expr)
+                let ((args, goal), _) = QuotationParser.run (newParserInfo expr) (QuotationParser.translateExpr expr)
                 Expect.equal (List.length args) 2 "Found args"
                 match goal.goal with
                 | Conj([{ goal = Unify(var1, Constant(arg1, _)) }; { goal = Unify(var2, Constant(arg2, _)) }]) ->

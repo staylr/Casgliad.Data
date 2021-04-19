@@ -29,7 +29,7 @@ module Main =
                                     && z < 10
                                     && kanren.call(this.rel2, (x, z))
                                     && (match u with
-                                        | Case1(x1, y1) when x1 = 1 -> x1 * y1 = 2
+                                        | Case1(x1, y1) -> x1 * y1 = 2
                                         | Case2(a1, b1) -> a1 * b1 = 3
                                         | _ -> false)
                             )
