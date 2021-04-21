@@ -11,11 +11,12 @@ type Inst =
 type Mode = Inst * Inst
 
 type Determinism =
-    | Fail = 0
-    | Det = 1
-    | Semidet = 2
-    | Multi = 3
-    | Nondet = 4
+    | Erroneous = 0
+    | Fail = 1
+    | Det = 2
+    | Semidet = 3
+    | Multi = 4
+    | Nondet = 5
     
 type NumSolutions =
     | NoSolutions
@@ -25,7 +26,6 @@ type NumSolutions =
 type CanFail =
     | CanFail
     | CannotFail
-
 
 type RelationMode = { Modes: Mode list; Determinism: Determinism }
 
@@ -43,18 +43,27 @@ type 'A relation(name: string, modes: RelationMode list, [<ReflectedDefinitionAt
     inherit relationBase(name, modes, body, path, line)
     member this.Body = body
 
-[<System.AttributeUsage(System.AttributeTargets.Class, AllowMultiple=false)>]
-type ModuleAttribute(name: string, [<CallerFilePath; Optional; DefaultParameterValue("")>] path: string,
-                                            [<CallerLineNumber; Optional; DefaultParameterValue(0)>] line: int) =
-    inherit System.Attribute()
-    member x.Name = name
-    member x.SourcePath = path
-    member x.SourceLine = line
+type kanren() =
+    static member exists(f: 'A -> bool, [<CallerFilePath; Optional; DefaultParameterValue("")>] path: string,
+                                                [<CallerLineNumber; Optional; DefaultParameterValue(0)>] line: int) =
+                        raise (System.Exception("function 'exists' should only occur in quotations"))
+    static member call (r: 'A relation, args: 'A, [<CallerFilePath; Optional; DefaultParameterValue("")>] path: string,
+                                                [<CallerLineNumber; Optional; DefaultParameterValue(0)>] line: int)  : bool =
+                        raise (System.Exception("function 'call' should only occur in quotations"))
+
 
 [<System.AttributeUsage(System.AttributeTargets.Property, AllowMultiple=false)>]
 type RelationAttribute([<CallerFilePath; Optional; DefaultParameterValue("")>] path: string,
                                             [<CallerLineNumber; Optional; DefaultParameterValue(0)>] line: int) =
     inherit System.Attribute()
+    member x.SourcePath = path
+    member x.SourceLine = line
+
+[<System.AttributeUsage(System.AttributeTargets.Class, AllowMultiple=false)>]
+type ModuleAttribute(name: string, [<CallerFilePath; Optional; DefaultParameterValue("")>] path: string,
+                                            [<CallerLineNumber; Optional; DefaultParameterValue(0)>] line: int) =
+    inherit System.Attribute()
+    member x.Name = name
     member x.SourcePath = path
     member x.SourceLine = line
 
@@ -66,21 +75,7 @@ module Mode =
     let Out = Free => Ground
 
     let mode modes det = { Modes = modes; Determinism = det; }
-
-type kanren() =
-    static member exists(f: 'A -> bool, [<CallerFilePath; Optional; DefaultParameterValue("")>] path: string,
-                                               [<CallerLineNumber; Optional; DefaultParameterValue(0)>] line: int) =
-                        raise (System.Exception("function 'exists' should only occur in quotations"))
-    static member call (r: 'A relation, args: 'A, [<CallerFilePath; Optional; DefaultParameterValue("")>] path: string,
-                                               [<CallerLineNumber; Optional; DefaultParameterValue(0)>] line: int)  : bool =
-                        raise (System.Exception("function 'call' should only occur in quotations"))
-
-[<AutoOpen>]
-module Bulitins =
-
-    let exists (f: 'A -> bool) = raise (System.Exception("function 'exists' should only occur in quotations"))
-    let call (r: 'A relation) (args: 'A) : bool =  raise (System.Exception("function 'call' should only occur in quotations"))
-
+    
     let numSolutions (d : Determinism) =
         match d with
         | Determinism.Fail -> NoSolutions

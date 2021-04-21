@@ -8,7 +8,9 @@ module Util =
     let notNull x = match x with | null -> false | _ -> true
 
     let flip f x y = f y x
-
+    
+    let swap (x, y) = (y, x)
+    
     let flipRes f x y =
         let (r, s) = f y x
         (s, r)

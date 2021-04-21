@@ -22,5 +22,20 @@ module Simplify =
             { goal with goal = Disj (List.fold flattenDisjunction [] goals |> List.rev |> List.map simplifyGoal) }
         | Not negGoal ->
             { goal with goal = Not (simplifyGoal negGoal) }
+        | IfThenElse(condGoal, thenGoal, elseGoal, existVars) ->
+            let condGoal' = simplifyGoal condGoal
+            let thenGoal' = simplifyGoal thenGoal
+            let elseGoal' = simplifyGoal elseGoal
+            match elseGoal'.goal with
+            | Fail _ ->
+                { goal with goal = Conj([condGoal'; thenGoal']) }
+            | _ ->
+                match condGoal'.goal with
+                | Fail _ ->
+                    // TODO: fix determinism of Not goal.
+                    { goal with goal = Conj([{ goal = Not(condGoal'); info = condGoal'.info}; elseGoal'])}
+                | _ ->
+                    { goal with goal = IfThenElse(condGoal', thenGoal', elseGoal', existVars)}
+
         | Switch (var, canFail, cases) ->
             { goal with goal =  Switch (var, canFail, List.map (fun case -> { case with caseGoal = simplifyGoal case.caseGoal }) cases) }

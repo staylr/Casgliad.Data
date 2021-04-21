@@ -22,16 +22,17 @@ module Main =
 
         [<Relation>]
         member this.rel = relation("rel", [mode [Out; Out; Out; Out] Determinism.Nondet],
-                                fun((a, ( e, ({ Modes = m; Determinism = d }: RelationMode)), c), x, y, z, u) ->
+                                //fun((a, ( e, ({ Modes = m; Determinism = d }: RelationMode)), c), x, y, z, u) ->
+                                fun(x, y, z, u) ->
                                     x = 1
                                     && y = 2
                                     && z = y + 3
                                     && z < 10
                                     && kanren.call(this.rel2, (x, z))
                                     && (match u with
-                                        | Case1(x1, y1) -> x1 * y1 = 2
-                                        | Case2(a1, b1) -> a1 * b1 = 3
-                                        | _ -> false)
+                                        | Case1(_, _) -> true
+                                        | Case2(_, _) -> false
+                                        | Case3(_) -> false)
                             )
 
 

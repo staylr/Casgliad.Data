@@ -81,6 +81,10 @@ module QuotationParser =
                                             let (parserInfo', var) = parserInfo.newVar(varType)
                                             (var, parserInfo'))
 
+    let newVars varTypes = ParserState(fun (parserInfo: ParserInfo) ->
+                                            let (vars, parserInfo') =  List.mapFold (fun (p: ParserInfo) (t: System.Type) -> swap (p.newVar(t))) parserInfo varTypes
+                                            (vars, parserInfo'))
+
     let newError error = ParserState(fun (parserInfo: ParserInfo) ->
                                                let parserInfo' = parserInfo.newError(error)
                                                ((), parserInfo'))
@@ -113,6 +117,7 @@ module QuotationParser =
         | [goal] -> goal.goal
         | _ -> Conj(goals)
 
+
     let rec translateUnifyRhs rhs =
         parse {
             let! sourceInfo = currentSourceInfo
@@ -120,7 +125,7 @@ module QuotationParser =
             | ExprShape.ShapeVar v ->
                 return ([], Some (UnifyRhs.Var v))
             | Patterns.Value(value, constType) ->
-                return ([], Some (UnifyRhs.Constant(value, constType)))
+                return ([], Some (UnifyRhs.Constructor([], Constant(value, constType))))
             | Patterns.NewTuple(args) ->
                 let! (argVars, extraGoals) = translateCallArgs false args
                 return (extraGoals, Some (UnifyRhs.Constructor(argVars, Tuple)))
@@ -212,17 +217,40 @@ module QuotationParser =
                 return Disj([])
             }
 
-    let rec (|Switch|_|) expr : Option<(FSharp.Reflection.UnionCaseInfo * Expr) list * bool> =
+    // Some dumpster diving to convert if-then-elses corresponding to source-level pattern matches
+    // back into a list of cases.
+    let rec (|UnionMatch'|_|) seenCases exprToTest expr : Option<(FSharp.Reflection.UnionCaseInfo * Expr) list * bool> =
         match expr with
-            | Patterns.IfThenElse (Patterns.UnionCaseTest (exprToTest, case), thenExpr, elseExpr) ->
+            | Patterns.IfThenElse (Patterns.UnionCaseTest (caseExprToTest, case), thenExpr, elseExpr) when exprToTest = caseExprToTest ->
                 match elseExpr with
-                | Switch (cases, canFail) ->
+                | UnionMatch' (case :: seenCases) exprToTest (cases, canFail) ->
                     Some (((case, thenExpr) :: cases), canFail)
                 | False' _ ->
-                    Some ([], true)
+                    let allCases = FSharp.Reflection.FSharpType.GetUnionCases(case.DeclaringType)
+                    let missingCases = Array.filter (fun c -> not (List.contains c seenCases)) allCases
+                    let canFail = missingCases.Length > 1
+                    Some ([(case, thenExpr)], canFail)
+                | _ ->
+                    let allCases = FSharp.Reflection.FSharpType.GetUnionCases(case.DeclaringType)
+                    let missingCases = Array.filter (fun c -> not (List.contains c (case :: seenCases))) allCases
+                    if (Array.length missingCases = 1) then
+                        Some ([(case, thenExpr); (missingCases.[0], elseExpr)], false)
+                    else
+                        None
+            | _ ->
+                None
+
+    let (|UnionMatch|_|) expr : Option<Expr * (FSharp.Reflection.UnionCaseInfo * Expr) list * bool> =
+        match expr with
+            | Patterns.IfThenElse (Patterns.UnionCaseTest (exprToTest, _), _, _) ->
+                do System.Console.WriteLine($"found case {exprToTest}")
+                match expr with
+                | UnionMatch' [] exprToTest (cases, canFail) ->
+                    Some (exprToTest, cases, canFail)
                 | _ ->
                     None
-            | _ -> None
+            | _ ->
+                None
 
     let rec translateSubExpr expr =
             parse {
@@ -240,6 +268,9 @@ module QuotationParser =
                     return! translateUnify lhs rhs unifyType
                 | Patterns.Call(None, callee, args) ->
                     return! translateUnify (Expr.Value true) expr typeof<bool>
+                | UnionMatch (ExprShape.ShapeVar v, cases, canFail) ->
+                    let! caseGoals = translateMatchExpr v cases
+                    return Disj(caseGoals)
                 | DerivedPatterns.AndAlso (condExpr, thenExpr) ->
                     let! condGoal = translateSubExprGoal condExpr
                     let! thenGoal = translateSubExprGoal thenExpr
@@ -259,7 +290,7 @@ module QuotationParser =
                     return Disj([])
                 | ExprShape.ShapeVar v ->
                     if (v.Type = typeof<bool>) then
-                        return Unify(v, Constant(true, typeof<bool>))
+                        return Unify(v, Constructor([], Constant(true, typeof<bool>)))
                     else
                         return! unsupportedExpression expr
                 | ExprShape.ShapeLambda (v, subExpr) ->
@@ -274,6 +305,23 @@ module QuotationParser =
                     let! goal = translateSubExpr expr
                     return initGoal sourceInfo goal
                 }
+    and
+        translateMatchExpr var cases =
+            parse {
+                match cases with
+                | [] ->
+                    return []
+                | (case, expr) :: cases' ->
+                    let! sourceInfo = currentSourceInfo
+                    let fieldTypes = case.GetFields() |> Array.map (fun f -> f.PropertyType) 
+                    let! fieldVars = newVars (List.ofArray fieldTypes)  
+                    let unifyGoal = Unify(var, Constructor(fieldVars, UnionCase(case)))
+                    let! goal = translateSubExprGoal expr
+                    let disjunct = initGoal sourceInfo (Conj([initGoal sourceInfo unifyGoal; goal]))
+
+                    let! otherGoals = translateMatchExpr var cases'
+                    return disjunct :: otherGoals
+            }
 
     let rec translateArgs expr args =
         parse {

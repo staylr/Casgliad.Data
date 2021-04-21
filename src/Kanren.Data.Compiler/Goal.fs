@@ -28,13 +28,13 @@ module Goal =
             }
 
     type Constructor =
+        | Constant of value: obj * constType: System.Type
         | Tuple
         | Record of System.Type
         | UnionCase of FSharp.Reflection.UnionCaseInfo
 
     type UnifyRhs =
         | Var of Var
-        | Constant of value: obj * constType: System.Type
         | Constructor of args: Var list * constructor: Constructor
 
     type GoalExpr =
@@ -44,16 +44,30 @@ module Goal =
         | Conj of Goal list
         | Disj of Goal list
         | Switch of var: Var * canFail: bool * cases: Case list
+        | IfThenElse of condGoal: Goal * thenGoal: Goal * elseGoal: Goal * condExistVars: SetOfVar
         | Not of Goal
     and
         Goal = { goal : GoalExpr; info : GoalInfo }
     and
-        Case = { constructor: FSharp.Reflection.UnionCaseInfo; caseGoal: Goal }
+        Case = { constructor: Constructor; otherConstructors: Constructor list; caseGoal: Goal }
+
+    let (|Fail|_|) goalExpr =
+        match goalExpr with
+        | Disj([]) ->
+        Some ()
+        | _ ->
+            None
+    
+    let (|Succeed|_|) goalExpr =
+        match goalExpr with
+        | Conj([]) ->
+        Some ()
+        | _ ->
+            None
 
     let unifyRhsVars rhs  (vars : Var Set) =
         match rhs with
             | Var(var) -> vars.Add(var)
-            | Constant(_, _) -> vars
             | Constructor(args, _) -> List.fold (flip Set.add) vars args
 
     let rec goalExprVars goal (vars : Var Set) =
@@ -70,6 +84,9 @@ module Goal =
             | Switch(var, _, cases) ->
                 let vars' = Set.add var vars
                 List.fold (fun vars'' case -> goalVars case.caseGoal vars'') vars' cases
+            | IfThenElse(condGoal, thenGoal, elseGoal, existVars) ->
+                let vars' = Set.fold (flip Set.add) vars existVars
+                List.fold (flip goalVars) vars [condGoal; thenGoal; elseGoal]
             | Not(negGoal) ->
                 goalVars negGoal vars
     and
