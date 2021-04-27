@@ -1,9 +1,9 @@
 namespace Kanren.Data.Compiler
 
 open Kanren.Data
-open System.Reflection
-
+open FSharp.Reflection
 open FSharp.Quotations
+open FSharp.Collections
 
 type ParserInfo = { varset: VarSet; errors: Error list; sourceInfo: SourceInfo }
     with
@@ -19,22 +19,98 @@ type ParserInfo = { varset: VarSet; errors: Error list; sourceInfo: SourceInfo }
 module QuotationParser =
 
     type ParserState<'s, 'a> = ParserState of ('s -> ('a * 's))
-    let inline run state x = let (ParserState(f)) = x in f state
+ 
+    type StateFunc<'State, 'T> = 'State -> 'T * 'State
 
-    type ParserStateBuilder() =
-        member this.Zero () = ParserState(fun s -> (), s)
-        member this.Return x = ParserState(fun s -> x, s)
-        member inline this.ReturnFrom (x: ParserState<'s, 'a>) = x
-        member this.Bind (x, f) : ParserState<'s, 'b> =
-            ParserState(fun state ->
-                let (result: 'a), state = run state x
-                run state (f result))
-        member this.Combine (x1: ParserState<'s, 'a>, x2: ParserState<'s, 'b>) =
-            ParserState(fun state ->
-                let result, state = run state x1
-                run state x2)
+    type ParserStateFunc<'T> = StateFunc<ParserInfo, 'T>
 
-    let parse = new ParserStateBuilder()
+    let inline run (stateFunc : StateFunc<'State, 'T>) initialState =
+        stateFunc initialState
+   
+    type StateBuilder() =
+       // 'T -> M<'T>
+       member inline __.Return value
+           : StateFunc<'State, 'T> =
+           fun state ->
+           value, state
+
+       // M<'T> -> M<'T>
+       member inline __.ReturnFrom func
+           : StateFunc<'State, 'T> =
+           func
+
+       // unit -> M<'T>
+       member inline this.Zero ()
+           : StateFunc<'State, unit> =
+           this.Return ()
+
+       // M<'T> * ('T -> M<'U>) -> M<'U>
+       member inline __.Bind (computation : StateFunc<_, 'T>, binder : 'T -> StateFunc<_,_>)
+           : StateFunc<'State, 'U> =
+           fun state ->
+               let result, state = computation state
+               (binder result) state
+
+       // (unit -> M<'T>) -> M<'T>
+       member inline this.Delay (generator : unit -> StateFunc<_,_>)
+           : StateFunc<'State, 'T> =
+           this.Bind (this.Return (), generator)
+
+       // M<'T> -> M<'T> -> M<'T>
+       // or
+       // M<unit> -> M<'T> -> M<'T>
+       member inline this.Combine (r1 : StateFunc<_,_>, r2 : StateFunc<_,_>)
+           : StateFunc<'State, 'T> =
+           this.Bind (r1, fun () -> r2)
+
+       // M<'T> * (exn -> M<'T>) -> M<'T>
+       member inline __.TryWith (computation : StateFunc<_,_>, catchHandler : exn -> StateFunc<_,_>)
+           : StateFunc<'State, 'T> =
+           fun state ->
+               try computation state
+               with ex ->
+                   catchHandler ex state
+
+       // M<'T> * (unit -> unit) -> M<'T>
+       member inline __.TryFinally (computation : StateFunc<_,_>, compensation)
+           : StateFunc<'State, 'T> =
+           fun state ->
+               try computation state
+               finally
+                   compensation ()
+
+       // 'T * ('T -> M<'U>) -> M<'U> when 'T :> IDisposable
+       member this.Using (resource : ('T :> System.IDisposable), binder : 'T -> StateFunc<_,_>)
+           : StateFunc<'State, 'U> =
+           fun state ->
+               try binder resource state
+               finally
+                   if not <| isNull (box resource) then
+                       resource.Dispose ()
+
+       // (unit -> bool) * M<'T> -> M<'T>
+       member this.While (guard, body : StateFunc<'State, unit>)
+           : StateFunc<'State, unit> =
+           fun state ->
+               let mutable state = state
+               while guard () do
+                   state <- snd <| body state
+               (), state
+
+       // seq<'T> * ('T -> M<'U>) -> M<'U>
+       // or
+       // seq<'T> * ('T -> M<'U>) -> seq<M<'U>>
+       member inline this.For (sequence : seq<_>, body : 'T -> StateFunc<_,_>)
+           : StateFunc<'State, unit> =
+           this.Using (sequence.GetEnumerator (),
+               (fun enum ->
+                   this.While (
+                       enum.MoveNext,
+                       this.Delay (fun () ->
+                           body enum.Current))))
+
+
+    let parse = new StateBuilder()
 
     let getSourceInfo (e:Quotations.Expr) = 
             match e with
@@ -66,8 +142,7 @@ module QuotationParser =
 
                 e.CustomAttributes |> List.tryPick matchAttr
 
-    let updateSourceInfo expr = ParserState(fun parserInfo ->
-                                                (),
+    let updateSourceInfo expr parserInfo = ((),
                                                 match (getSourceInfo expr) with
                                                 | Some sourceInfo -> 
                                                     { parserInfo with ParserInfo.sourceInfo = sourceInfo }
@@ -75,19 +150,47 @@ module QuotationParser =
                                                     parserInfo
                                                 )
 
-    let currentSourceInfo = ParserState(fun (parserInfo: ParserInfo) -> (parserInfo.sourceInfo, parserInfo))
+    let currentSourceInfo (parserInfo: ParserInfo) = (parserInfo.sourceInfo, parserInfo)
 
-    let newVar varType = ParserState(fun (parserInfo: ParserInfo) ->
-                                            let (parserInfo', var) = parserInfo.newVar(varType)
-                                            (var, parserInfo'))
+    let newVar varType (parserInfo: ParserInfo) =
+        let (parserInfo', var) = parserInfo.newVar(varType)
+        (var, parserInfo')
 
-    let newVars varTypes = ParserState(fun (parserInfo: ParserInfo) ->
-                                            let (vars, parserInfo') =  List.mapFold (fun (p: ParserInfo) (t: System.Type) -> swap (p.newVar(t))) parserInfo varTypes
-                                            (vars, parserInfo'))
+    let newVars varTypes (parserInfo: ParserInfo) =
+        let (vars, parserInfo') =  List.mapFold (fun (p: ParserInfo) (t: System.Type) -> swap (p.newVar(t))) parserInfo varTypes
+        (vars, parserInfo')
 
-    let newError error = ParserState(fun (parserInfo: ParserInfo) ->
-                                               let parserInfo' = parserInfo.newError(error)
-                                               ((), parserInfo'))
+    let newError error (parserInfo: ParserInfo) =
+        let parserInfo' = parserInfo.newError(error)
+        ((), parserInfo')
+
+    let rec mapParse f list =
+        parse {
+            match list with
+            | [] -> return []
+            | x :: xs ->
+                let! x' = f x
+                let! xs' = mapParse f xs
+                return x' :: xs'
+            }    
+                                               
+    let rec foldParse f list =
+        parse {
+            match list with
+            | [] -> return ()
+            | x :: xs ->
+                let! _ = f x
+                return! foldParse f xs
+        }
+
+    let rec foldParse2 f state list =
+        parse {
+            match list with
+            | [] -> return state
+            | x :: xs ->
+                let! state' = f x state
+                return! foldParse2 f state' xs
+        }
 
     let (|True'|_|) expr =
         match expr with
@@ -218,32 +321,31 @@ module QuotationParser =
             }
 
     // Some dumpster diving to convert if-then-elses corresponding to source-level pattern matches
-    // back into a list of cases.
-    let rec (|UnionMatch'|_|) seenCases exprToTest expr : Option<(FSharp.Reflection.UnionCaseInfo * Expr) list * bool> =
+    // back into a disjunction. This can only be done where the disjuncts are mutually exclusive.
+    let rec (|UnionMatch'|_|) seenCases exprToTest expr : Option<(Constructor * Expr) list * bool> =
         match expr with
             | Patterns.IfThenElse (Patterns.UnionCaseTest (caseExprToTest, case), thenExpr, elseExpr) when exprToTest = caseExprToTest ->
                 match elseExpr with
                 | UnionMatch' (case :: seenCases) exprToTest (cases, canFail) ->
-                    Some (((case, thenExpr) :: cases), canFail)
+                    Some (((UnionCase(case), thenExpr) :: cases), canFail)
                 | False' _ ->
                     let allCases = FSharp.Reflection.FSharpType.GetUnionCases(case.DeclaringType)
                     let missingCases = Array.filter (fun c -> not (List.contains c seenCases)) allCases
                     let canFail = missingCases.Length > 1
-                    Some ([(case, thenExpr)], canFail)
+                    Some ([(UnionCase(case), thenExpr)], canFail)
                 | _ ->
                     let allCases = FSharp.Reflection.FSharpType.GetUnionCases(case.DeclaringType)
                     let missingCases = Array.filter (fun c -> not (List.contains c (case :: seenCases))) allCases
                     if (Array.length missingCases = 1) then
-                        Some ([(case, thenExpr); (missingCases.[0], elseExpr)], false)
+                        Some ([(UnionCase(case), thenExpr); (UnionCase(missingCases.[0]), elseExpr)], false)
                     else
                         None
             | _ ->
                 None
 
-    let (|UnionMatch|_|) expr : Option<Expr * (FSharp.Reflection.UnionCaseInfo * Expr) list * bool> =
+    let (|UnionMatch|_|) expr : Option<Expr * (Constructor * Expr) list * bool> =
         match expr with
             | Patterns.IfThenElse (Patterns.UnionCaseTest (exprToTest, _), _, _) ->
-                do System.Console.WriteLine($"found case {exprToTest}")
                 match expr with
                 | UnionMatch' [] exprToTest (cases, canFail) ->
                     Some (exprToTest, cases, canFail)
@@ -251,6 +353,106 @@ module QuotationParser =
                     None
             | _ ->
                 None
+
+    // More dumpster diving to recognise chains of tuple, record or union case deconstruction.
+    let rec (|Deconstruct|_|) expr : Option<((Var * Expr) list * Expr)> =
+        match expr with
+            | Patterns.Let(var, getExpr, subExpr) ->
+                match getExpr with
+                | Patterns.TupleGet(_, _) | Patterns.PropertyGet(_, _, _) ->
+                    match subExpr with
+                    | Deconstruct (getExprs, bottomSubExpr) ->
+                        Some ((var, getExpr) :: getExprs, bottomSubExpr)
+                    | _ ->
+                        Some ([(var, getExpr)], subExpr)
+                | _ ->
+                    None
+            | _ ->
+                None
+
+    type DeconstructVar = Expr * Constructor * (Var Option) array * System.Type array
+    type DeconstructVars = List<DeconstructVar>
+
+    let rec expandPropertyGet expr deconstructVars =
+        match expr with
+        | Patterns.TupleGet(tupleExpr, tupleIndex) ->
+            let deconstructVars' = match tupleExpr with
+                                    | ExprShape.ShapeVar _ ->
+                                        deconstructVars
+                                    | _ ->
+                                        let (_, deconstructVars'') = expandPropertyGet tupleExpr deconstructVars
+                                        deconstructVars''
+            let argTypes = FSharpType.GetTupleElements tupleExpr.Type
+
+            let argVars = seq { 0 .. (Array.length(argTypes) - 1) } |> Seq.map (fun i -> None) |> Array.ofSeq
+            let result = (expr, Tuple, argVars, argTypes)
+            (result, result :: deconstructVars')
+        | Patterns.PropertyGet(Some termExpr, propertyInfo, []) ->
+            let deconstructVars' = match termExpr with
+                                    | ExprShape.ShapeVar _ ->
+                                        deconstructVars
+                                    | _ ->  
+                                        let (_, deconstructVars'') = expandPropertyGet termExpr deconstructVars
+                                        deconstructVars''
+
+            let (ctor, argTypes) =
+                if (FSharpType.IsUnion termExpr.Type) then
+                    let cases = FSharpType.GetUnionCases termExpr.Type
+                    let case = Seq.ofArray cases
+                            |> Seq.filter (
+                                    fun c ->
+                                        c.GetFields()
+                                            |> Seq.ofArray
+                                            |> Seq.exists (fun f -> f.Name = propertyInfo.Name)
+                                )
+                            |> Seq.exactlyOne
+                            
+
+                    let argTypes = case.GetFields() |> Array.map (fun f -> f.PropertyType)
+                    (UnionCase(case), argTypes)
+                else if (FSharpType.IsRecord termExpr.Type) then
+                    let argTypes = FSharpType.GetRecordFields(termExpr.Type) |> Array.map (fun f -> f.PropertyType)
+                    (Record(termExpr.Type), argTypes)
+                else
+                    raise (System.Exception($"type not supported in deconstruct {termExpr.Type.Name}"))
+            let argVars = seq { 0 .. (Array.length(argTypes) - 1) } |> Seq.map (fun i -> None)  |> Array.ofSeq
+            let result = (expr, ctor, argVars, argTypes)
+            (result, result :: deconstructVars')
+         | _ ->
+             raise (System.Exception($"expression not supported in deconstruct {expr}"))
+
+    let rec collectDeconstructPropertyVars var expr index deconstructVars =
+        match (List.tryFind (fun (e, _, _, _) -> e = expr) deconstructVars) with
+        | Some (_, _, unifyArgs: Var Option [], _) ->
+            match unifyArgs.[index] with
+            | Some (unifyArgVar) ->
+                raise (System.Exception("expression deconstructed twice"))
+            | None ->
+                Array.set unifyArgs index (Some var)
+                deconstructVars
+        | None ->
+            let ((_, _, argVars, _), deconstructVars') as newVar = expandPropertyGet expr deconstructVars
+            Array.set argVars index (Some var)
+            deconstructVars'
+ 
+    let collectDeconstructVars deconstructVars (var, expr) =
+         match expr with
+         | Patterns.TupleGet(tupleExpr, index) ->
+             collectDeconstructPropertyVars var expr index deconstructVars
+         | Patterns.PropertyGet(Some termExpr, propertyInfo, []) ->
+             if (FSharpType.IsRecord propertyInfo.DeclaringType) then
+                 let fields = FSharpType.GetRecordFields propertyInfo.DeclaringType
+                 let index = fields |> Array.findIndex (fun p -> p.Name = propertyInfo.Name)
+                 if (index <> -1) then
+                     collectDeconstructPropertyVars var expr index deconstructVars
+                 else
+                     raise (System.Exception($"property {propertyInfo.Name} not found"))
+                             
+             //else if (FSharpType.IsUnion propertyInfo.DeclaringType) then
+             else
+                 raise (System.Exception($"union type not supported"))
+         | _ ->
+             deconstructVars
 
     let rec translateSubExpr expr =
             parse {
@@ -274,16 +476,20 @@ module QuotationParser =
                 | DerivedPatterns.AndAlso (condExpr, thenExpr) ->
                     let! condGoal = translateSubExprGoal condExpr
                     let! thenGoal = translateSubExprGoal thenExpr
-                    return Conj([condGoal; thenGoal])
+                    return Simplify.flattenConjunction [condGoal; thenGoal]
                 | DerivedPatterns.OrElse (condExpr, elseExpr) ->
                     let! condGoal = translateSubExprGoal condExpr
                     let! elseGoal = translateSubExprGoal elseExpr
-                    return Disj([condGoal; elseGoal])
+                    return Simplify.flattenDisjunction [condGoal; elseGoal]
+                | Deconstruct (deconstructExprs, subExpr) ->
+                    let! deconstructGoals = translateDeconstructExprs deconstructExprs
+                    let! subGoal = translateSubExprGoal subExpr
+                    return Conj(List.append deconstructGoals [subGoal])
                 | Patterns.Let (v, binding, expr) ->
                     // Introduces a fresh variable and unifies it immediately.
                     let! unifyGoalExpr = translateUnify (Expr.Var v) binding v.Type
                     let! exprGoal = translateSubExprGoal expr
-                    return Conj([initGoal sourceInfo unifyGoalExpr; exprGoal])
+                    return Simplify.flattenConjunction [initGoal sourceInfo unifyGoalExpr; exprGoal]
                 | True' _ ->
                     return Conj([])
                 | False' _ ->
@@ -306,21 +512,66 @@ module QuotationParser =
                     return initGoal sourceInfo goal
                 }
     and
+        translateMatchCase var (case, expr) goals =
+            parse {
+                let! sourceInfo = currentSourceInfo
+                let fieldTypes =
+                    match case with
+                    | UnionCase(unionCase) ->
+                        unionCase.GetFields() |> Array.map (fun f -> f.PropertyType) 
+                    | _ ->
+                        [||]
+                        
+                let! fieldVars = newVars (List.ofArray fieldTypes)
+                let unifyGoal = Unify(var, Constructor(fieldVars, case))
+                let! goal = translateSubExprGoal expr
+                let disjunct = initGoal sourceInfo (Conj([initGoal sourceInfo unifyGoal; goal]))
+
+                return disjunct :: goals
+            }
+    and
         translateMatchExpr var cases =
             parse {
-                match cases with
-                | [] ->
-                    return []
-                | (case, expr) :: cases' ->
-                    let! sourceInfo = currentSourceInfo
-                    let fieldTypes = case.GetFields() |> Array.map (fun f -> f.PropertyType) 
-                    let! fieldVars = newVars (List.ofArray fieldTypes)  
-                    let unifyGoal = Unify(var, Constructor(fieldVars, UnionCase(case)))
-                    let! goal = translateSubExprGoal expr
-                    let disjunct = initGoal sourceInfo (Conj([initGoal sourceInfo unifyGoal; goal]))
+                let! goals = foldParse2 (translateMatchCase var) [] cases
+                return List.rev goals
+            }
+    and
+        translateDeconstructExprs (deconstructExprs: (Var * Expr) list) =
+            parse {
+                let deconstructVars = List.fold collectDeconstructVars [] deconstructExprs |> List.rev
+                return! translateDeconstructVars deconstructVars
+            }
+    and
+        translateDeconstructVars (deconstructVars: DeconstructVars) =
+            parse {
+                let rec assignUnifyArgs (unifyArgTypes: System.Type array) (unifyArgs: Var option array) i =
+                    parse {
+                        if (i >= unifyArgTypes.Length) then
+                            return []
+                        else
+                            let! unifyArgsVars = assignUnifyArgs unifyArgTypes unifyArgs (i + 1)
+                            match unifyArgs.[i] with
+                            | Some v ->
+                                return v :: unifyArgsVars
+                            | None ->
+                                let! v = newVar unifyArgTypes.[i]
+                                return v :: unifyArgsVars
+                    }
 
-                    let! otherGoals = translateMatchExpr var cases'
-                    return disjunct :: otherGoals
+                let assignVar ((expr: Expr, ctor, unifyArgs, unifyArgTypes) as var)  =
+                                    parse {
+                                        let! assignedVar = match expr with
+                                                            | ExprShape.ShapeVar v -> parse { return v }
+                                                            | _ -> newVar expr.Type
+                                        let! unifyArgs' = assignUnifyArgs unifyArgTypes unifyArgs 0
+                                        return (assignedVar, expr, ctor, unifyArgs')
+                                    }
+                let! assignedDeconstructVars = mapParse assignVar deconstructVars
+
+                let generateDeconstructGoal sourceInfo (var, expr, ctor, unifyArgs) =
+                                initGoal sourceInfo (Unify(var, Constructor(unifyArgs, ctor)))
+                let! sourceInfo = currentSourceInfo
+                return List.map (generateDeconstructGoal sourceInfo) assignedDeconstructVars
             }
 
     let rec translateArgs expr args =

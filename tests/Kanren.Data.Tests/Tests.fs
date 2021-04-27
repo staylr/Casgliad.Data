@@ -25,7 +25,7 @@ module QuotationTests =
         testList "QuotationParser" [
             testCase "Simple" <| fun _ ->
                 let expr = <@ fun (x, y) -> x = 4 && y = 2 @>
-                let ((args, goal), info) = QuotationParser.run (newParserInfo expr) (QuotationParser.translateExpr expr)
+                let ((args, goal), info) = QuotationParser.run (QuotationParser.translateExpr expr) (newParserInfo expr) 
                 Expect.equal (List.length info.errors) 0 "Found errors"
                 Expect.equal (List.length args) 2 "Found args"
                 match goal.goal with
@@ -41,7 +41,7 @@ module QuotationTests =
                                             | Case1(_, _) -> y = "Case1"
                                             | Case2(_, _) -> y = "Case2"
                                             | Case3(_, _) -> y = "Case3" @>
-                let ((args, goal), info) = QuotationParser.run (newParserInfo expr) (QuotationParser.translateExpr expr)
+                let ((args, goal), info) = QuotationParser.run  (QuotationParser.translateExpr expr) (newParserInfo expr)
                 Expect.equal (List.length info.errors) 0 "Found errors"
 
                 match goal.goal with
@@ -58,5 +58,26 @@ module QuotationTests =
                     checkDisjunct disjunct3
 
                 | _ -> raise(Exception($"unexpected goal {goal.goal}"));
+
+            testCase "DeconstructTuple" <| fun _ ->
+                        let expr = <@ fun (x, y, z, u) ->
+                                           x = 1
+                                           && y = 2
+                                           && z = y + 3
+                                           && z < 10
+                                           && let (a, b) = u in a = b
+                                        @>
+                        let ((args, goal), info) = QuotationParser.run  (QuotationParser.translateExpr expr) (newParserInfo expr)
+                        Expect.equal (List.length info.errors) 0 "Found errors"
+
+            testCase "DeconstructTuple2" <| fun _ ->
+                           let expr = <@ fun((a, ( e, ({ Modes = m; Determinism = d }: RelationMode)), c), x, y, z, u) ->
+                                                             x = 1
+                                                             && y = 2
+                                                             && z = y + 3
+                                                             && z < 10
+                                           @>
+                           let ((args, goal), info) = QuotationParser.run  (QuotationParser.translateExpr expr) (newParserInfo expr)
+                           Expect.equal (List.length info.errors) 0 "Found errors"
         ]
 

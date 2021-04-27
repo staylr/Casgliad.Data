@@ -36,6 +36,15 @@ module Main =
                             )
 
 
+        [<Relation>]
+        member this.rel4 = relation("rel", [mode [Out; Out; Out; Out; Out] Determinism.Nondet],
+                                fun((a, ( e, ({ Modes = m; Determinism = d }: RelationMode)), c), x, y, z, u) ->
+                                    x = 1
+                                    && y = 2
+                                    && z = y + 3
+                                    && z < 10
+                                    && kanren.call(this.rel2, (x, z))
+                                )
     //[<AbstractClass>]
     //type 'A tree() =
     //    abstract member p : Expr<('A * 'A) -> bool>
