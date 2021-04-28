@@ -373,6 +373,28 @@ module QuotationParser =
     type DeconstructVar = Expr * Constructor * (Var Option) array * System.Type array
     type DeconstructVars = List<DeconstructVar>
 
+    let rec deconstructExprEqual ex1 ex2 =
+        match (ex1, ex2) with
+        | (Patterns.TupleGet(tuple1, tupleIndex1), Patterns.TupleGet(tuple2, tupleIndex2)) ->
+            tupleIndex1 = tupleIndex2 && deconstructExprEqual tuple1 tuple2
+        | (Patterns.PropertyGet(Some term1, property1, []), Patterns.PropertyGet(Some term2, property2, [])) ->
+            property1 = property2 && deconstructExprEqual term1 term2
+        | (ExprShape.ShapeVar(v1), ExprShape.ShapeVar(v2)) ->
+            v1 = v2
+        | _ ->
+            false
+
+    let deconstructExprMatch ex1 ex2 =
+        match (ex1, ex2) with
+        | (Patterns.TupleGet(tuple1, _), Patterns.TupleGet(tuple2, _)) ->
+            deconstructExprEqual tuple1 tuple2
+        | (Patterns.PropertyGet(Some term1, _, []), Patterns.PropertyGet(Some term2, _, [])) ->
+            deconstructExprEqual term1 term2
+        | (ExprShape.ShapeVar(v1), ExprShape.ShapeVar(v2)) ->
+            v1 = v2
+        | _ ->
+            false
+
     let rec expandPropertyGet expr deconstructVars =
         match expr with
         | Patterns.TupleGet(tupleExpr, tupleIndex) ->
@@ -422,7 +444,7 @@ module QuotationParser =
              raise (System.Exception($"expression not supported in deconstruct {expr}"))
 
     let rec collectDeconstructPropertyVars var expr index deconstructVars =
-        match (List.tryFind (fun (e, _, _, _) -> e = expr) deconstructVars) with
+        match (List.tryFind (fun (e, _, _, _) -> deconstructExprMatch e expr) deconstructVars) with
         | Some (_, _, unifyArgs: Var Option [], _) ->
             match unifyArgs.[index] with
             | Some (unifyArgVar) ->
@@ -558,20 +580,27 @@ module QuotationParser =
                                 return v :: unifyArgsVars
                     }
 
-                let assignVar ((expr: Expr, ctor, unifyArgs, unifyArgTypes) as var)  =
+                let rec assignVar (expr: Expr, ctor: Constructor, unifyArgs, unifyArgTypes) assignedVars =
                                     parse {
-                                        let! assignedVar = match expr with
-                                                            | ExprShape.ShapeVar v -> parse { return v }
-                                                            | _ -> newVar expr.Type
+                                        let! assignedVar =
+                                            match (List.tryFind (fun (_, e, _, _) -> deconstructExprMatch e expr) assignedVars) with
+                                            | Some (v, _, _, _) ->
+                                                parse { return v }
+                                            | None ->
+                                                match expr with
+                                                | Patterns.TupleGet(ExprShape.ShapeVar v, _) | Patterns.PropertyGet(Some (ExprShape.ShapeVar v), _, _) ->
+                                                    parse { return v }
+                                                | _ ->
+                                                    newVar expr.Type
                                         let! unifyArgs' = assignUnifyArgs unifyArgTypes unifyArgs 0
-                                        return (assignedVar, expr, ctor, unifyArgs')
+                                        return ((assignedVar, expr, ctor, unifyArgs') :: assignedVars)
                                     }
-                let! assignedDeconstructVars = mapParse assignVar deconstructVars
+                let! assignedDeconstructVars = foldParse2 assignVar [] deconstructVars 
 
-                let generateDeconstructGoal sourceInfo (var, expr, ctor, unifyArgs) =
+                let generateDeconstructGoal sourceInfo (var, _, ctor, unifyArgs) =
                                 initGoal sourceInfo (Unify(var, Constructor(unifyArgs, ctor)))
                 let! sourceInfo = currentSourceInfo
-                return List.map (generateDeconstructGoal sourceInfo) assignedDeconstructVars
+                return List.map (generateDeconstructGoal sourceInfo) assignedDeconstructVars |> List.rev
             }
 
     let rec translateArgs expr args =
