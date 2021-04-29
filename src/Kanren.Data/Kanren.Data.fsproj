@@ -6,12 +6,10 @@
   <PropertyGroup>
     <Title>Kanren.Data</Title>
     <Description>Kanren.Data does the thing!</Description>
-
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)'=='Release'">
     <Optimize>true</Optimize>
     <Tailcalls>true</Tailcalls>
-    
   </PropertyGroup>
   <ItemGroup>
     <Compile Include="Types.fs" />
@@ -19,10 +17,5 @@
     <Compile Include="AssemblyInfo.fs" />
     <Compile Include="Library.fs" />
   </ItemGroup>
-  <ItemGroup>
-    <PackageReference Include="FSharp.Core" Version="5.0.1" />
-    <PackageReference Include="SQLProvider" Version="1.2.1" />
-  </ItemGroup>
   <Import Project="..\..\.paket\Paket.Restore.targets" />
 </Project>
- 

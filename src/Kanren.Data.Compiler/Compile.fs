@@ -11,7 +11,7 @@ module Compile =
         let varset' = QuotationParser.getVars varset relation.Body
         let sourceInfo = { SourceInfo.File = relation.Path; StartLine = relation.Line; EndLine = relation.Line; StartCol = 0; EndCol = 0 }
         let parserInfo = ParserInfo.init varset' sourceInfo
-        let ((args, goal), parserInfo'') = QuotationParser.run (QuotationParser.translateExpr relation.Body) parserInfo
+        let ((args, goal), parserInfo'') = State.run (QuotationParser.translateExpr relation.Body) parserInfo
         let goal' = Simplify.simplifyGoal goal
         if (Error.maxSeverityOfList parserInfo''.errors = ErrorSeverity.Error) then
             (moduleInfo, parserInfo''.errors)
