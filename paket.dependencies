@@ -27,6 +27,7 @@ group Build
     nuget Fake.Api.GitHub
     nuget Fake.BuildServer.GitHubActions
     nuget Fantomas
+    nuget Fantomas.Extras
     nuget Argu
 
 group Docs
@@ -42,7 +43,7 @@ group Docs
     nuget FSharp.Literate
     nuget Fable.React
 
-//group Analyzers
-// source https://www.nuget.org/api/v2
-// source https://api.nuget.org/v3/index.json
-// nuget BinaryDefense.FSharp.Analyzers.Hashing 0.2.1
+group Analyzers
+    source https://www.nuget.org/api/v2
+    source https://api.nuget.org/v3/index.json
+    nuget BinaryDefense.FSharp.Analyzers.Hashing
