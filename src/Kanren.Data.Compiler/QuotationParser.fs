@@ -35,23 +35,7 @@ module QuotationParser =
                                                                           DerivedPatterns.Int32(line)]) ->
                 Some { SourceInfo.File = file; StartLine = line; StartCol = 0; EndLine = line; EndCol = 0 }     
             | _ ->
-                let (|Val|_|) e : 't option = 
-                    match e with
-                    | Quotations.Patterns.Value(:? 't as v,_) -> Some v
-                    | _ -> None
-
-                let matchAttr attr =
-                    match attr with
-                    | Patterns.NewTuple [Val ("DebugRange");
-                                            Patterns.NewTuple [Val(file:string);
-                                                Val(startLine:int); 
-                                                Val(startCol:int);
-                                                Val(endLine:int);
-                                                Val(endCol:int)]]
-                        -> Some { SourceInfo.File = file; StartLine = startLine; StartCol = startCol; EndLine = endLine; EndCol = endCol } 
-                    | _ -> None
-
-                e.CustomAttributes |> List.tryPick matchAttr
+                None
 
     let updateSourceInfo expr parserInfo = ((),
                                                 match (getSourceInfo expr) with
@@ -306,69 +290,53 @@ module QuotationParser =
             v1 = v2
         | _ ->
             false
+            
+    let getPropertyInfo (termExpr: Expr) (propertyInfo: System.Reflection.PropertyInfo) =
+        if (FSharpType.IsUnion termExpr.Type) then
+            let cases = FSharpType.GetUnionCases termExpr.Type
+            let case = Seq.ofArray cases
+                    |> Seq.filter (
+                            fun c ->
+                                c.GetFields()
+                                    |> Seq.ofArray
+                                    |> Seq.exists (fun f -> f.Name = propertyInfo.Name)
+                        )
+                    |> Seq.exactlyOne
 
-    let getPropertyIndex recordType (propertyInfo: System.Reflection.PropertyInfo) =
-        if (FSharpType.IsRecord propertyInfo.DeclaringType) then
-            let fields = FSharpType.GetRecordFields propertyInfo.DeclaringType
+            let fields = case.GetFields()
             let index = fields |> Array.findIndex (fun p -> p.Name = propertyInfo.Name)
-            if (index <> -1) then
-                index
-            else
-                raise (System.Exception($"property {propertyInfo.Name} not found"))
-       
-        //else if (FSharpType.IsUnion propertyInfo.DeclaringType) then
+            let argTypes = fields |> Array.map (fun f -> f.PropertyType)
+            (UnionCase(case), argTypes, index)
+        else if (FSharpType.IsRecord termExpr.Type) then
+            let fields = FSharpType.GetRecordFields(termExpr.Type)
+            let index = fields |> Array.findIndex (fun p -> p.Name = propertyInfo.Name)
+            let argTypes = fields |> Array.map (fun f -> f.PropertyType)
+            (Record(termExpr.Type), argTypes, index)
         else
-            raise (System.Exception($"union type not supported"))
+            raise (System.Exception($"type not supported in deconstruct {termExpr.Type.Name}"))
 
     let rec expandPropertyGet expr deconstructVars =
-        match expr with
-        | Patterns.TupleGet(tupleExpr, tupleIndex) ->
-            let deconstructVars' = match tupleExpr with
-                                    | ExprShape.ShapeVar _ ->
-                                        deconstructVars
-                                    | _ ->
-                                        expandPropertyGet tupleExpr deconstructVars |> snd
-            let argTypes = FSharpType.GetTupleElements tupleExpr.Type
+        let (termExpr, ctor, propertyIndex, argTypes) =
+            match expr with
+            | Patterns.TupleGet(tupleExpr, tupleIndex) ->
+                (tupleExpr, Tuple, tupleIndex, FSharpType.GetTupleElements tupleExpr.Type)
+            | Patterns.PropertyGet(Some termExpr, propertyInfo, []) ->
+                let (ctor, argTypes, propertyIndex) = getPropertyInfo termExpr propertyInfo
+                (termExpr, ctor, propertyIndex, argTypes)
+             | _ ->
+                 raise (System.Exception($"expression not supported in deconstruct {expr}"))
 
-            let argVars = seq { 0 .. (Array.length(argTypes) - 1) } |> Seq.map (fun i -> None) |> Array.ofSeq
-            Array.set argVars tupleIndex (Some (expr, None))
+        let deconstructVars' =
+            match termExpr with
+            | ExprShape.ShapeVar _ ->
+                deconstructVars
+            | _ ->  
+                expandPropertyGet termExpr deconstructVars |> snd
 
-            let result = (tupleExpr, Tuple, argVars, argTypes)
-            (result, result :: deconstructVars')
-        | Patterns.PropertyGet(Some termExpr, propertyInfo, []) ->
-            let deconstructVars' = match termExpr with
-                                    | ExprShape.ShapeVar _ ->
-                                        deconstructVars
-                                    | _ ->  
-                                        expandPropertyGet termExpr deconstructVars |> snd
-
-            let (ctor, argTypes) =
-                if (FSharpType.IsUnion termExpr.Type) then
-                    let cases = FSharpType.GetUnionCases termExpr.Type
-                    let case = Seq.ofArray cases
-                            |> Seq.filter (
-                                    fun c ->
-                                        c.GetFields()
-                                            |> Seq.ofArray
-                                            |> Seq.exists (fun f -> f.Name = propertyInfo.Name)
-                                )
-                            |> Seq.exactlyOne
-                            
-
-                    let argTypes = case.GetFields() |> Array.map (fun f -> f.PropertyType)
-                    (UnionCase(case), argTypes)
-                else if (FSharpType.IsRecord termExpr.Type) then
-                    let argTypes = FSharpType.GetRecordFields(termExpr.Type) |> Array.map (fun f -> f.PropertyType)
-                    (Record(termExpr.Type), argTypes)
-                else
-                    raise (System.Exception($"type not supported in deconstruct {termExpr.Type.Name}"))
-            let argVars = seq { 0 .. (Array.length(argTypes) - 1) } |> Seq.map (fun i -> None)  |> Array.ofSeq
-            let propertyIndex = getPropertyIndex propertyInfo.DeclaringType propertyInfo
-            Array.set argVars propertyIndex (Some (expr, None))
-            let result = (termExpr, ctor, argVars, argTypes)
-            (result, result :: deconstructVars')
-         | _ ->
-             raise (System.Exception($"expression not supported in deconstruct {expr}"))
+        let argVars = seq { 0 .. (Array.length(argTypes) - 1) } |> Seq.map (fun i -> None)  |> Array.ofSeq
+        Array.set argVars propertyIndex (Some (expr, None))
+        let result = (termExpr, ctor, argVars, argTypes)
+        (result, result :: deconstructVars')
 
     let collectDeconstructPropertyVars var expr termExpr index deconstructVars : DeconstructVars =
         match (List.tryFind (fun (e, _, _, _) -> deconstructExprEqual e termExpr) deconstructVars) with
@@ -389,7 +357,7 @@ module QuotationParser =
          | Patterns.TupleGet(tupleExpr, index) ->
              collectDeconstructPropertyVars var expr tupleExpr index deconstructVars
          | Patterns.PropertyGet(Some termExpr, propertyInfo, []) ->
-            let index = getPropertyIndex propertyInfo.DeclaringType propertyInfo
+            let (_, _, index) = getPropertyInfo termExpr propertyInfo
             collectDeconstructPropertyVars var expr termExpr index deconstructVars
          | _ ->
              deconstructVars
@@ -504,7 +472,7 @@ module QuotationParser =
                                 return v :: unifyArgsVars
                     }
 
-                let rec assignVar (expr: Expr, ctor: Constructor, unifyArgs, unifyArgTypes) assignedVars =
+                let assignVar (expr: Expr, ctor: Constructor, unifyArgs, unifyArgTypes) assignedVars =
                     parse {
                         let! assignedVar =
                             match (List.tryFind (fun (_, e, _, _) -> deconstructExprMatch e expr) assignedVars) with
@@ -519,6 +487,7 @@ module QuotationParser =
                         let! unifyArgs' = assignUnifyArgs unifyArgTypes unifyArgs assignedVars 0
                         return ((assignedVar, expr, ctor, unifyArgs') :: assignedVars)
                     }
+
                 let! assignedDeconstructVars = foldParse2 assignVar [] deconstructVars 
 
                 let generateDeconstructGoal sourceInfo (var, _, ctor, unifyArgs) =
@@ -527,12 +496,13 @@ module QuotationParser =
                 return List.map (generateDeconstructGoal sourceInfo) assignedDeconstructVars
             }
 
-    let rec translateArgs expr args =
+    let rec translateArgs argVar expr args =
         parse {
             let! parserInfo' = updateSourceInfo expr
             match expr with
-                | Patterns.Let (arg, Patterns.TupleGet (_, _), subExpr) ->
-                    return! translateArgs subExpr (arg :: args)
+                | Patterns.Let (arg, Patterns.TupleGet (ExprShape.ShapeVar argVar1, _), subExpr) when argVar = argVar1  ->
+                    // Found extraction of argument from tuple of arguments.
+                    return! translateArgs argVar subExpr (arg :: args)
                 | _ ->
                     let! goal = translateSubExprGoal expr
                     return (List.rev args, goal)
@@ -542,8 +512,14 @@ module QuotationParser =
         parse {
             let! parserInfo' = updateSourceInfo expr
             match expr with
-                | Patterns.Lambda (_, subExpr) ->
-                    return! translateArgs subExpr []
+                | Patterns.Lambda (argVar, subExpr) ->
+                    match subExpr with
+                    | Patterns.Let (_, Patterns.TupleGet (ExprShape.ShapeVar argVar1, _), _)
+                            when argVar.Name = "tupledArg" && argVar = argVar1 ->
+                        return! translateArgs argVar subExpr []
+                    | _ ->
+                        let! goal = translateSubExprGoal subExpr
+                        return ([argVar], goal)
                 | _ ->
                     let! sourceInfo = currentSourceInfo
                     let! goalExpr = unsupportedExpression expr

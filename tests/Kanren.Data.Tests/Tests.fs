@@ -28,6 +28,8 @@ module QuotationTests =
                 let ((args, goal), info) = State.run (QuotationParser.translateExpr expr) (newParserInfo expr) 
                 Expect.equal (List.length info.errors) 0 "Found errors"
                 Expect.equal (List.length args) 2 "Found args"
+                Expect.equal args.[0].Name "x" "x"
+                Expect.equal args.[1].Name "y" "y"
                 match goal.goal with
                 | Conj([{ goal = Unify(var1, Constructor([], Constant(arg1, _))) }; { goal = Unify(var2, Constructor([], Constant(arg2, _))) }]) ->
                     Expect.equal var1.Name "x" "x"
@@ -35,6 +37,19 @@ module QuotationTests =
                     Expect.equal arg1 (upcast 4) "const 1"
                     Expect.equal arg2 (upcast 2) "const 2"
                 | _ -> raise(Exception($"invalid goal {goal.goal}"));
+
+
+            testCase "SingleArg" <| fun _ ->
+                        let expr = <@ fun x -> x = 4  @>
+                        let ((args, goal), info) = State.run (QuotationParser.translateExpr expr) (newParserInfo expr) 
+                        Expect.equal (List.length info.errors) 0 "Found errors"
+                        Expect.equal (List.length args) 1 "Found args"
+                        Expect.equal args.[0].Name "x" "x"
+                        match goal.goal with
+                        | Unify(var1, Constructor([], Constant(arg1, _))) ->
+                            Expect.equal var1.Name "x" "x"
+                            Expect.equal arg1 (upcast 4) "const 1"
+                        | _ -> raise(Exception($"invalid goal {goal.goal}"));
 
             testCase "Match" <| fun _ ->
                 let expr = <@ fun (x, y) -> match x with
