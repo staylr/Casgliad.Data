@@ -2,6 +2,8 @@
 
 Kanren-style strongly typed and strongly moded deductive database DSL for F#.
 
+Early work in progress.
+
 ---
 
 ## Builds
