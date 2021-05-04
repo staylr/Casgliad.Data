@@ -47,10 +47,15 @@ type kanren() =
     static member exists(f: 'A -> bool, [<CallerFilePath; Optional; DefaultParameterValue("")>] path: string,
                                                 [<CallerLineNumber; Optional; DefaultParameterValue(0)>] line: int) =
                         raise (System.Exception("function 'exists' should only occur in quotations"))
+
     static member call (r: 'A relation, args: 'A, [<CallerFilePath; Optional; DefaultParameterValue("")>] path: string,
                                                 [<CallerLineNumber; Optional; DefaultParameterValue(0)>] line: int)  : bool =
                         raise (System.Exception("function 'call' should only occur in quotations"))
 
+    // If-then-else with existentially quantified variables scoped across the if-then part.
+    static member ifThenElse (ifThen: ('A -> ('A -> bool * 'A -> bool)), els: (unit -> bool), [<CallerFilePath; Optional; DefaultParameterValue("")>] path: string,
+                                                [<CallerLineNumber; Optional; DefaultParameterValue(0)>] line: int)  : bool =
+                        raise (System.Exception("function 'ifThenElse' should only occur in quotations"))
 
 [<System.AttributeUsage(System.AttributeTargets.Property, AllowMultiple=false)>]
 type RelationAttribute([<CallerFilePath; Optional; DefaultParameterValue("")>] path: string,

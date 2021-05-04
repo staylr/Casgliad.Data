@@ -50,6 +50,7 @@ module Simplify =
             let elseGoal' = simplifyGoal elseGoal
             match elseGoal'.goal with
             | Fail _ ->
+                // TODO - sequential conjunction.
                 { goal with goal = Conj([condGoal'; thenGoal']) }
             | _ ->
                 match condGoal'.goal with

@@ -369,7 +369,11 @@ module QuotationParser =
                 match expr with
                 | DerivedPatterns.SpecificCall (<@@ kanren.exists @@>)
                                                 (_, _, [ExprShape.ShapeLambda (v, expr); _; _]) ->
-                    return! translateSubExpr expr
+                    // translateArgs will strip off any TupleGet calls to deconstruct the
+                    // tuple of existentially quantified variables. We're only using the lambda
+                    // to introduce new variables, we don't care what was passed in.
+                    let! (_, goal) = translateArgs v expr []
+                    return goal.goal
                 | DerivedPatterns.SpecificCall (<@@ kanren.call @@>)
                                                 (_, _, [Patterns.PropertyGet(_, callee, []);
                                                               Patterns.NewTuple(args); _; _]) ->
@@ -495,22 +499,22 @@ module QuotationParser =
                 let! sourceInfo = currentSourceInfo
                 return List.map (generateDeconstructGoal sourceInfo) assignedDeconstructVars
             }
-
-    let rec translateArgs argVar expr args =
-        parse {
-            let! parserInfo' = updateSourceInfo expr
-            match expr with
-                | Patterns.Let (arg, Patterns.TupleGet (ExprShape.ShapeVar argVar1, _), subExpr) when argVar = argVar1  ->
-                    // Found extraction of argument from tuple of arguments.
-                    return! translateArgs argVar subExpr (arg :: args)
-                | _ ->
-                    let! goal = translateSubExprGoal expr
-                    return (List.rev args, goal)
-        }
+    and
+        translateArgs argVar expr args =
+            parse {
+                do! updateSourceInfo expr
+                match expr with
+                    | Patterns.Let (arg, Patterns.TupleGet (ExprShape.ShapeVar argVar1, _), subExpr) when argVar = argVar1  ->
+                        // Found extraction of argument from tuple of arguments.
+                        return! translateArgs argVar subExpr (arg :: args)
+                    | _ ->
+                        let! goal = translateSubExprGoal expr
+                        return (List.rev args, goal)
+            }
 
     let translateExpr expr =
         parse {
-            let! parserInfo' = updateSourceInfo expr
+            do! updateSourceInfo expr
             match expr with
                 | Patterns.Lambda (argVar, subExpr) ->
                     match subExpr with
