@@ -21,6 +21,9 @@ module QuotationTests =
     | Case2 of a: int * b: int
     | Case3 of c: int * d: int
 
+    [<ReflectedDefinitionAttribute>]
+    let testVarName info var varName = info.varset.[var].Name = varName
+
     [<Tests>]
     let tests =
         testList "QuotationParser" [
@@ -32,15 +35,15 @@ module QuotationTests =
                 test <@
                         match args with
                         | [arg1; arg2] ->
-                            arg1.Name = "x" && arg2.Name = "y"
+                            testVarName info arg1 "x" && testVarName info arg2 "y"
                         | _ ->
                             false
                         @>
 
                 match goal.goal with
                 | Conj([{ goal = Unify(var1, Constructor([], Constant(arg1, _))) }; { goal = Unify(var2, Constructor([], Constant(arg2, _))) }]) ->
-                    test <@ var1.Name = "x" @>
-                    test <@ var2.Name = "y" @>
+                    test <@ testVarName info var1 "x" @>
+                    test <@ testVarName info var2 "y" @>
                     test <@ arg1 = upcast 4 @>
                     test <@ arg2 = upcast 2 @>
                 | _ -> raise(Exception($"invalid goal {goal.goal}"))
@@ -54,13 +57,13 @@ module QuotationTests =
                 test <@
                         match args with
                         | [arg1] ->
-                            arg1.Name = "x"
+                           testVarName info arg1 "x" 
                         | _ ->
                             false
                         @>
                 match goal.goal with
                 | Unify(var1, Constructor([], Constant(arg1, _))) ->
-                    test <@ var1.Name = "x" @>
+                    test <@ testVarName info var1 "x" @>
                     test <@ arg1 = upcast 4 @>
                 | _ -> raise(Exception($"invalid goal {goal.goal}"))
 
@@ -97,7 +100,7 @@ module QuotationTests =
                 test <@
                         match args with
                         | [arg1; arg2] ->
-                            arg1.Name = "x" && arg2.Name = "y"
+                            testVarName info arg1 "x" && testVarName info arg2 "y"
                         | _ ->
                             false
                     @>
@@ -105,11 +108,11 @@ module QuotationTests =
                 | Conj([{ goal = Unify(var1, Constructor([], Constant(arg1, _))) };
                         { goal = Unify(var2, Constructor([var3; var4], Tuple)) };
                         { goal = Unify(var5, Var(var6)) }]) ->
-                    test <@ var1.Name = "x" @>
+                    test <@ testVarName info var1 "x" @>
                     test <@ arg1 = upcast 1 @>
-                    test <@ var2.Name = "y" @>
-                    test <@ var3.Name = "a" @>
-                    test <@ var4.Name = "b" @>
+                    test <@ testVarName info var2 "y" @>
+                    test <@ testVarName info var3 "a" @>
+                    test <@ testVarName info var4 "b" @>
                     test <@ var3 = var5 @>
                     test <@ var4 = var6 @>
                 | _ -> raise(Exception($"unexpected goal {goal.goal}"))
@@ -132,9 +135,9 @@ module QuotationTests =
                 | Conj([{ goal = Unify(var1, Constructor([], Constant(arg1, _))) };
                         { goal = Unify(var2, Constructor([], Constant(arg2, _))) };
                         { goal = Unify(var3, Constructor([], Constant(arg3, _))) }]) ->
-                    test <@ var1.Name = "x" @>
-                    test <@ var2.Name = "y" @>
-                    test <@ var3.Name = "z" @>
+                    test <@ testVarName info var1 "x" @>
+                    test <@ testVarName info var2 "y" @>
+                    test <@ testVarName info var3 "z" @>
                     test <@ arg1 = upcast 4 @>
                     test <@ arg2 = upcast 2 @>
                     test <@ arg3 = upcast 3 @>
@@ -149,10 +152,10 @@ module QuotationTests =
                         { goal = Unify(var2, Constructor([], Constant(arg2, _))) };
                         { goal = Unify(var3, Constructor([], Constant(arg3, _))) };
                         { goal = Unify(var4, Constructor([], Constant(arg4, _))) }]) ->
-                    test <@ var1.Name = "x" @>
-                    test <@ var2.Name = "y" @>
-                    test <@ var3.Name = "z1" @>
-                    test <@ var4.Name = "z2" @>
+                    test <@ testVarName info var1 "x" @>
+                    test <@ testVarName info var2 "y" @>
+                    test <@ testVarName info var3 "z1" @>
+                    test <@ testVarName info var4 "z2" @>
                     test <@ arg1 = upcast 4 @>
                     test <@ arg2 = upcast 2 @>
                     test <@ arg3 = upcast 6 @>

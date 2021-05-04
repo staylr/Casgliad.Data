@@ -6,9 +6,9 @@ open Kanren.Data
 [<AutoOpen>]
 module ModuleInfoModule =
 
-    type ProcInfo = { ProcId: int; SourceInfo: SourceInfo; Modes: Mode list; Determinism: Determinism; Args: Var list; Goal: Goal; VarSet: VarSet }
+    type ProcInfo = { ProcId: int; SourceInfo: SourceInfo; Modes: Mode list; Determinism: Determinism; Args: VarId list; Goal: Goal; VarSet: VarSet }
 
-    let parseModes (sourceInfo: SourceInfo) (args: Var list) (modes: RelationMode) =
+    let parseModes (sourceInfo: SourceInfo) (args: VarId list) (modes: RelationMode) =
             if (args.Length = modes.Modes.Length) then
                 Ok modes
             else
@@ -16,7 +16,7 @@ module ModuleInfoModule =
 
     let relationSourceInfo (relAttr: RelationAttribute) = { File = relAttr.SourcePath; StartLine = relAttr.SourceLine; EndLine = relAttr.SourceLine; StartCol = 0; EndCol = 0 }
 
-    let initProc (relAttr: RelationAttribute) (args: Var list) (goal: Goal) (varset: VarSet) (procId: int) (mode: RelationMode) =
+    let initProc (relAttr: RelationAttribute) (args: VarId list) (goal: Goal) (varset: VarSet) (procId: int) (mode: RelationMode) =
         let sourceInfo = relationSourceInfo relAttr
         match (parseModes sourceInfo args mode) with
             | Ok modes ->
@@ -26,7 +26,7 @@ module ModuleInfoModule =
 
     type RelationInfo = { Name: string; SourceInfo: SourceInfo; Procedures: Map<int, ProcInfo>; }
 
-    let initRelation (relAttr: RelationAttribute) (relation: relationBase) (args: Var list) (goal: Goal) (varset: VarSet) =
+    let initRelation (relAttr: RelationAttribute) (relation: relationBase) (args: VarId list) (goal: Goal) (varset: VarSet) =
         let sourceInfo = relationSourceInfo relAttr
         let procs = List.mapi (initProc relAttr args goal varset) relation.Modes
         let procMap = List.fold (fun map (proc : ProcInfo) -> Map.add proc.ProcId proc map) Map.empty procs

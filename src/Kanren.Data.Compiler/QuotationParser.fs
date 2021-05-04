@@ -10,7 +10,11 @@ type ParserInfo = { varset: VarSet; errors: Error list; sourceInfo: SourceInfo }
     with
         member x.newVar(varType) =
             let (varset', var) = x.varset.newVar(varType)
-            ({ x with varset = varset' }, var)
+            ({ x with varset = varset' }, var.Id)
+
+        member x.newQVar(var) =
+            let (varset', var) = x.varset.addQuotationVar(var)
+            ({ x with varset = varset' }, var.Id)
 
         member x.newError(error) =
             { x with errors = error :: x.errors }
@@ -50,6 +54,10 @@ module QuotationParser =
     let newVar varType (parserInfo: ParserInfo) =
         let (parserInfo', var) = parserInfo.newVar(varType)
         (var, parserInfo')
+
+    let newQVar var (parserInfo: ParserInfo) =
+          let (parserInfo', v) = parserInfo.newQVar(var)
+          (v, parserInfo')
 
     let newVars varTypes (parserInfo: ParserInfo) =
         let (vars, parserInfo') =  List.mapFold (fun (p: ParserInfo) (t: System.Type) -> swap (p.newVar(t))) parserInfo varTypes
@@ -103,8 +111,8 @@ module QuotationParser =
 
     let rec getVars (varset: VarSet) expr =
         match expr with
-        | ExprShape.ShapeVar v -> varset.addQuotationVar(v)
-        | ExprShape.ShapeLambda (v, subExpr) -> getVars (varset.addQuotationVar v) subExpr
+        | ExprShape.ShapeVar v -> varset.addQuotationVar(v) |> fst
+        | ExprShape.ShapeLambda (v, subExpr) -> getVars (varset.addQuotationVar v |> fst) subExpr
         | ExprShape.ShapeCombination (combo, exprs) -> List.fold getVars varset exprs
 
     let initGoal (sourceInfo:SourceInfo) (goal:GoalExpr) =
@@ -121,7 +129,8 @@ module QuotationParser =
             let! sourceInfo = currentSourceInfo
             match rhs with
             | ExprShape.ShapeVar v ->
-                return ([], Some (UnifyRhs.Var v))
+                let! var = newQVar v
+                return ([], Some (UnifyRhs.Var var))
             | Patterns.Value(value, constType) ->
                 return ([], Some (UnifyRhs.Constructor([], Constant(value, constType))))
             | Patterns.NewTuple(args) ->
@@ -148,7 +157,8 @@ module QuotationParser =
                 let! sourceInfo = currentSourceInfo
                 match arg with
                 | ExprShape.ShapeVar v when not (allowDuplicateArgs && seenArgs.Contains(v)) ->
-                    return (v, seenArgs.Add(v), extraGoals)
+                    let! var = newQVar v
+                    return (var, seenArgs.Add(v), extraGoals)
                 | _ ->
                     let! var = newVar arg.Type
                     let! (extraGoals', rhsResult) = translateUnifyRhs arg
@@ -267,6 +277,7 @@ module QuotationParser =
 
     type DeconstructUnifyArg = ((Expr * Var Option) Option)
     type DeconstructVar = Expr * Constructor * DeconstructUnifyArg array * System.Type array
+    type AssignedDeconstructVar = VarId * Expr * Constructor * VarId list
     type DeconstructVars = List<DeconstructVar>
 
     let rec deconstructExprEqual ex1 ex2 =
@@ -408,7 +419,8 @@ module QuotationParser =
                     return Disj([])
                 | ExprShape.ShapeVar v ->
                     if (v.Type = typeof<bool>) then
-                        return Unify(v, Constructor([], Constant(true, typeof<bool>)))
+                        let! lhsVar = newQVar v
+                        return Unify(lhsVar, Constructor([], Constant(true, typeof<bool>)))
                     else
                         return! unsupportedExpression expr
                 | ExprShape.ShapeLambda (v, subExpr) ->
@@ -444,7 +456,8 @@ module QuotationParser =
     and
         translateMatchExpr var cases =
             parse {
-                let! goals = foldParse2 (translateMatchCase var) [] cases
+                let! v = newQVar var
+                let! goals = foldParse2 (translateMatchCase v) [] cases
                 return List.rev goals
             }
     and
@@ -456,7 +469,7 @@ module QuotationParser =
     and
         translateDeconstructVars (deconstructVars: DeconstructVars) =
             parse {
-                let rec assignUnifyArgs (unifyArgTypes: System.Type array) (unifyArgs: DeconstructUnifyArg array) assignedVars i =
+                let rec assignUnifyArgs (unifyArgTypes: System.Type array) (unifyArgs: DeconstructUnifyArg array) (assignedVars: AssignedDeconstructVar list) i =
                     parse {
                         if (i >= unifyArgTypes.Length) then
                             return []
@@ -464,11 +477,12 @@ module QuotationParser =
                             let! unifyArgsVars = assignUnifyArgs unifyArgTypes unifyArgs assignedVars (i + 1)
                             match unifyArgs.[i] with
                             | Some (_, Some v) ->
-                                return v :: unifyArgsVars
+                                let! argVar = newQVar v
+                                return argVar :: unifyArgsVars
                             | Some (expr, None) ->
                                 match (List.tryFind (fun (_, e, _, _) -> deconstructExprMatch e expr) assignedVars) with
-                                | Some (v, _, _, _) ->
-                                    return v :: unifyArgsVars
+                                | Some (argVar, _, _, _) ->
+                                    return argVar :: unifyArgsVars
                                 | None ->
                                     return raise (System.Exception($"unassigned expression {expr}"))
                             | None ->
@@ -476,7 +490,7 @@ module QuotationParser =
                                 return v :: unifyArgsVars
                     }
 
-                let assignVar (expr: Expr, ctor: Constructor, unifyArgs, unifyArgTypes) assignedVars =
+                let assignVar (expr: Expr, ctor: Constructor, unifyArgs, unifyArgTypes) (assignedVars: AssignedDeconstructVar list) =
                     parse {
                         let! assignedVar =
                             match (List.tryFind (fun (_, e, _, _) -> deconstructExprMatch e expr) assignedVars) with
@@ -485,7 +499,7 @@ module QuotationParser =
                             | None ->
                                 match expr with
                                 | ExprShape.ShapeVar v ->
-                                    parse { return v }
+                                    newQVar v
                                 | _ ->
                                     newVar expr.Type
                         let! unifyArgs' = assignUnifyArgs unifyArgTypes unifyArgs assignedVars 0
@@ -506,7 +520,8 @@ module QuotationParser =
                 match expr with
                     | Patterns.Let (arg, Patterns.TupleGet (ExprShape.ShapeVar argVar1, _), subExpr) when argVar = argVar1  ->
                         // Found extraction of argument from tuple of arguments.
-                        return! translateArgs argVar subExpr (arg :: args)
+                        let! relationArgVar = newQVar arg
+                        return! translateArgs argVar subExpr (relationArgVar :: args)
                     | _ ->
                         let! goal = translateSubExprGoal expr
                         return (List.rev args, goal)
@@ -522,8 +537,9 @@ module QuotationParser =
                             when argVar.Name = "tupledArg" && argVar = argVar1 ->
                         return! translateArgs argVar subExpr []
                     | _ ->
+                        let! relationArgVar = newQVar argVar
                         let! goal = translateSubExprGoal subExpr
-                        return ([argVar], goal)
+                        return ([relationArgVar], goal)
                 | _ ->
                     let! sourceInfo = currentSourceInfo
                     let! goalExpr = unsupportedExpression expr

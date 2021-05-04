@@ -6,9 +6,9 @@ open FSharp.Quotations
 [<AutoOpen>]
 module Goal =
 
-    type SetOfVar = Var Set
+    type SetOfVar = VarId Set
 
-    type Instmap = Map<Var, Kanren.Data.Inst>
+    type Instmap = Map<VarId, Kanren.Data.Inst>
 
     type InstmapDelta = Instmap
 
@@ -34,16 +34,16 @@ module Goal =
         | UnionCase of FSharp.Reflection.UnionCaseInfo
 
     type UnifyRhs =
-        | Var of Var
-        | Constructor of args: Var list * constructor: Constructor
+        | Var of VarId
+        | Constructor of args: VarId list * constructor: Constructor
 
     type GoalExpr =
-        | Unify of lhs: Var * rhs : UnifyRhs
-        | Call of func: System.Reflection.PropertyInfo * args: (Var list)
-        | FSharpCall of func: System.Reflection.MethodInfo * returnValue: Var * args : (Var list)
+        | Unify of lhs: VarId * rhs : UnifyRhs
+        | Call of func: System.Reflection.PropertyInfo * args: (VarId list)
+        | FSharpCall of func: System.Reflection.MethodInfo * returnValue: VarId * args : (VarId list)
         | Conj of Goal list
         | Disj of Goal list
-        | Switch of var: Var * canFail: bool * cases: Case list
+        | Switch of var: VarId * canFail: bool * cases: Case list
         | IfThenElse of condGoal: Goal * thenGoal: Goal * elseGoal: Goal * condExistVars: SetOfVar
         | Not of Goal
     and
@@ -65,12 +65,12 @@ module Goal =
         | _ ->
             None
 
-    let unifyRhsVars rhs  (vars : Var Set) =
+    let unifyRhsVars rhs  (vars : SetOfVar) =
         match rhs with
             | Var(var) -> vars.Add(var)
             | Constructor(args, _) -> List.fold (flip Set.add) vars args
 
-    let rec goalExprVars goal (vars : Var Set) =
+    let rec goalExprVars goal (vars : SetOfVar) =
         match goal with
             | Unify(lhs, rhs) ->
                 unifyRhsVars rhs (vars.Add(lhs))
