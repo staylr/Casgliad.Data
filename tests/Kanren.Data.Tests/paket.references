@@ -4,3 +4,5 @@ Microsoft.NET.Test.Sdk
 YoloDev.Expecto.TestSdk
 altcover
 Unquote
+NUnit
+NUnit3TestAdapter

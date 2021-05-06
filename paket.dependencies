@@ -7,6 +7,8 @@ nuget Expecto
 nuget YoloDev.Expecto.TestSdk
 nuget Microsoft.NET.Test.Sdk
 nuget altcover ~> 7
+nuget NUnit
+nuget NUnit3TestAdapter
 
 nuget SQLProvider
 nuget Unquote

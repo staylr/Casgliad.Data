@@ -1,7 +1,6 @@
 namespace Kanren.Data.Compiler
 
 open Kanren.Data
-open FSharp.Quotations
 
 [<AutoOpen>]
 module Goal =
@@ -11,6 +10,11 @@ module Goal =
     type Instmap = Map<VarId, Kanren.Data.Inst>
 
     type InstmapDelta = Instmap
+
+    type GoalToStringFlags =
+    | NoPrintInfo
+
+    type GoalToStringFlagsSet = GoalToStringFlags Set
 
     type GoalInfo =
         {
@@ -46,8 +50,19 @@ module Goal =
         | Switch of var: VarId * canFail: bool * cases: Case list
         | IfThenElse of condGoal: Goal * thenGoal: Goal * elseGoal: Goal * condExistVars: SetOfVar
         | Not of Goal
+        with
+        member x.ToString(varset: VarSet, flags: GoalToStringFlagsSet) : StringBuffer =
+            stringBuffer {
+                yield ""
+                yield "a"
+            }
     and
         Goal = { goal : GoalExpr; info : GoalInfo }
+        with
+        member x.ToString(varset: VarSet, flags: GoalToStringFlagsSet) =
+            stringBuffer { yield! x.goal.ToString(varset, flags) }
+            
+
     and
         Case = { constructor: Constructor; otherConstructors: Constructor list; caseGoal: Goal }
 

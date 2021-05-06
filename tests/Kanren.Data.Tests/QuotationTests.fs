@@ -69,9 +69,9 @@ module QuotationTests =
 
             testCase "Match" <| fun _ ->
                 let expr = <@ fun (x, y) -> match x with
-                                            | Case1(_, _) -> y = "Case1"
-                                            | Case2(_, _) -> y = "Case2"
-                                            | Case3(_, _) -> y = "Case3" @>
+                                            | Case1(a, b) -> a = b && y = "Case1"
+                                            | Case2(c, d) -> c = d && y = "Case2"
+                                            | Case3(e, f) -> e = f && y = "Case3" @>
                 let ((args, goal), info) = State.run  (QuotationParser.translateExpr expr) (newParserInfo expr)
                 test <@ info.errors = [] @> 
 
@@ -79,7 +79,10 @@ module QuotationTests =
                 | Disj([disjunct1; disjunct2; disjunct3]) ->
                     let checkDisjunct disjunct =
                         match disjunct.goal with
-                        | Conj([{ goal = Unify(lhs, Constructor([_; _], UnionCase(case))) };
+                        | Conj([
+                                { goal = Unify(lhs, Constructor([_; _], UnionCase(case))) };
+                                { goal = Unify(lhsd, Constructor([_; _], UnionCase(cased))) };
+                                { goal = Unify(lhst, Var(rhst)) };
                                 { goal = Unify(lhs2, Constructor([], Constant(constant, _))) }]) ->
                             test <@ constant = upcast case.Name @>
                         | _ ->
@@ -118,14 +121,43 @@ module QuotationTests =
                 | _ -> raise(Exception($"unexpected goal {goal.goal}"))
 
             testCase "DeconstructTuple2" <| fun _ ->
-                    let expr = <@ fun((a, (e, ({ Modes = m; Determinism = d }: RelationMode)), c), x, y, z, u) ->
-                                                        x = 1
-                                                        && y = 2
-                                                        && z = y + 3
-                                                        && z < 10
+                    let expr = <@ fun (
+                                        (a, (e, { Modes = m; Determinism = d }: RelationMode), c),
+                                        x) ->
+                                                        x = e
+                                                        && a = c
+                                                        && m = []
+                                                        && d = Determinism.Det
                                     @>
                     let ((args, goal), info) = State.run  (QuotationParser.translateExpr expr) (newParserInfo expr)
-                    Expect.equal (List.length info.errors) 0 "Found errors"
+                    test <@ info.errors = [] @>
+                    match goal.goal with
+                    | Conj([{ goal = Unify(arg1, Constructor([arga; argeModes1; argc], Tuple)) };
+                            { goal = Unify(argeModes2, Constructor([arge; argModes1], Tuple)) };
+                            { goal = Unify(argModes2, Constructor([argm; argd], Record(relationModeType))) };
+                            { goal = Unify(argx2, Var(arge2)) };
+                            { goal = Unify(arga2, Var(argc2)) };
+                            { goal = Unify(argm2, Constructor([], UnionCase(listEmptyCase))) };
+                            { goal = Unify(argd2, Constructor([], Constant(determinismDet, determinismType))) }]) ->
+                        test <@ testVarName info arga "a" @>
+                        test <@ arg1 = args.[0] @>
+                        test <@ testVarName info argc "c" @>
+                        test <@ argeModes1 = argeModes2 @>
+                        test <@ argModes1 = argModes2 @>
+                        test <@ testVarName info arge "e" @>
+                        test <@ testVarName info argd "d" @>
+                        test <@ testVarName info argm "m" @>
+                        test <@ testVarName info argx2 "x" @>
+                        test <@ arge2 = arge @>
+                        test <@ arga2 = arga @>
+                        test <@ argm2 = argm @>
+                        test <@ argc2 = argc @>
+                        test <@ argd2 = argd @>
+                        test <@ listEmptyCase.Name = "Empty" @>
+                        test <@ relationModeType.Name = "RelationMode" @>
+                        test <@ determinismDet = upcast Determinism.Det @>
+                        test <@ determinismType.Name = "Determinism" @>
+                    | _ -> raise(Exception($"unexpected goal {goal.goal}"))
 
             testCase "Exists" <| fun _ ->
                 let expr = <@ fun (x, y) -> kanren.exists(fun z -> x = 4 && y = 2 && z = 3) @>

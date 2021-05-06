@@ -12,6 +12,8 @@
     <Tailcalls>true</Tailcalls>
   </PropertyGroup>
   <ItemGroup>
+    <Compile Include="IntSet.fs" />
+    <Compile Include="StringBuffer.fs" />
     <Compile Include="StateBuilder.fs" />
     <Compile Include="Util.fs" />
     <Compile Include="VarSet.fs" />

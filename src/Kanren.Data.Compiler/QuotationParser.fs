@@ -407,7 +407,7 @@ module QuotationParser =
                 | Deconstruct (deconstructExprs, subExpr) ->
                     let! deconstructGoals = translateDeconstructExprs deconstructExprs
                     let! subGoal = translateSubExprGoal subExpr
-                    return Conj(List.append deconstructGoals [subGoal])
+                    return List.append deconstructGoals [subGoal] |> Simplify.flattenConjunction 
                 | Patterns.Let (v, binding, expr) ->
                     // Introduces a fresh variable and unifies it immediately.
                     let! unifyGoalExpr = translateUnify (Expr.Var v) binding v.Type
@@ -449,7 +449,7 @@ module QuotationParser =
                 let! fieldVars = newVars (List.ofArray fieldTypes)
                 let unifyGoal = Unify(var, Constructor(fieldVars, case))
                 let! goal = translateSubExprGoal expr
-                let disjunct = initGoal sourceInfo (Conj([initGoal sourceInfo unifyGoal; goal]))
+                let disjunct = initGoal sourceInfo (Simplify.flattenConjunction [initGoal sourceInfo unifyGoal; goal])
 
                 return disjunct :: goals
             }
