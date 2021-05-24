@@ -88,3 +88,94 @@ module State =
                        enum.MoveNext,
                        this.Delay (fun () ->
                            body enum.Current))))
+
+module Reader =
+    type ReaderFunc<'Env, 'T> =
+        'Env -> 'T
+
+    /// <summary>
+    /// </summary>
+    [<Sealed>]
+    type ReaderBuilder () =
+        // 'T -> M<'T>
+        member __.Return value
+            : ReaderFunc<'Env, 'T> =
+            fun _ -> value
+
+        // M<'T> -> M<'T>
+        member __.ReturnFrom func
+            : ReaderFunc<'Env, 'T> =
+            func
+
+        // unit -> M<'T>
+        member __.Zero ()
+            : ReaderFunc<'Env, unit> =
+            fun _ -> ()
+
+        // M<'T> * ('T -> M<'U>) -> M<'U>
+        member __.Bind (f : ReaderFunc<_,_>, binder : 'T -> ReaderFunc<_,_>)
+            : ReaderFunc<'Env, 'U> =
+            fun env ->
+                let result = f env
+                binder result env
+
+        // (unit -> M<'T>) -> M<'T>
+        member this.Delay (generator : unit -> ReaderFunc<_,_>)
+            : ReaderFunc<'Env, 'T> =
+            this.Bind (this.Zero (), generator)
+
+        // M<'T> -> M<'T> -> M<'T>
+        // or
+        // M<unit> -> M<'T> -> M<'T>
+        member this.Combine (r1 : ReaderFunc<_,_>, r2 : ReaderFunc<_,_>)
+            : ReaderFunc<'Env, 'T> =
+            this.Bind (r1, fun () -> r2)
+
+        // M<'T> * (exn -> M<'T>) -> M<'T>
+        member __.TryWith (body : ReaderFunc<_,_>, handler : exn -> ReaderFunc<_,_>)
+            : ReaderFunc<'Env, 'T> =
+            fun env ->
+                try body env
+                with ex ->
+                    handler ex env
+
+        // M<'T> * (unit -> unit) -> M<'T>
+        member __.TryFinally (body : ReaderFunc<_,_>, handler)
+            : ReaderFunc<'Env, 'T> =
+            fun env ->
+                try body env
+                finally
+                    handler ()
+
+        // 'T * ('T -> M<'U>) -> M<'U> when 'T :> IDisposable
+        member this.Using (resource : ('T :> System.IDisposable), binder : 'T -> ReaderFunc<_,_>)
+            : ReaderFunc<'Env, 'U> =
+            fun env ->
+                try binder resource env
+                finally
+                    if not <| isNull (box resource) then
+                        resource.Dispose ()
+
+        // (unit -> bool) * M<'T> -> M<'T>
+        member this.While (guard, body : ReaderFunc<_,_>)
+            : ReaderFunc<'Env, unit> =
+            fun env ->
+                while guard () do
+                    body env
+
+        // seq<'T> * ('T -> M<'U>) -> M<'U>
+        // or
+        // seq<'T> * ('T -> M<'U>) -> seq<M<'U>>
+        member this.For (sequence : seq<_>, body : 'T -> ReaderFunc<_,_>)
+            : ReaderFunc<'Env, unit> =
+            this.Using (sequence.GetEnumerator (), fun enum ->
+                this.While (
+                    enum.MoveNext,
+                    this.Delay (fun () -> body enum.Current)))
+            // OPTIMIZE : Could this be replaced with Seq.map?
+            (*
+            fun env ->
+                sequence
+                |> Seq.iter (fun el ->
+                    body el env)
+            *)

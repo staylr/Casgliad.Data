@@ -25,7 +25,7 @@ module Simplify =
 
     let rec internal simplifyGoal (goal: Goal) =
         match goal.goal with
-        | Unify (_, _) -> goal
+        | Unify (_, _, _, _) -> goal
         | Call (_, _) -> goal
         | FSharpCall(_, _, _) -> goal
         | Conj goals ->

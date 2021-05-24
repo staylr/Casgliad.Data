@@ -43,19 +43,49 @@ type 'A relation(name: string, modes: RelationMode list, [<ReflectedDefinitionAt
     inherit relationBase(name, modes, body, path, line)
     member this.Body = body
 
-type kanren() =
-    static member exists(f: 'A -> bool, [<CallerFilePath; Optional; DefaultParameterValue("")>] path: string,
-                                                [<CallerLineNumber; Optional; DefaultParameterValue(0)>] line: int) =
-                        raise (System.Exception("function 'exists' should only occur in quotations"))
+type AggregateFunc =
+    | Sum
+    | Count
+    | Max
+    | Min
+    | Average
+    | StdDev
 
-    static member call (r: 'A relation, args: 'A, [<CallerFilePath; Optional; DefaultParameterValue("")>] path: string,
-                                                [<CallerLineNumber; Optional; DefaultParameterValue(0)>] line: int)  : bool =
-                        raise (System.Exception("function 'call' should only occur in quotations"))
+type Aggregate<'Query, 'Input, 'Res> = { Func: AggregateFunc; Select: ('Query -> 'Input) }
+
+type kanren() =
+    static member exists(f: 'A -> bool,
+                            [<CallerFilePath; Optional; DefaultParameterValue("")>] path: string,
+                            [<CallerLineNumber; Optional; DefaultParameterValue(0)>] line: int) : bool =
+                        raise (System.Exception("'exists' should only occur in quotations"))
+
+    static member call(r: 'A relation, args: 'A,
+                            [<CallerFilePath; Optional; DefaultParameterValue("")>] path: string,
+                            [<CallerLineNumber; Optional; DefaultParameterValue(0)>] line: int) : bool =
+                        raise (System.Exception("'call' should only occur in quotations"))
+
+    static member groupBy(f: 'A -> bool, groupBy: 'A -> 'G, result: 'G * Set<'A>,
+                            [<CallerFilePath; Optional; DefaultParameterValue("")>] path: string,
+                            [<CallerLineNumber; Optional; DefaultParameterValue(0)>] line: int) : bool =
+                        raise (System.Exception("'groupBy' should only occur in quotations"))
+
+    static member aggregate(query: 'A -> bool, groupBy: 'A -> 'G, aggregate: Aggregate<'A, 'I, 'Res>, groupKey: 'G, result: 'Res,
+                            [<CallerFilePath; Optional; DefaultParameterValue("")>] path: string,
+                            [<CallerLineNumber; Optional; DefaultParameterValue(0)>] line: int) : bool =
+                        raise (System.Exception("'aggregate' should only occur in quotations"))
+    static member aggregate(query: 'A -> bool, groupBy: 'A -> 'G, aggregates: (Aggregate<'A, 'I1, 'Res1> * Aggregate<'A, 'I2, 'Res2>), groupKey: 'G, result1: 'Res1, result2: 'Res2,
+                            [<CallerFilePath; Optional; DefaultParameterValue("")>] path: string,
+                            [<CallerLineNumber; Optional; DefaultParameterValue(0)>] line: int) : bool =
+                        raise (System.Exception("'aggregate' should only occur in quotations"))
+
+    static member count (select: 'Q -> 'I) : Aggregate<'Q, 'I, int> = { Func = AggregateFunc.Count; Select = select }
+    static member sum (select: 'Q -> int) : Aggregate<'Q, int, int> = { Func = AggregateFunc.Sum; Select = select }
 
     // If-then-else with existentially quantified variables scoped across the if-then part.
-    static member ifThenElse (ifThen: ('A -> ('A -> bool * 'A -> bool)), els: (unit -> bool), [<CallerFilePath; Optional; DefaultParameterValue("")>] path: string,
-                                                [<CallerLineNumber; Optional; DefaultParameterValue(0)>] line: int)  : bool =
-                        raise (System.Exception("function 'ifThenElse' should only occur in quotations"))
+    static member ifThenElse (ifThenClause: ('A -> ('A -> bool * 'A -> bool)), elseClause: (unit -> bool),
+                            [<CallerFilePath; Optional; DefaultParameterValue("")>] path: string,
+                            [<CallerLineNumber; Optional; DefaultParameterValue(0)>] line: int)  : bool =
+                        raise (System.Exception("'ifThenElse' should only occur in quotations"))
 
 [<System.AttributeUsage(System.AttributeTargets.Property, AllowMultiple=false)>]
 type RelationAttribute([<CallerFilePath; Optional; DefaultParameterValue("")>] path: string,

@@ -12,7 +12,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 *)
 
-namespace ExtCore.Collections
+namespace Kanren.Data.Compiler
 
 open System.Collections.Generic
 open System.Diagnostics
@@ -1505,7 +1505,6 @@ module IntSet =
         set.Find predicate
 
 
-#if PROTO_COMPILER
 
 /// An IntSet whose values are tagged with a unit-of-measure type.
 [<MeasureAnnotatedAbbreviation>]
@@ -2029,4 +2028,3 @@ module TagSet =
         set.Find (retype predicate)
         |> retype
 
-#endif

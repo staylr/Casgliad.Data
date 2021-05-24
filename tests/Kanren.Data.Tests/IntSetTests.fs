@@ -20,11 +20,11 @@ limitations under the License.
 /// Unit tests for the ExtCore.Collections.IntSet type and module.
 module Tests.ExtCore.Collections.IntSet
 
+open Kanren.Data.Compiler
 open System
 open System.Collections
 open System.Collections.Generic
 open NUnit.Framework
-open ExtCore.Collections
 
 let inline raToArray (resizeArray : ResizeArray<'T>) : 'T[] =
     resizeArray.ToArray ()

@@ -14,7 +14,7 @@
   <ItemGroup>
     <Compile Include="IntSet.fs" />
     <Compile Include="StringBuffer.fs" />
-    <Compile Include="StateBuilder.fs" />
+    <Compile Include="State.fs" />
     <Compile Include="Util.fs" />
     <Compile Include="VarSet.fs" />
     <None Include="Script.fsx" />
