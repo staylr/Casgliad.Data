@@ -118,16 +118,21 @@ module QuotationParser =
     let initGoal (sourceInfo:SourceInfo) (goal:GoalExpr) =
             { goal = goal; info = GoalInfo.init(sourceInfo) }
 
-    let initUnify lhs rhs sourceInfo =
-            Unify (lhs, rhs, (Mode.In, Mode.In), { SourceInfo = sourceInfo })
+    let initUnify lhs rhs context =
+            Unify (lhs, rhs, (Mode.In, Mode.In), context)
 
     let listToGoal goals =
         match goals with
         | [goal] -> goal.goal
         | _ -> Conj(goals)
 
+    let addCtorSubContext unifyContext ctor index =
+        { unifyContext with SubContext = { Functor = FunctorConstructor(ctor); ArgIndex = index} :: unifyContext.SubContext }
 
-    let rec translateUnifyRhs rhs =
+    let addCallSubContext unifyContext ctor index =
+        { unifyContext with SubContext = { Functor = FunctorCall(ctor); ArgIndex = index} :: unifyContext.SubContext }
+
+    let rec translateUnifyRhs rhs (context: UnifyContext) =
         parse {
             let! sourceInfo = currentSourceInfo
             match rhs with
@@ -137,16 +142,16 @@ module QuotationParser =
             | Patterns.Value(value, constType) ->
                 return ([], Some (UnifyRhs.Constructor(Constant(value, constType), [], VarCtorUnifyType.Construct, [])))
             | Patterns.NewTuple(args) ->
-                let! (argVars, extraGoals) = translateCallArgs false args
+                let! (argVars, extraGoals) = translateCallArgs false args (addCtorSubContext context Tuple)
                 return (extraGoals, Some (UnifyRhs.Constructor(Tuple, argVars, VarCtorUnifyType.Construct, [])))
             | Patterns.NewRecord(recordType, args) ->
-                let! (argVars, extraGoals) = translateCallArgs false args
+                let! (argVars, extraGoals) = translateCallArgs false args (addCtorSubContext context (Record(recordType)))
                 return (extraGoals, Some (UnifyRhs.Constructor(Record(recordType), argVars, VarCtorUnifyType.Construct, [])))
             | Patterns.NewUnionCase(caseInfo, args) ->
-                let! (argVars, extraGoals) = translateCallArgs false args
+                let! (argVars, extraGoals) = translateCallArgs false args (addCtorSubContext context (UnionCase(caseInfo)))
                 return (extraGoals, Some (UnifyRhs.Constructor(UnionCase(caseInfo), argVars, VarCtorUnifyType.Construct, [])))
             | Patterns.Call(None, callee, args) ->
-                let! (argVars, extraGoals) = translateCallArgs false args
+                let! (argVars, extraGoals) = translateCallArgs false args (addCallSubContext context callee)
                 let! returnVar = newVar callee.ReturnType
                 let goal = FSharpCall(callee, returnVar, argVars)
                 return List.append extraGoals [initGoal sourceInfo goal], Some (UnifyRhs.Var(returnVar, VarVarUnifyType.Assign))
@@ -154,8 +159,8 @@ module QuotationParser =
                 do! newError(Error.unsupportedExpressionError sourceInfo rhs)
                 return ([], None)
         }
-    and   
-        translateCallArg allowDuplicateArgs (seenArgs: Var Set) (extraGoals: Goal list) arg =
+    and
+        translateCallArg allowDuplicateArgs (seenArgs: Var Set) (extraGoals: Goal list) arg unifyContext =
             parse {
                 let! sourceInfo = currentSourceInfo
                 match arg with
@@ -164,58 +169,59 @@ module QuotationParser =
                     return (var, seenArgs.Add(v), extraGoals)
                 | _ ->
                     let! var = newVar arg.Type
-                    let! (extraGoals', rhsResult) = translateUnifyRhs arg
+                    let! (extraGoals', rhsResult) = translateUnifyRhs arg unifyContext
                     match rhsResult with
                     | Some rhs ->
-                        return (var, seenArgs, initGoal sourceInfo (initUnify var rhs sourceInfo) :: extraGoals')
+                        return (var, seenArgs, initGoal sourceInfo (initUnify var rhs unifyContext) :: extraGoals')
                     | None ->
                         return (var, seenArgs, extraGoals')
             }
     and
-        translateCallArgs' allowDuplicateArgs (argVars, seenArgs, extraGoals) args =
+        translateCallArgs' allowDuplicateArgs (argVars, seenArgs, extraGoals) args index constructContext =
             parse {
                 match args with
                 | [] ->
                     return (argVars, seenArgs, extraGoals)
                 | arg :: otherArgs ->
-                    let! (argVar, seenArgs', extraGoals') = translateCallArg allowDuplicateArgs seenArgs extraGoals arg
-                    return! translateCallArgs' allowDuplicateArgs (argVar :: argVars, seenArgs', extraGoals') otherArgs
+                    let! (argVar, seenArgs', extraGoals') = translateCallArg allowDuplicateArgs seenArgs extraGoals arg (constructContext index)
+                    return! translateCallArgs' allowDuplicateArgs (argVar :: argVars, seenArgs', extraGoals') otherArgs (index + 1) constructContext
             }
     and
-        translateCallArgs allowDuplicateArgs args =
+        translateCallArgs allowDuplicateArgs args constructContext =
             parse {
-                let! (argVars, _, extraGoals) = translateCallArgs' allowDuplicateArgs ([], Set.empty, []) args
+                let! (argVars, _, extraGoals) = translateCallArgs' allowDuplicateArgs ([], Set.empty, []) args 1 constructContext
                 return (List.rev argVars, extraGoals)
             }
-    let translateCall callee args =
+
+    let translateCall (callee: System.Reflection.PropertyInfo) args =
             parse {
                 let! sourceInfo = currentSourceInfo
-                let! (argVars, extraGoals) = translateCallArgs false args
+                let! (argVars, extraGoals) = translateCallArgs false args (fun index -> initUnifyContext (CallArgUnify (callee.Name, index)))
                 let call = initGoal sourceInfo (Goal.Call(callee, argVars))
                 return listToGoal (List.rev (call :: extraGoals))
             }
 
-    let rec translateUnify lhs rhs unifyType =
+    let rec translateUnify lhs rhs unifyType unifyContext =
             parse {
                 let! sourceInfo = currentSourceInfo
-                let! (extraGoals1, rhsResult1) = translateUnifyRhs lhs
-                let! (extraGoals2, rhsResult2) = translateUnifyRhs rhs
+                let! (extraGoals1, rhsResult1) = translateUnifyRhs lhs unifyContext
+                let! (extraGoals2, rhsResult2) = translateUnifyRhs rhs unifyContext
                 match (rhsResult1, rhsResult2) with
                 | (Some rhs1, Some rhs2) ->
                     match rhs1 with
                     | UnifyRhs.Var(v, _) ->
                         return listToGoal (List.concat [extraGoals1; extraGoals2;
-                                                    [initGoal sourceInfo (initUnify v rhs2 sourceInfo) ]])
+                                                    [initGoal sourceInfo (initUnify v rhs2 unifyContext) ]])
                     | _ ->
                         match rhs2 with
                         | UnifyRhs.Var(v, _) ->
                             return listToGoal (List.concat [extraGoals1; extraGoals2;
-                                                [initGoal sourceInfo (initUnify v rhs1 sourceInfo)]])
+                                                [initGoal sourceInfo (initUnify v rhs1 unifyContext)]])
                         | _ ->
                             let! unifyVar = newVar unifyType
                             return listToGoal (List.concat [extraGoals1; extraGoals2;
-                                        [initGoal sourceInfo (initUnify unifyVar rhs1 sourceInfo);
-                                        initGoal sourceInfo (initUnify unifyVar rhs2 sourceInfo) ]])
+                                        [initGoal sourceInfo (initUnify unifyVar rhs1 unifyContext);
+                                        initGoal sourceInfo (initUnify unifyVar rhs2 unifyContext) ]])
                 | _ ->
                     // error.
                     return Conj(List.append extraGoals1 extraGoals2)
@@ -393,9 +399,9 @@ module QuotationParser =
                                                               Patterns.NewTuple(args); _; _]) ->
                     return! translateCall callee args
                 | DerivedPatterns.SpecificCall (<@@ (=) @@>) (_, [unifyType], [lhs; rhs] ) ->
-                    return! translateUnify lhs rhs unifyType
+                    return! translateUnify lhs rhs unifyType (initUnifyContext ExplicitUnify)
                 | Patterns.Call(None, callee, args) ->
-                    return! translateUnify (Expr.Value true) expr typeof<bool>
+                    return! translateUnify (Expr.Value true) expr typeof<bool> (initUnifyContext ImplicitUnify)
                 | UnionMatch (ExprShape.ShapeVar v, cases, canFail) ->
                     let! caseGoals = translateMatchExpr v cases
                     return Disj(caseGoals)
@@ -413,7 +419,7 @@ module QuotationParser =
                     return List.append deconstructGoals [subGoal] |> Simplify.flattenConjunction 
                 | Patterns.Let (v, binding, expr) ->
                     // Introduces a fresh variable and unifies it immediately.
-                    let! unifyGoalExpr = translateUnify (Expr.Var v) binding v.Type
+                    let! unifyGoalExpr = translateUnify (Expr.Var v) binding v.Type (initUnifyContext ExplicitUnify)
                     let! exprGoal = translateSubExprGoal expr
                     return Simplify.flattenConjunction [initGoal sourceInfo unifyGoalExpr; exprGoal]
                 | True' _ ->
@@ -424,7 +430,7 @@ module QuotationParser =
                     if (v.Type = typeof<bool>) then
                         let! lhsVar = newQVar v
                         let rhs = Constructor(Constant(true, typeof<bool>), [], VarCtorUnifyType.Construct, [])
-                        return initUnify lhsVar rhs sourceInfo
+                        return initUnify lhsVar rhs (initUnifyContext ExplicitUnify)
                     else
                         return! unsupportedExpression expr
                 | ExprShape.ShapeLambda (v, subExpr) ->
@@ -451,7 +457,8 @@ module QuotationParser =
                         [||]
                         
                 let! fieldVars = newVars (List.ofArray fieldTypes)
-                let unifyGoal = initUnify var (Constructor(case, fieldVars, VarCtorUnifyType.Construct, [])) sourceInfo
+                // TODO fix unify context
+                let unifyGoal = initUnify var (Constructor(case, fieldVars, VarCtorUnifyType.Construct, [])) (initUnifyContext ImplicitUnify)
                 let! goal = translateSubExprGoal expr
                 let disjunct = initGoal sourceInfo (Simplify.flattenConjunction [initGoal sourceInfo unifyGoal; goal])
 
@@ -513,7 +520,10 @@ module QuotationParser =
                 let! assignedDeconstructVars = foldParse2 assignVar [] deconstructVars 
 
                 let generateDeconstructGoal sourceInfo (var, _, ctor, unifyArgs) =
-                                initGoal sourceInfo (initUnify var (Constructor(ctor, unifyArgs, VarCtorUnifyType.Construct, [])) sourceInfo)
+                                let unifyRhs = Constructor(ctor, unifyArgs, VarCtorUnifyType.Construct, [])
+                                // TODO: fix context
+                                let unifyContext = initUnifyContext ImplicitUnify
+                                initGoal sourceInfo (initUnify var unifyRhs unifyContext)
                 let! sourceInfo = currentSourceInfo
                 return List.map (generateDeconstructGoal sourceInfo) assignedDeconstructVars
             }

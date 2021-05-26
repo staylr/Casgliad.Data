@@ -131,7 +131,21 @@ module Goal =
 
     type UnifyMode = Mode * Mode
 
-    type UnifyContext = { SourceInfo: SourceInfo }
+    type UnifyMainContext =
+    | ExplicitUnify
+    | HeadUnify of ArgIndex: int
+    | CallArgUnify of Name: string * ArgIndex: int
+    | ImplicitUnify 
+
+    type UnifySubContextFunctor =
+    | FunctorConstructor of Constructor
+    | FunctorCall of System.Reflection.MethodInfo
+
+    type UnifySubContext = { Functor: UnifySubContextFunctor; ArgIndex: int } 
+
+    type UnifyContext = { MainContext: UnifyMainContext; SubContext: UnifySubContext list }
+
+    let initUnifyContext mainContext = { MainContext = mainContext; SubContext = [] }
 
     type GoalExpr =
         | Unify of lhs: VarId * rhs : UnifyRhs * mode: UnifyMode * context: UnifyContext
