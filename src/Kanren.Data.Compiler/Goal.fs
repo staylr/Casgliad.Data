@@ -71,6 +71,8 @@ module GoalWriter =
                     yield sep
                 | [] ->
                     yield! listToString xs f sep
+            | [] ->
+                ()
         }
 
 [<AutoOpen>]
@@ -218,6 +220,8 @@ module Goal =
                         yield args
                     | [] ->
                         yield ""
+                | Lambda(_, _, _, _, _) ->
+                    yield ("lambda")
             }
 
     let (|Fail|_|) goalExpr =

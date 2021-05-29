@@ -104,6 +104,10 @@ type ModuleAttribute(name: string, [<CallerFilePath; Optional; DefaultParameterV
 
 [<AutoOpen>]
 module Mode =
+    // Ignore for relation arguments.
+    // _ doesn't work because calls are not pattern matches.
+    let _i() : 'A = raise (System.Exception("'_i' should only occur in quotations"))
+
     let (=>) (inst1: Inst) (inst2: Inst) = (inst1, inst2)
 
     let In = Ground => Ground

@@ -167,6 +167,10 @@ module QuotationParser =
                 | ExprShape.ShapeVar v when not (allowDuplicateArgs && seenArgs.Contains(v)) ->
                     let! var = newQVar v
                     return (var, seenArgs.Add(v), extraGoals)
+                | DerivedPatterns.SpecificCall (<@@ Kanren.Data.Mode._i @@>) (_, _, _) ->
+                    // Special syntax to ignore relation arguments.
+                    let! var = newVar arg.Type
+                    return (var, seenArgs, extraGoals)
                 | _ ->
                     let! var = newVar arg.Type
                     let! (extraGoals', rhsResult) = translateUnifyRhs arg unifyContext

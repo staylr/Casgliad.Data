@@ -28,7 +28,7 @@ module Main =
                                     && y = 2
                                     && z = y + 3
                                     && z < 10
-                                    && kanren.call(this.rel2, (x, z))
+                                    && kanren.call(this.rel2, (x, _i()))
                                     && (match u with
                                         | Case1(_, _) -> true
                                         | Case2(_, _) -> false
