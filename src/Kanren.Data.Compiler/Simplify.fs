@@ -44,7 +44,7 @@ module Simplify =
                  simplifyGoal { goal with goal = flattenedGoal }
         | Not negGoal ->
             { goal with goal = Not (simplifyGoal negGoal) }
-        | IfThenElse(condGoal, thenGoal, elseGoal, existVars) ->
+        | IfThenElse(condGoal, thenGoal, elseGoal) ->
             let condGoal' = simplifyGoal condGoal
             let thenGoal' = simplifyGoal thenGoal
             let elseGoal' = simplifyGoal elseGoal
@@ -58,7 +58,7 @@ module Simplify =
                     // TODO: fix determinism of Not goal.
                     { goal with goal = Conj([{ goal = Not(condGoal'); info = condGoal'.info}; elseGoal'])}
                 | _ ->
-                    { goal with goal = IfThenElse(condGoal', thenGoal', elseGoal', existVars)}
+                    { goal with goal = IfThenElse(condGoal', thenGoal', elseGoal')}
 
         | Switch (var, canFail, cases) ->
             { goal with goal =  Switch (var, canFail, List.map (fun case -> { case with caseGoal = simplifyGoal case.caseGoal }) cases) }

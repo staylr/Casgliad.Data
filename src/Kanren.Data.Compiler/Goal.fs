@@ -156,7 +156,7 @@ module Goal =
         | Conj of Goal list
         | Disj of Goal list
         | Switch of var: VarId * canFail: bool * cases: Case list
-        | IfThenElse of condGoal: Goal * thenGoal: Goal * elseGoal: Goal * condExistVars: SetOfVar
+        | IfThenElse of condGoal: Goal * thenGoal: Goal * elseGoal: Goal
         | Not of Goal
         with
         member x.Dump() : GoalToStringFunc =
@@ -181,7 +181,7 @@ module Goal =
                     yield! indent (listToString goals (fun goal -> goal.Dump()) ";\n")
                 | Switch(var, canFail, cases) ->
                     yield ""
-                | IfThenElse(condGoal, thenGoal, elseGoal, existVars) ->
+                | IfThenElse(condGoal, thenGoal, elseGoal) ->
                     yield ""
                 | Not(negGoal) ->
                     yield " not ("
@@ -252,8 +252,7 @@ module Goal =
             | Switch(var, _, cases) ->
                 let vars' = TagSet.add var vars
                 List.fold (fun vars'' case -> goalVars case.caseGoal vars'') vars' cases
-            | IfThenElse(condGoal, thenGoal, elseGoal, existVars) ->
-                let vars' = TagSet.fold (flip TagSet.add) vars existVars
+            | IfThenElse(condGoal, thenGoal, elseGoal) ->
                 List.fold (flip goalVars) vars [condGoal; thenGoal; elseGoal]
             | Not(negGoal) ->
                 goalVars negGoal vars

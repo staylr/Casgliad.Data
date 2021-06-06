@@ -24,12 +24,17 @@ module QuotationTests =
     [<ReflectedDefinitionAttribute>]
     let testVarName info var varName = info.varset.[var].Name = varName
 
+    let compileExpr expr =
+        let ((args, goal), info) = State.run (QuotationParser.translateExpr expr) (newParserInfo expr)
+        let (goal', varset) = Quantification.implicitlyQuantifyGoal args info.varset goal
+        ((args, goal'), { info with varset = varset })
+
     [<Tests>]
     let tests =
         testList "QuotationParser" [
             testCase "Simple" <| fun _ ->
                 let expr = <@ fun (x, y) -> x = 4 && y = 2 @>
-                let ((args, goal), info) = State.run (QuotationParser.translateExpr expr) (newParserInfo expr)
+                let ((args, goal), info) = compileExpr expr
 
                 test <@ info.errors = [] @> 
                 test <@
@@ -52,7 +57,7 @@ module QuotationTests =
 
             testCase "SingleArg" <| fun _ ->
                 let expr = <@ fun x -> x = 4  @>
-                let ((args, goal), info) = State.run (QuotationParser.translateExpr expr) (newParserInfo expr)
+                let ((args, goal), info) = compileExpr expr
 
                 test <@ info.errors = [] @> 
                 test <@
@@ -73,7 +78,7 @@ module QuotationTests =
                                             | Case1(a, b) -> a = b && y = "Case1"
                                             | Case2(c, d) -> c = d && y = "Case2"
                                             | Case3(e, f) -> e = f && y = "Case3" @>
-                let ((args, goal), info) = State.run  (QuotationParser.translateExpr expr) (newParserInfo expr)
+                let ((args, goal), info) = compileExpr expr
                 test <@ info.errors = [] @> 
 
                 match goal.goal with
@@ -99,7 +104,7 @@ module QuotationTests =
                                     x = 1
                                     && let (a, b) = y in a = b
                                 @>
-                let ((args, goal), info) = State.run  (QuotationParser.translateExpr expr) (newParserInfo expr)
+                let ((args, goal), info) = compileExpr expr
                 test <@ info.errors = [] @>
                 test <@
                         match args with
@@ -130,7 +135,7 @@ module QuotationTests =
                                                         && m = []
                                                         && d = Determinism.Det
                                     @>
-                    let ((args, goal), info) = State.run  (QuotationParser.translateExpr expr) (newParserInfo expr)
+                    let ((args, goal), info) = compileExpr expr
                     test <@ info.errors = [] @>
                     match goal.goal with
                     | Conj([{ goal = Unify(arg1, Constructor(Tuple, [arga; argeModes1; argc], _, _), _, _) };
@@ -162,7 +167,7 @@ module QuotationTests =
 
             testCase "Exists" <| fun _ ->
                 let expr = <@ fun (x, y) -> kanren.exists(fun z -> x = 4 && y = 2 && z = 3) @>
-                let ((args, goal), info) = State.run  (QuotationParser.translateExpr expr) (newParserInfo expr)
+                let ((args, goal), info) = compileExpr expr
                 test <@ info.errors = [] @>
                 match goal.goal with
                 | Conj([{ goal = Unify(var1, Constructor(Constant(arg1, _), [], _, _), _, _) };
@@ -178,7 +183,7 @@ module QuotationTests =
 
             testCase "ExistsTuple" <| fun _ ->
                 let expr = <@ fun (x, y) -> kanren.exists(fun (z1, z2) -> x = 4 && y = 2 && z1 = 6 && z2 = 7) @>
-                let ((args, goal), info) = State.run  (QuotationParser.translateExpr expr) (newParserInfo expr)
+                let ((args, goal), info) = compileExpr expr
                 test <@ info.errors = [] @>
                 match goal.goal with
                 | Conj([{ goal = Unify(var1, Constructor(Constant(arg1, _), [], _, _), _, _) };

@@ -45,16 +45,12 @@ module Quantification =
                 goalExprVarsBoth goal.goal set lambdaSet
             | Switch(var, _, cases) ->
                 caseListVarsBoth cases (TagSet.add var set) lambdaSet
-            | IfThenElse(condGoal, thenGoal, elseGoal, vars) ->
+            | IfThenElse(condGoal, thenGoal, elseGoal) ->
                 let (condSet, condLambdaSet) = goalVarsBoth condGoal
                 let (thenSet, thenLambdaSet) = goalVarsBoth thenGoal
                 let (elseSet, elseLambdaSet) = goalVarsBoth elseGoal
-                let condThenSet = TagSet.difference
-                                            (TagSet.union condSet thenSet)
-                                            vars
-                let condThenLambdaSet = TagSet.difference
-                                            (TagSet.union condLambdaSet thenLambdaSet)
-                                            vars
+                let condThenSet = TagSet.union condSet thenSet
+                let condThenLambdaSet = TagSet.union condLambdaSet thenLambdaSet
                 (TagSet.union set condThenSet |> TagSet.union elseSet,
                     TagSet.union set condThenLambdaSet |> TagSet.union elseLambdaSet)
     and
@@ -83,7 +79,7 @@ module Quantification =
         let goalFollowingVars goal (set, lambdaSet) =
             let (set', lambdaSet') = goalVarsBoth goal
             (TagSet.union set set', TagSet.union lambdaSet lambdaSet')
-        List.scanBack goalFollowingVars goals (emptySetOfVar, emptySetOfVar)
+        List.scanBack goalFollowingVars goals (emptySetOfVar, emptySetOfVar) |> List.tail
 
     let rec quantifyGoal goal = 
         state {
@@ -115,6 +111,54 @@ module Quantification =
                 return! quantifyPrimitiveGoal goalExpr (returnArg :: args)
             | Conj(goals) ->
                 return! quantifyConj goals
+            | Disj(goals) ->
+                return! quantifyDisj goals
+            | Not(negGoal) ->
+                // Quantified variables cannot be pushed inside a negation, so we insert
+                // the quantified vars into the outside vars set, and initialize the new
+                // quantified vars set to be empty (the lambda outside vars remain
+                // unchanged).
+                let! qvars = quantVars
+                let! outside = outside
+                do! setOutside (TagSet.union outside qvars)
+                do! setQuantVars emptySetOfVar
+                let! negGoal' = quantifyGoal negGoal
+                do! setOutside outside
+                do! setQuantVars qvars
+                return (Not(negGoal'), goalVars negGoal' emptySetOfVar)
+            | IfThenElse(condGoal, thenGoal, elseGoal) ->
+                return! quantifyIfThenElse condGoal thenGoal elseGoal
+    
+        }
+    and quantifyIfThenElse condGoal thenGoal elseGoal =
+        state {
+            let! qvars = quantVars
+            let! outside = outside
+            let! lambdaOutside = lambdaOutside
+            let (varsThen, lambdaVarsThen) = goalVarsBoth thenGoal
+
+            do! setOutside (TagSet.union outside varsThen)
+            do! setLambdaOutside (TagSet.union lambdaOutside lambdaVarsThen)
+            let! condGoal' = quantifyGoal condGoal
+            let! nonLocalsCond = nonLocals
+
+            do! setOutside (TagSet.union outside nonLocalsCond)
+            do! setLambdaOutside lambdaOutside
+            let! thenGoal' = quantifyGoal thenGoal
+            let! nonLocalsThen = nonLocals
+
+            do! setOutside outside
+            do! setLambdaOutside lambdaOutside
+            let! elseGoal' = quantifyGoal elseGoal
+            let! nonLocalsElse = nonLocals
+
+            let nonLocalsIte = seq { nonLocalsCond; nonLocalsThen; nonLocalsElse } |> TagSet.unionMany
+            let nonLocalsOutside = TagSet.intersect outside nonLocalsIte
+            let nonLocalsLambdaOutside = TagSet.intersect lambdaOutside nonLocalsIte
+            do! setNonLocals (TagSet.union nonLocalsOutside nonLocalsLambdaOutside)
+
+            let goalExpr = IfThenElse(condGoal', thenGoal', elseGoal')
+            return (goalExpr, goalExprVars goalExpr emptySetOfVar)
         }
 
     and quantifyConj goals =
@@ -157,6 +201,18 @@ module Quantification =
                 return (goal' :: goals)
         }
 
+    and quantifyDisj goals =
+        state {
+            let mutable goals' = []
+            let mutable nonLocalVars = emptySetOfVar
+            for goal in goals do
+                let! goal' = quantifyGoal goal
+                let! goalNonlocals = nonLocals
+                nonLocalVars <- TagSet.union nonLocalVars goalNonlocals
+                goals' <- goal' :: goals'
+
+            return (Disj (List.rev goals'), (goalExprVars (Disj (goals')) emptySetOfVar))
+        }
     and quantifyPrimitiveGoal goalExpr args =
         state {
             let argsSet = TagSet.ofList args
