@@ -45,14 +45,14 @@ module QuotationTests =
                             false
                         @>
 
-                match goal.goal with
-                | Conj([{ goal = Unify(var1, Constructor(Constant(arg1, _), [], _, _), _, _) };
-                        { goal = Unify(var2, Constructor(Constant(arg2, _), [], _, _), _, _) }]) ->
+                match goal.Goal with
+                | Conj([{ Goal = Unify(var1, Constructor(Constant(arg1, _), [], _, _), _, _) };
+                        { Goal = Unify(var2, Constructor(Constant(arg2, _), [], _, _), _, _) }]) ->
                     test <@ testVarName info var1 "x" @>
                     test <@ testVarName info var2 "y" @>
                     test <@ arg1 = upcast 4 @>
                     test <@ arg2 = upcast 2 @>
-                | _ -> raise(Exception($"invalid goal {goal.goal}"))
+                | _ -> raise(Exception($"invalid goal {goal.Goal}"))
 
 
             testCase "SingleArg" <| fun _ ->
@@ -67,11 +67,11 @@ module QuotationTests =
                         | _ ->
                             false
                         @>
-                match goal.goal with
+                match goal.Goal with
                 | Unify(var1, Constructor(Constant(arg1, _), [], _, _), _, _) ->
                     test <@ testVarName info var1 "x" @>
                     test <@ arg1 = upcast 4 @>
-                | _ -> raise(Exception($"invalid goal {goal.goal}"))
+                | _ -> raise(Exception($"invalid goal {goal.Goal}"))
 
             testCase "Match" <| fun _ ->
                 let expr = <@ fun (x, y) -> match x with
@@ -81,22 +81,22 @@ module QuotationTests =
                 let ((args, goal), info) = compileExpr expr
                 test <@ info.errors = [] @> 
 
-                match goal.goal with
+                match goal.Goal with
                 | Disj([disjunct1; disjunct2; disjunct3]) ->
                     let checkDisjunct disjunct =
-                        match disjunct.goal with
+                        match disjunct.Goal with
                         | Conj([
-                                { goal = Unify(lhs, Constructor(UnionCase(case), [_; _], _, _), _, _) };
-                                { goal = Unify(lhsd, Constructor( UnionCase(cased), [_; _], _, _), _, _) };
-                                { goal = Unify(lhst, Var(rhst, _), _, _) };
-                                { goal = Unify(lhs2, Constructor(Constant(constant, _), [], _, _), _, _) }]) ->
+                                { Goal = Unify(lhs, Constructor(UnionCase(case), [_; _], _, _), _, _) };
+                                { Goal = Unify(lhsd, Constructor( UnionCase(cased), [_; _], _, _), _, _) };
+                                { Goal = Unify(lhst, Var(rhst, _), _, _) };
+                                { Goal = Unify(lhs2, Constructor(Constant(constant, _), [], _, _), _, _) }]) ->
                             test <@ constant = upcast case.Name @>
                         | _ ->
-                            raise(Exception($"unexpected disjunct {goal.goal}"))
+                            raise(Exception($"unexpected disjunct {goal.Goal}"))
                     do checkDisjunct disjunct1
                     do checkDisjunct disjunct2
                     do checkDisjunct disjunct3
-                | _ -> raise(Exception($"unexpected goal {goal.goal}"))
+                | _ -> raise(Exception($"unexpected goal {goal.Goal}"))
 
 
             testCase "DeconstructTuple" <| fun _ ->
@@ -113,10 +113,10 @@ module QuotationTests =
                         | _ ->
                             false
                     @>
-                match goal.goal with
-                | Conj([{ goal = Unify(var1, Constructor(Constant(arg1, _), [], _, _), _, _) };
-                        { goal = Unify(var2, Constructor(Tuple, [var3; var4], _, _), _, _) };
-                        { goal = Unify(var5, Var(var6, _), _, _) }]) ->
+                match goal.Goal with
+                | Conj([{ Goal = Unify(var1, Constructor(Constant(arg1, _), [], _, _), _, _) };
+                        { Goal = Unify(var2, Constructor(Tuple, [var3; var4], _, _), _, _) };
+                        { Goal = Unify(var5, Var(var6, _), _, _) }]) ->
                     test <@ testVarName info var1 "x" @>
                     test <@ arg1 = upcast 1 @>
                     test <@ testVarName info var2 "y" @>
@@ -124,7 +124,7 @@ module QuotationTests =
                     test <@ testVarName info var4 "b" @>
                     test <@ var3 = var5 @>
                     test <@ var4 = var6 @>
-                | _ -> raise(Exception($"unexpected goal {goal.goal}"))
+                | _ -> raise(Exception($"unexpected goal {goal.Goal}"))
 
             testCase "DeconstructTuple2" <| fun _ ->
                     let expr = <@ fun (
@@ -137,14 +137,14 @@ module QuotationTests =
                                     @>
                     let ((args, goal), info) = compileExpr expr
                     test <@ info.errors = [] @>
-                    match goal.goal with
-                    | Conj([{ goal = Unify(arg1, Constructor(Tuple, [arga; argeModes1; argc], _, _), _, _) };
-                            { goal = Unify(argeModes2, Constructor(Tuple, [arge; argModes1], _, _), _, _) };
-                            { goal = Unify(argModes2, Constructor(Record(relationModeType), [argm; argd], _, _), _, _) };
-                            { goal = Unify(argx2, Var(arge2, _), _, _) };
-                            { goal = Unify(arga2, Var(argc2, _), _, _) };
-                            { goal = Unify(argm2, Constructor(UnionCase(listEmptyCase), [], _, _), _, _) };
-                            { goal = Unify(argd2, Constructor(Constant(determinismDet, determinismType), [], _, _), _, _) }]) ->
+                    match goal.Goal with
+                    | Conj([{ Goal = Unify(arg1, Constructor(Tuple, [arga; argeModes1; argc], _, _), _, _) };
+                            { Goal = Unify(argeModes2, Constructor(Tuple, [arge; argModes1], _, _), _, _) };
+                            { Goal = Unify(argModes2, Constructor(Record(relationModeType), [argm; argd], _, _), _, _) };
+                            { Goal = Unify(argx2, Var(arge2, _), _, _) };
+                            { Goal = Unify(arga2, Var(argc2, _), _, _) };
+                            { Goal = Unify(argm2, Constructor(UnionCase(listEmptyCase), [], _, _), _, _) };
+                            { Goal = Unify(argd2, Constructor(Constant(determinismDet, determinismType), [], _, _), _, _) }]) ->
                         test <@ testVarName info arga "a" @>
                         test <@ arg1 = args.[0] @>
                         test <@ testVarName info argc "c" @>
@@ -163,33 +163,33 @@ module QuotationTests =
                         test <@ relationModeType.Name = "RelationMode" @>
                         test <@ determinismDet = upcast Determinism.Det @>
                         test <@ determinismType.Name = "Determinism" @>
-                    | _ -> raise(Exception($"unexpected goal {goal.goal}"))
+                    | _ -> raise(Exception($"unexpected goal {goal.Goal}"))
 
             testCase "Exists" <| fun _ ->
                 let expr = <@ fun (x, y) -> kanren.exists(fun z -> x = 4 && y = 2 && z = 3) @>
                 let ((args, goal), info) = compileExpr expr
                 test <@ info.errors = [] @>
-                match goal.goal with
-                | Conj([{ goal = Unify(var1, Constructor(Constant(arg1, _), [], _, _), _, _) };
-                        { goal = Unify(var2, Constructor(Constant(arg2, _), [], _, _), _, _) };
-                        { goal = Unify(var3, Constructor(Constant(arg3, _), [], _, _), _, _) }]) ->
+                match goal.Goal with
+                | Conj([{ Goal = Unify(var1, Constructor(Constant(arg1, _), [], _, _), _, _) };
+                        { Goal = Unify(var2, Constructor(Constant(arg2, _), [], _, _), _, _) };
+                        { Goal = Unify(var3, Constructor(Constant(arg3, _), [], _, _), _, _) }]) ->
                     test <@ testVarName info var1 "x" @>
                     test <@ testVarName info var2 "y" @>
                     test <@ testVarName info var3 "z" @>
                     test <@ arg1 = upcast 4 @>
                     test <@ arg2 = upcast 2 @>
                     test <@ arg3 = upcast 3 @>
-                | _ -> raise(Exception($"unexpected goal {goal.goal}"))
+                | _ -> raise(Exception($"unexpected goal {goal.Goal}"))
 
             testCase "ExistsTuple" <| fun _ ->
                 let expr = <@ fun (x, y) -> kanren.exists(fun (z1, z2) -> x = 4 && y = 2 && z1 = 6 && z2 = 7) @>
                 let ((args, goal), info) = compileExpr expr
                 test <@ info.errors = [] @>
-                match goal.goal with
-                | Conj([{ goal = Unify(var1, Constructor(Constant(arg1, _), [], _, _), _, _) };
-                        { goal = Unify(var2, Constructor(Constant(arg2, _), [], _, _), _, _) };
-                        { goal = Unify(var3, Constructor(Constant(arg3, _), [], _, _), _, _) };
-                        { goal = Unify(var4, Constructor(Constant(arg4, _), [], _, _), _, _) }]) ->
+                match goal.Goal with
+                | Conj([{ Goal = Unify(var1, Constructor(Constant(arg1, _), [], _, _), _, _) };
+                        { Goal = Unify(var2, Constructor(Constant(arg2, _), [], _, _), _, _) };
+                        { Goal = Unify(var3, Constructor(Constant(arg3, _), [], _, _), _, _) };
+                        { Goal = Unify(var4, Constructor(Constant(arg4, _), [], _, _), _, _) }]) ->
                     test <@ testVarName info var1 "x" @>
                     test <@ testVarName info var2 "y" @>
                     test <@ testVarName info var3 "z1" @>
@@ -198,7 +198,7 @@ module QuotationTests =
                     test <@ arg2 = upcast 2 @>
                     test <@ arg3 = upcast 6 @>
                     test <@ arg4 = upcast 7 @>
-                | _ -> raise(Exception($"unexpected goal {goal.goal}"))
+                | _ -> raise(Exception($"unexpected goal {goal.Goal}"))
 
         ]
 
