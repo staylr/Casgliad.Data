@@ -18,7 +18,7 @@ module Quantification =
     let quantVars info = (info.Quantified, info)
     let setQuantVars vars info = ((), { info with Quantified = vars })
     let nonLocals info = (info.NonLocals, info)
-    let setNonLocals vars info = ((), { info with NonLocals = vars })
+    let setNonLocals vars (info: QInfo) = ((), { info with NonLocals = vars })
     let outside info = (info.Outside, info)
     let setOutside vars info = ((), { info with Outside = vars })
     let lambdaOutside info = (info.LambdaOutside, info)
@@ -125,23 +125,42 @@ module Quantification =
             | FSharpCall (_, returnArg, args) -> return! quantifyPrimitiveGoal goalExpr (returnArg :: args)
             | Conj (goals) -> return! quantifyConj goals
             | Disj (goals) -> return! quantifyDisj goals
-            | Not (negGoal) ->
-                // Quantified variables cannot be pushed inside a negation, so we insert
-                // the quantified vars into the outside vars set, and initialize the new
-                // quantified vars set to be empty (the lambda outside vars remain
-                // unchanged).
-                let! qvars = quantVars
-                let! outside = outside
-                do! setOutside (TagSet.union outside qvars)
-                do! setQuantVars emptySetOfVar
-                let! negGoal' = quantifyGoal negGoal
-                do! setOutside outside
-                do! setQuantVars qvars
-                return (Not(negGoal'), goalVars negGoal' emptySetOfVar)
+            | Not (negGoal) -> return! quantifyNegation negGoal
             | IfThenElse (condGoal, thenGoal, elseGoal) -> return! quantifyIfThenElse condGoal thenGoal elseGoal
-
+            | Switch (var, canFail, cases) -> return! quantifySwitch var canFail cases
         }
 
+    and quantifySwitch var canFail cases =
+        state {
+            let mutable cases' = []
+            let mutable nonLocalVars = emptySetOfVar
+
+            for case in cases do
+                let! goal' = quantifyGoal case.CaseGoal
+                let! goalNonlocals = nonLocals
+                nonLocalVars <- TagSet.union nonLocalVars goalNonlocals
+                cases' <- { case with CaseGoal = goal' } :: cases'
+
+            do! setNonLocals (TagSet.add var nonLocalVars)
+            let switch = Switch (var, canFail, cases')
+            return (switch, (goalExprVars (Switch (var, canFail, cases)) emptySetOfVar))
+        }
+
+    and quantifyNegation negGoal =
+        state {
+            // Quantified variables cannot be pushed inside a negation, so we insert
+            // the quantified vars into the outside vars set, and initialize the new
+            // quantified vars set to be empty (the lambda outside vars remain
+            // unchanged).
+            let! qvars = quantVars
+            let! outside = outside
+            do! setOutside (TagSet.union outside qvars)
+            do! setQuantVars emptySetOfVar
+            let! negGoal' = quantifyGoal negGoal
+            do! setOutside outside
+            do! setQuantVars qvars
+            return (Not(negGoal'), goalVars negGoal' emptySetOfVar)
+        }
     and quantifyIfThenElse condGoal thenGoal elseGoal =
         state {
             let! qvars = quantVars
