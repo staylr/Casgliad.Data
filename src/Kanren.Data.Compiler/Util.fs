@@ -38,3 +38,19 @@ module Util =
         |> function
         | (values, []) -> Ok values
         | (_, errors) -> Error errors
+
+    /// The function creates a function that calls the argument 'f'
+    /// only once and stores the result in a mutable dictionary (cache)
+    /// Repeated calls to the resulting function return cached values.
+    let memoize f =    
+      // Create (mutable) cache that is used for storing results of 
+      // for function arguments that were already calculated.
+      let cache = new System.Collections.Generic.Dictionary<_, _>()
+      (fun x ->
+          // The returned function first performs a cache lookup
+          let succ, v = cache.TryGetValue(x)
+          if succ then v else 
+            // If value was not found, calculate & cache it
+            let v = f(x) 
+            cache.Add(x, v)
+            v)

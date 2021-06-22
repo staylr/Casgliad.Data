@@ -4,12 +4,6 @@ open System.Runtime.InteropServices
 open System.Runtime.CompilerServices
 open FSharp.Quotations
 
-type Inst =
-    | Ground
-    | Free
-
-type Mode = Inst * Inst
-
 type Determinism =
     | Erroneous = 0
     | Fail = 1
@@ -26,6 +20,22 @@ type NumSolutions =
 type CanFail =
     | CanFail
     | CannotFail
+
+type Constructor =
+    | Constant of value: obj * constType: System.Type
+    | Tuple
+    | Record of System.Type
+    | UnionCase of FSharp.Reflection.UnionCaseInfo
+
+type Inst =
+    | Free
+    | Ground
+    | BoundHigherOrder of HigherOrderInst
+    | Bound of BoundInst list
+    | NotReached
+and BoundInst = { Contructor: Constructor; ArgInsts: Inst list }
+and Mode = Inst * Inst
+and HigherOrderInst = { ArgInsts: Inst list; Determinism: Determinism }
 
 type RelationMode =
     { Modes: Mode list

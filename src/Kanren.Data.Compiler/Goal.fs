@@ -1,7 +1,6 @@
 namespace Kanren.Data.Compiler
 
 open Kanren.Data
-open System.CodeDom.Compiler
 
 module GoalWriter =
 
@@ -103,7 +102,9 @@ module Goal =
 
     let emptySetOfVar = TagSet.empty<varIdMeasure>
 
-    type Instmap = Map<VarId, Kanren.Data.Inst>
+    type Instmap =
+    | Reachable of Map<VarId, Kanren.Data.Inst>
+    | Unreachable
 
     type InstmapDelta = Instmap
 
@@ -114,26 +115,9 @@ module Goal =
           SourceInfo: SourceInfo }
         static member init sourceInfo =
             { NonLocals = TagSet.empty<varIdMeasure>
-              InstmapDelta = Map.empty
+              InstmapDelta = Unreachable
               Determinism = Determinism.Det
               SourceInfo = sourceInfo }
-
-    type Constructor =
-        | Constant of value: obj * constType: System.Type
-        | Tuple
-        | Record of System.Type
-        | UnionCase of FSharp.Reflection.UnionCaseInfo
-        member x.Dump() : GoalToStringFunc =
-            gts {
-                match x with
-                | Constant (constVal, _) -> yield constVal.ToString()
-                | Tuple -> yield "Tuple"
-                | Record t ->
-                    yield "Record "
-                    yield t.Name
-                | UnionCase (uci) -> yield uci.Name
-            }
-
 
     type VarVarUnifyType =
         | Assign
@@ -231,7 +215,7 @@ module Goal =
                 match x with
                 | Var (v, _) -> yield v
                 | Constructor (ctor, args, _, _) ->
-                    yield! ctor.Dump()
+                    yield ctor.ToString()
 
                     match args with
                     | _ :: _ -> yield args
