@@ -143,6 +143,31 @@ module QuotationParser =
                     ArgIndex = index }
                   :: unifyContext.SubContext }
 
+    let translateConstant (value: obj) (valueType: System.Type) : ConstantValue =
+        if valueType = typeof<sbyte>
+            || valueType = typeof<int16>
+            || valueType = typeof<int>
+            || valueType = typeof<int64>
+        then IntValue(System.Convert.ToInt64(value))
+        elif valueType = typeof<byte>
+            || valueType = typeof<uint16>
+            || valueType = typeof<uint>
+            || valueType = typeof<uint64>
+        then UIntValue(System.Convert.ToUInt64(value))
+        elif valueType = typeof<decimal>
+        then DecimalValue(value :?> decimal)
+        elif valueType = typeof<double>
+        then DoubleValue(value :?> double)
+        elif valueType = typeof<float>
+        then DoubleValue(value :?> float)
+        elif valueType = typeof<string>
+        then StringValue(value :?> string)
+        elif valueType = typeof<char>
+        then CharValue(value :?> char)
+        elif valueType = typeof<bool>
+        then BoolValue(value :?> bool)
+        else raise (System.InvalidOperationException($"Invalid constant {value} of type {valueType.Name}"))
+
     let rec translateUnifyRhs rhs (context: UnifyContext) =
         parse {
             let! sourceInfo = currentSourceInfo
@@ -152,7 +177,7 @@ module QuotationParser =
                 let! var = newQVar v
                 return ([], Some(UnifyRhs.Var(var, VarVarUnifyType.Assign)))
             | Patterns.Value (value, constType) ->
-                return ([], Some(UnifyRhs.Constructor(Constant(value, constType), [], VarCtorUnifyType.Construct, [])))
+                return ([], Some(UnifyRhs.Constructor(Constant(translateConstant value constType, constType), [], VarCtorUnifyType.Construct, [])))
             | Patterns.NewTuple (args) ->
                 let! (argVars, extraGoals) = translateCallArgs false args (addCtorSubContext context Tuple)
                 return (extraGoals, Some(UnifyRhs.Constructor(Tuple, argVars, VarCtorUnifyType.Construct, [])))
@@ -517,7 +542,7 @@ module QuotationParser =
                     let! lhsVar = newQVar v
 
                     let rhs =
-                        Constructor(Constant(true, typeof<bool>), [], VarCtorUnifyType.Construct, [])
+                        Constructor(Constant(BoolValue(true), typeof<bool>), [], VarCtorUnifyType.Construct, [])
 
                     return initUnify lhsVar rhs (initUnifyContext ExplicitUnify)
                 else

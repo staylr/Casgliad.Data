@@ -46,12 +46,12 @@ module QuotationTests =
                         @>
 
                 match goal.Goal with
-                | Conj([{ Goal = Unify(var1, Constructor(Constant(arg1, _), [], _, _), _, _) };
-                        { Goal = Unify(var2, Constructor(Constant(arg2, _), [], _, _), _, _) }]) ->
+                | Conj([{ Goal = Unify(var1, Constructor(Constant(IntValue(arg1), _), [], _, _), _, _) };
+                        { Goal = Unify(var2, Constructor(Constant(IntValue(arg2), _), [], _, _), _, _) }]) ->
                     test <@ testVarName info var1 "x" @>
                     test <@ testVarName info var2 "y" @>
-                    test <@ arg1 = upcast 4 @>
-                    test <@ arg2 = upcast 2 @>
+                    test <@ arg1 = 4L @>
+                    test <@ arg2 = 2L @>
                 | _ -> raise(Exception($"invalid goal {goal.Goal}"))
 
 
@@ -68,9 +68,9 @@ module QuotationTests =
                             false
                         @>
                 match goal.Goal with
-                | Unify(var1, Constructor(Constant(arg1, _), [], _, _), _, _) ->
+                | Unify(var1, Constructor(Constant(IntValue(arg1), _), [], _, _), _, _) ->
                     test <@ testVarName info var1 "x" @>
-                    test <@ arg1 = upcast 4 @>
+                    test <@ arg1 = 4L @>
                 | _ -> raise(Exception($"invalid goal {goal.Goal}"))
 
             testCase "Match" <| fun _ ->
@@ -89,8 +89,8 @@ module QuotationTests =
                                 { Goal = Unify(lhs, Constructor(UnionCase(case), [_; _], _, _), _, _) };
                                 { Goal = Unify(lhsd, Constructor( UnionCase(cased), [_; _], _, _), _, _) };
                                 { Goal = Unify(lhst, Var(rhst, _), _, _) };
-                                { Goal = Unify(lhs2, Constructor(Constant(constant, _), [], _, _), _, _) }]) ->
-                            test <@ constant = upcast case.Name @>
+                                { Goal = Unify(lhs2, Constructor(Constant(StringValue(constant), _), [], _, _), _, _) }]) ->
+                            test <@ constant = case.Name @>
                         | _ ->
                             raise(Exception($"unexpected disjunct {goal.Goal}"))
                     do checkDisjunct disjunct1
@@ -114,11 +114,11 @@ module QuotationTests =
                             false
                     @>
                 match goal.Goal with
-                | Conj([{ Goal = Unify(var1, Constructor(Constant(arg1, _), [], _, _), _, _) };
+                | Conj([{ Goal = Unify(var1, Constructor(Constant(IntValue(arg1), _), [], _, _), _, _) };
                         { Goal = Unify(var2, Constructor(Tuple, [var3; var4], _, _), _, _) };
                         { Goal = Unify(var5, Var(var6, _), _, _) }]) ->
                     test <@ testVarName info var1 "x" @>
-                    test <@ arg1 = upcast 1 @>
+                    test <@ arg1 = 1L @>
                     test <@ testVarName info var2 "y" @>
                     test <@ testVarName info var3 "a" @>
                     test <@ testVarName info var4 "b" @>
@@ -144,7 +144,7 @@ module QuotationTests =
                             { Goal = Unify(argx2, Var(arge2, _), _, _) };
                             { Goal = Unify(arga2, Var(argc2, _), _, _) };
                             { Goal = Unify(argm2, Constructor(UnionCase(listEmptyCase), [], _, _), _, _) };
-                            { Goal = Unify(argd2, Constructor(Constant(determinismDet, determinismType), [], _, _), _, _) }]) ->
+                            { Goal = Unify(argd2, Constructor(UnionCase(determinismDetCase), [], _, _), _, _) }]) ->
                         test <@ testVarName info arga "a" @>
                         test <@ arg1 = args.[0] @>
                         test <@ testVarName info argc "c" @>
@@ -161,8 +161,7 @@ module QuotationTests =
                         test <@ argd2 = argd @>
                         test <@ listEmptyCase.Name = "Empty" @>
                         test <@ relationModeType.Name = "RelationMode" @>
-                        test <@ determinismDet = upcast Determinism.Det @>
-                        test <@ determinismType.Name = "Determinism" @>
+                        test <@ determinismDetCase.Name = "Det" @>
                     | _ -> raise(Exception($"unexpected goal {goal.Goal}"))
 
             testCase "Exists" <| fun _ ->
@@ -170,15 +169,15 @@ module QuotationTests =
                 let ((args, goal), info) = compileExpr expr
                 test <@ info.errors = [] @>
                 match goal.Goal with
-                | Conj([{ Goal = Unify(var1, Constructor(Constant(arg1, _), [], _, _), _, _) };
-                        { Goal = Unify(var2, Constructor(Constant(arg2, _), [], _, _), _, _) };
-                        { Goal = Unify(var3, Constructor(Constant(arg3, _), [], _, _), _, _) }]) ->
+                | Conj([{ Goal = Unify(var1, Constructor(Constant(IntValue(arg1), _), [], _, _), _, _) };
+                        { Goal = Unify(var2, Constructor(Constant(IntValue(arg2), _), [], _, _), _, _) };
+                        { Goal = Unify(var3, Constructor(Constant(IntValue(arg3), _), [], _, _), _, _) }]) ->
                     test <@ testVarName info var1 "x" @>
                     test <@ testVarName info var2 "y" @>
                     test <@ testVarName info var3 "z" @>
-                    test <@ arg1 = upcast 4 @>
-                    test <@ arg2 = upcast 2 @>
-                    test <@ arg3 = upcast 3 @>
+                    test <@ arg1 = 4L @>
+                    test <@ arg2 = 2L @>
+                    test <@ arg3 = 3L @>
                 | _ -> raise(Exception($"unexpected goal {goal.Goal}"))
 
             testCase "ExistsTuple" <| fun _ ->
@@ -186,18 +185,18 @@ module QuotationTests =
                 let ((args, goal), info) = compileExpr expr
                 test <@ info.errors = [] @>
                 match goal.Goal with
-                | Conj([{ Goal = Unify(var1, Constructor(Constant(arg1, _), [], _, _), _, _) };
-                        { Goal = Unify(var2, Constructor(Constant(arg2, _), [], _, _), _, _) };
-                        { Goal = Unify(var3, Constructor(Constant(arg3, _), [], _, _), _, _) };
-                        { Goal = Unify(var4, Constructor(Constant(arg4, _), [], _, _), _, _) }]) ->
+                | Conj([{ Goal = Unify(var1, Constructor(Constant(IntValue(arg1), _), [], _, _), _, _) };
+                        { Goal = Unify(var2, Constructor(Constant(IntValue(arg2), _), [], _, _), _, _) };
+                        { Goal = Unify(var3, Constructor(Constant(IntValue(arg3), _), [], _, _), _, _) };
+                        { Goal = Unify(var4, Constructor(Constant(IntValue(arg4), _), [], _, _), _, _) }]) ->
                     test <@ testVarName info var1 "x" @>
                     test <@ testVarName info var2 "y" @>
                     test <@ testVarName info var3 "z1" @>
                     test <@ testVarName info var4 "z2" @>
-                    test <@ arg1 = upcast 4 @>
-                    test <@ arg2 = upcast 2 @>
-                    test <@ arg3 = upcast 6 @>
-                    test <@ arg4 = upcast 7 @>
+                    test <@ arg1 = 4L @>
+                    test <@ arg2 = 2L @>
+                    test <@ arg3 = 6L @>
+                    test <@ arg4 = 7L @>
                 | _ -> raise(Exception($"unexpected goal {goal.Goal}"))
 
         ]

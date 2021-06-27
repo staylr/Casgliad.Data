@@ -5,12 +5,12 @@ open System.Runtime.CompilerServices
 open FSharp.Quotations
 
 type Determinism =
-    | Erroneous = 0
-    | Fail = 1
-    | Det = 2
-    | Semidet = 3
-    | Multi = 4
-    | Nondet = 5
+    | Erroneous
+    | Fail
+    | Det
+    | Semidet
+    | Multi
+    | Nondet
 
 type NumSolutions =
     | NoSolutions
@@ -21,23 +21,33 @@ type CanFail =
     | CanFail
     | CannotFail
 
+    // We don't enumerate every single size of builtin type. Care must be taken
+    // when evaluating at compile time to cast to the correct type first.
+type ConstantValue =
+    | IntValue of int64
+    | UIntValue of uint64
+    | DecimalValue of decimal
+    | DoubleValue of double
+    | BoolValue of bool
+    | CharValue of char
+    | StringValue of string
+
 type Constructor =
-    | Constant of value: obj * constType: System.Type
+    | Constant of Value: ConstantValue * ConstType: System.Type
     | Tuple
     | Record of System.Type
     | UnionCase of FSharp.Reflection.UnionCaseInfo
 
+// TODO: user defined insts, e,g ListSkel.
 type Inst =
     | Free
     | Ground
-    | BoundHigherOrder of HigherOrderInst
+    | HigherOrder of RelationMode
     | Bound of BoundInst list
     | NotReached
 and BoundInst = { Contructor: Constructor; ArgInsts: Inst list }
 and Mode = Inst * Inst
-and HigherOrderInst = { ArgInsts: Inst list; Determinism: Determinism }
-
-type RelationMode =
+and RelationMode =
     { Modes: Mode list
       Determinism: Determinism }
 

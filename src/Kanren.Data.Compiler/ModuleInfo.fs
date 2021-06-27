@@ -1,6 +1,5 @@
 namespace Kanren.Data.Compiler
 
-open FSharp.Quotations
 open Kanren.Data
 
 [<AutoOpen>]
@@ -9,7 +8,7 @@ module ModuleInfoModule =
     type ProcInfo =
         { ProcId: int
           SourceInfo: SourceInfo
-          Modes: Mode list
+          Modes: (InstE * InstE) list
           Determinism: Determinism
           Args: VarId list
           ProcGoal: Goal
@@ -42,7 +41,7 @@ module ModuleInfoModule =
         | Ok modes ->
             { ProcId = procId
               SourceInfo = sourceInfo
-              Modes = mode.Modes
+              Modes = List.map (fun (i1, i2) -> (ofInst i1, ofInst i2)) mode.Modes
               Determinism = mode.Determinism
               Args = args
               ProcGoal = goal
