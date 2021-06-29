@@ -4,6 +4,15 @@ Kanren-style strongly typed and strongly moded deductive database DSL for F#.
 
 Early work in progress.
 
+Copyright (C) 2021 Simon Taylor
+
+Kanren.Data.Compiler is derived in part from the Melbourne Mercury Compiler.
+Copyright (C) 1993-2012 The University of Melbourne and
+Copyright (C) 2013-2021 The Mercury team.
+
+Kanren.Data is licensed under the terms of the MIT licence, see LICENSE.md.
+Kanren.Data.Compiler is licensed under the terms of the GNU General Public License, see LICENSE.GPL.md.
+
 ---
 
 ## Builds
