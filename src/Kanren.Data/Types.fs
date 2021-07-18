@@ -10,12 +10,15 @@ type Determinism =
     | Det
     | Semidet
     | Multi
+    | CommittedChoiceMulti
     | Nondet
+    | CommittedChoiceNondet
 
 type NumSolutions =
     | NoSolutions
     | OneSolution
     | MoreThanOneSolution
+    | CommittedChoice
 
 type CanFail =
     | CanFail
@@ -42,24 +45,25 @@ type Constructor =
 type Inst =
     | Free
     | Ground
+    | Any   // Not yet implemented. For use in constraint programming.
     | HigherOrder of RelationMode
     | Bound of BoundInst list
     | NotReached
-and BoundInst = { Contructor: Constructor; ArgInsts: Inst list }
+and BoundInst = { Constructor: Constructor; ArgInsts: Inst list }
 and Mode = Inst * Inst
 and RelationMode =
     { Modes: Mode list
       Determinism: Determinism }
 
 [<AbstractClass>]
-type relationBase(name: string, modes: RelationMode list, body: Expr, path: string, line: int) =
+type RelationBase(name: string, modes: RelationMode list, body: Expr, path: string, line: int) =
     member this.Name = name
     member this.Modes = modes
     member this.Body = body
     member this.Path = path
     member this.Line = line
 
-type 'A relation
+type 'A Relation
     (
         name: string,
         modes: RelationMode list,
@@ -67,7 +71,7 @@ type 'A relation
         [<CallerFilePath; Optional; DefaultParameterValue("")>] path: string,
         [<CallerLineNumber; Optional; DefaultParameterValue(0)>] line: int
     ) =
-    inherit relationBase(name, modes, body, path, line)
+    inherit RelationBase(name, modes, body, path, line)
     member this.Body = body
 
 type AggregateFunc =
@@ -93,7 +97,7 @@ type kanren() =
 
     static member call
         (
-            r: 'A relation,
+            r: 'A Relation,
             args: 'A,
             [<CallerFilePath; Optional; DefaultParameterValue("")>] path: string,
             [<CallerLineNumber; Optional; DefaultParameterValue(0)>] line: int
@@ -177,8 +181,8 @@ type ModuleAttribute
 
 [<AutoOpen>]
 module Mode =
-    // Ignore for relation arguments.
-    // _ doesn't work because calls are not pattern matches.
+    // Anonymous variable for call arguments.
+    // _ only works in pattern matches.
     let _i () : 'A =
         raise (System.Exception("'_i' should only occur in quotations"))
 
@@ -191,18 +195,43 @@ module Mode =
 
     let numSolutions (d: Determinism) =
         match d with
+        | Determinism.Erroneous -> NoSolutions
         | Determinism.Fail -> NoSolutions
         | Determinism.Det -> OneSolution
         | Determinism.Semidet -> OneSolution
         | Determinism.Multi -> MoreThanOneSolution
+        | Determinism.CommittedChoiceMulti -> CommittedChoice
         | Determinism.Nondet -> MoreThanOneSolution
-        | _ -> raise (System.Exception("unknonwn Determinism"))
+        | Determinism.CommittedChoiceNondet -> CommittedChoice
 
     let canFail (d: Determinism) =
         match d with
+        | Determinism.Erroneous -> CannotFail
         | Determinism.Fail -> CanFail
         | Determinism.Det -> CannotFail
         | Determinism.Semidet -> CanFail
         | Determinism.Multi -> CannotFail
+        | Determinism.CommittedChoiceMulti -> CannotFail
         | Determinism.Nondet -> CanFail
-        | _ -> raise (System.Exception("unknonwn Determinism"))
+        | Determinism.CommittedChoiceNondet -> CanFail
+
+    let determinismComponents (d: Determinism) = (numSolutions d, canFail d)
+
+    let determinismFromComponents numSolutions canFail =
+        match (numSolutions, canFail) with
+        | (NoSolutions, CanFail) ->
+            Fail
+        | (NoSolutions, CannotFail) ->
+            Erroneous
+        | (OneSolution, CanFail) ->
+            Semidet
+        | (OneSolution, CannotFail) ->
+            Det
+        | (MoreThanOneSolution, CanFail) ->
+            Nondet
+        | (MoreThanOneSolution, CannotFail) ->
+            Multi
+        | (CommittedChoice, CanFail) ->
+            CommittedChoiceNondet
+        | (CommittedChoice, CannotFail) ->
+            CommittedChoiceMulti

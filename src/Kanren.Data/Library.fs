@@ -14,15 +14,15 @@ module Main =
     type kanrenTest() =
         [<Relation>]
         member this.rel2 =
-            relation ("rel3", [ mode [ Out; Out ] Determinism.Nondet ], (fun (x, y) -> x = 4 && y = 2))
+            Relation ("rel3", [ mode [ Out; Out ] Determinism.Nondet ], (fun (x, y) -> x = 4 && y = 2))
 
         [<Relation>]
         member this.rel3 =
-            relation ("rel3", [ mode [ In; Out ] Determinism.Nondet ], (fun (x, y) -> x = 4 && y = 2))
+            Relation ("rel3", [ mode [ In; Out ] Determinism.Nondet ], (fun (x, y) -> x = 4 && y = 2))
 
         [<Relation>]
         member this.rel =
-            relation (
+            Relation (
                 "rel",
                 [ mode [ Out; Out; Out; Out ] Determinism.Nondet ],
                 //fun((a, ( e, ({ Modes = m; Determinism = d }: RelationMode)), c), x, y, z, u) ->
@@ -41,7 +41,7 @@ module Main =
 
         [<Relation>]
         member this.rel4 =
-            relation (
+            Relation (
                 "rel",
                 [ mode [ Out; Out; Out; Out; Out ] Determinism.Nondet ],
                 fun ((a, (e, ({ Modes = m; Determinism = d }: RelationMode)), c), x, y, z, u) ->

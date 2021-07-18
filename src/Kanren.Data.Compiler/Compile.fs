@@ -6,7 +6,7 @@ open Kanren.Data
 
 module Compile =
 
-    let internal parseRelation (rel: RelationAttribute) (relation: relationBase) (moduleInfo: ModuleInfo) =
+    let internal parseRelation (rel: RelationAttribute) (relation: RelationBase) (moduleInfo: ModuleInfo) =
         let varset = VarSet.init
 
         let varset' =
@@ -47,7 +47,7 @@ module Compile =
             property.GetCustomAttribute(typeof<RelationAttribute>) :?> RelationAttribute
 
         let relation =
-            property.GetValue(instance) :?> relationBase
+            property.GetValue(instance) :?> RelationBase
 
         do System.Console.WriteLine($"{relation.Body}")
 

@@ -55,7 +55,7 @@ module ModuleInfoModule =
 
     let initRelation
         (relAttr: RelationAttribute)
-        (relation: relationBase)
+        (relation: RelationBase)
         (args: VarId list)
         (goal: Goal)
         (varset: VarSet)
