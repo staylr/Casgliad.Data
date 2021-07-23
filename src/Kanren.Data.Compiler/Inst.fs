@@ -1,7 +1,7 @@
 namespace Kanren.Data.Compiler
 
 open System.Collections.Generic
-
+open FsToolkit.ErrorHandling
 open Kanren.Data
 
 [<AutoOpen>]
@@ -25,7 +25,7 @@ module Inst =
     and InstPair = InstE * InstE
     and InstIsGround =
         | NotGround
-        | Ground
+        | IsGround
         | GroundnessUnknown
     and InstContainsAny =
         | DoesNotContainAny
@@ -65,17 +65,21 @@ module Inst =
         member this.groundInsts = Dictionary<InstName, InstDet option>()
         member this.anyInsts = Dictionary<InstName, InstDet option>()
 
-        static member private lookupInst(table: Dictionary<'K, 'V>, insts: 'K) =
-            match table.TryGetValue insts with
+        static member private lookupInst(table: Dictionary<'K, 'V>, inst: 'K) =
+            match table.TryGetValue inst with
             | true, value -> value
-            | false, _ -> raise (System.Exception($"inst not found ${insts}"))
+            | false, _ -> raise (System.Exception($"inst not found ${inst}"))
 
-        static member private searchInsertInst(table: Dictionary<'K, 'V option>, insts) =
-            match table.TryGetValue insts with
+        static member private searchInsertInst(table: Dictionary<'K, 'V option>, inst: 'K) =
+            match table.TryGetValue inst with
             | true, value -> Some value
             | false, _ ->
-                do table.Add(insts, None)
+                do table.Add(inst, None)
                 None
+
+        static member private updateInst(table: Dictionary<'K, 'V>, inst: 'K, value: 'V) =
+            do table.[inst] <- value
+            ()
 
         member this.expand(inst) =
             match inst with
@@ -116,21 +120,111 @@ module Inst =
 
         member this.boundInstListIsGroundOrAny(instResults: InstTestResults, argInsts: BoundInstE list) : bool = false
 
-        member this.makeGroundInst(inst: InstE) : (InstE * Determinism) option = None
+        member this.makeGroundInst(inst: InstE) : (InstE * Determinism) option =
+            match inst with
+            | NotReached ->
+                Some (NotReached, Erroneous)
+            | Any ->
+                Some (Ground, Semidet)
+            | Free ->
+                Some (Ground, Det)
+            | Bound (results, boundInsts) ->
+                this.makeGroundBoundInstList boundInsts
+                |> Option.map (fun res -> (Bound (results, fst res), parallelConjunctionDeterminism Semidet (snd res)))
+            | Ground ->
+                Some (Ground, Semidet)
+            | HigherOrder _ ->
+                Some (inst, Semidet)
+            | DefinedInst (instName) ->
+                let groundInstName = GroundInst (instName)
+                let maybeInstDet = InstTable.searchInsertInst(this.groundInsts, instName)
+                match maybeInstDet with
+                | Some (Some (groundInst, det)) ->
+                    Some (groundInst, det)
+                | Some (None) ->
+                    // We can safely assume this is det, since if it were semidet,
+                    // we would have noticed this in the process of unfolding the
+                    // definition.
+                    Some (DefinedInst (groundInstName), Determinism.Det)
+                | None ->
+                    let maybeGroundInstDet = this.lookup(instName)
+                                               |> this.expand
+                                               |> this.makeGroundInst
+                    do InstTable.updateInst(this.groundInsts, instName, maybeGroundInstDet)
+                    // Avoid expanding recursive insts.
+                    maybeGroundInstDet
+                    |> Option.map (fun groundInstDet ->
+                                    if (this.instContainsInstName(fst groundInstDet, groundInstName)) then
+                                       (DefinedInst(groundInstName), snd groundInstDet)
+                                    else groundInstDet)
 
-        member this.makeGroundInstList(insts: InstE list) : (InstE list * Determinism) option = None
+        member this.makeGroundInstList(insts: InstE list) : (InstE list * Determinism) option =
+            let makeGroundInstFolder det inst =
+                    this.makeGroundInst inst
+                    |> Option.map (fun res -> (fst res, parallelConjunctionDeterminism det (snd res)))
 
-        member this.makeGroundBoundInstList(insts: BoundInstE list) : (BoundInstE list * Determinism) option = None
-//
-//            let makeGroundBoundInst boundInst det =
-//                match this.makeGroundInstList(boundInst.ArgInsts) with
-//                | Some (argInsts, det1) ->
-//                    Some ({ Constructor = boundInst.Constructor; ArgInsts = argInsts },
-//                          parallelConjunctionDeterminism det det1)
-//                | None ->
-//                    None
-//            List.mapFold makeGroundBoundInst Det insts
+            Util.mapFoldOption makeGroundInstFolder Det insts
 
+        member this.makeGroundBoundInstList(insts: BoundInstE list) : (BoundInstE list * Determinism) option =
+            let makeGroundBoundInst det boundInst =
+                this.makeGroundInstList(boundInst.ArgInsts)
+                |> Option.map (fun res -> ({ Constructor = boundInst.Constructor; ArgInsts = fst res },
+                                                parallelConjunctionDeterminism det (snd res)))
+
+            Util.mapFoldOption makeGroundBoundInst Det insts
+
+        member this.makeAnyInst(inst: InstE) : (InstE * Determinism) option =
+            match inst with
+            | NotReached ->
+                Some (NotReached, Erroneous)
+            | Any ->
+                Some (Any, Semidet)
+            | Free ->
+                Some (Any, Det)
+            | Bound (results, boundInsts) ->
+                this.makeAnyBoundInstList boundInsts
+                |> Option.map (fun res -> (Bound (results, fst res), parallelConjunctionDeterminism Semidet (snd res)))
+            | Ground ->
+                Some (Ground, Semidet)
+            | HigherOrder _ ->
+                Some (inst, Semidet)
+            | DefinedInst (instName) ->
+                let anyInstName = AnyInst (instName)
+                let maybeInstDet = InstTable.searchInsertInst(this.anyInsts, instName)
+                match maybeInstDet with
+                | Some (Some (anyInstDet)) ->
+                    Some (anyInstDet)
+                | Some (None) ->
+                    // We can safely assume this is det, since if it were semidet,
+                    // we would have noticed this in the process of unfolding the
+                    // definition.
+                    Some (DefinedInst (anyInstName), Determinism.Det)
+                | None ->
+                    let maybeAnyInstDet = this.lookup(instName)
+                                               |> this.expand
+                                               |> this.makeAnyInst
+                    do InstTable.updateInst(this.anyInsts, instName, maybeAnyInstDet)
+                    // Avoid expanding recursive insts.
+                    maybeAnyInstDet
+                    |> Option.map (fun anyInstDet ->
+                                    if (this.instContainsInstName(fst anyInstDet, anyInstName)) then
+                                       (DefinedInst(anyInstName), snd anyInstDet)
+                                    else anyInstDet)
+
+        member this.makeAnyInstList(insts: InstE list) : (InstE list * Determinism) option =
+            let makeAnyInstFolder det inst =
+                    this.makeAnyInst inst
+                    |> Option.map (fun res -> (fst res, parallelConjunctionDeterminism det (snd res)))
+
+            Util.mapFoldOption makeAnyInstFolder Det insts
+
+        member this.makeAnyBoundInstList(insts: BoundInstE list) : (BoundInstE list * Determinism) option =
+            let makeAnyBoundInst det boundInst =
+                this.makeAnyInstList(boundInst.ArgInsts)
+                |> Option.map (fun res -> ({ Constructor = boundInst.Constructor; ArgInsts = fst res },
+                                                parallelConjunctionDeterminism det (snd res)))
+
+            Util.mapFoldOption makeAnyBoundInst Det insts
 
         member this.unifyInst(inst1: InstE, inst2: InstE) : InstDet option =
             let unifyInst3 inst1 inst2 =
@@ -149,13 +243,11 @@ module Inst =
                             Some (inst2, Det)
                         else
                             None
-                    | InstE.Ground ->
+                    | Ground
+                    | HigherOrder (_)
+                    | Any ->
                         Some (inst2, Det)
-                    | InstE.HigherOrder (_) ->
-                        Some (inst2, Det)
-                    | InstE.Any ->
-                        Some (inst2, Det)
-                    | InstE.DefinedInst(_) ->
+                    | DefinedInst(_) ->
                         None
                 | Bound(testResults1, boundInsts1) ->
                     match inst2 with
@@ -167,21 +259,29 @@ module Inst =
                             Some (inst1, Det)
                         else
                             None
-                    | InstE.Ground ->
+                    | Ground ->
                         match testResults1.Groundness with
-                        | InstIsGround.Ground ->
+                        | InstIsGround.IsGround ->
                             Some (inst1, Semidet)
                         | InstIsGround.GroundnessUnknown
                         | InstIsGround.NotGround ->
                             match this.makeGroundBoundInstList(boundInsts1) with
                             | Some (boundInsts, det) ->
                                 let testResults =
-                                    { Groundness = InstIsGround.Ground
+                                    { Groundness = InstIsGround.IsGround
                                       ContainsAny = InstContainsAny.DoesNotContainAny
                                       ContainsInstNames = InstContainsInstNames.ContainsInstNamesUnknown }
                                 Some (Bound(testResults, boundInsts), det)
                             | None ->
                                 None
+                    | Any ->
+                        match this.makeAnyBoundInstList(boundInsts1) with
+                        | Some (boundInsts, det) ->
+                            Some (Bound(InstTestResults.noResults, boundInsts), det)
+                        | None ->
+                            None
+                    | Bound(_, boundInsts2) ->
+                        this.unifyBoundInstList(boundInsts1, boundInsts2)
             let unifyInst2 inst1 inst2 =
                 let inst1' = this.expand inst1
                 let inst2' = this.expand inst2
@@ -227,3 +327,6 @@ module Inst =
                         Some (inst, det)
                 | None ->
                     None
+
+        member this.unifyBoundInstList(boundInsts1, boundInsts2) = None
+
