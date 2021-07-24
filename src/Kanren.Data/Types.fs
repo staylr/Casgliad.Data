@@ -35,6 +35,7 @@ type ConstantValue =
     | CharValue of char
     | StringValue of string
 
+[<CustomEquality; CustomComparison>]
 type Constructor =
     | Constant of Value: ConstantValue * ConstType: System.Type
     | Tuple of Arity: int
@@ -47,12 +48,33 @@ type Constructor =
             | _ -> -1
 
     interface System.IComparable<Constructor> with
-        member this.CompareTo other = 0
-            (*match this with
-            | Constant (constVal, constType) ->
+        member this.CompareTo other =
+            match this with
+            | Constant (constValue1, constType1) ->
                 match other with
-                | Constant (otherVal, otherType) ->
-                    let res = *)
+                | Constant (constValue2, constType2) ->
+                    let typeResult = constType1.FullName.CompareTo constType2.FullName
+                    if (typeResult = 0) then
+                        0
+                    else
+                        (constValue1 :> System.IComparable<_>).CompareTo constValue2
+                | _ -> -1
+            | Tuple (arity1) ->
+                match other with
+                | Constant _ -> 1
+                | Tuple (arity2) -> arity1.CompareTo arity2
+                | Record _ | UnionCase _ -> -1
+            | Record (recordType1) ->
+                match other with
+                | Constant _ | Tuple _ -> 1
+                | Record (recordType2) -> recordType1.FullName.CompareTo recordType2.FullName
+                | UnionCase _ -> -1
+            | UnionCase (case1) ->
+                match other with
+                | Constant _ | Tuple _ | Record _ -> 1
+                | UnionCase case2 -> case1.Tag.CompareTo case2.Tag
+
+        with override this.Equals(other: obj) = (this :> System.IComparable).CompareTo other = 0
 
 // TODO: user defined insts, e,g ListSkel.
 type Inst =
