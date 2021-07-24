@@ -4,6 +4,49 @@ open Kanren.Data
 
 [<AutoOpen>]
 module Determinism =
+    let numSolutions =
+        function
+        | Determinism.Erroneous -> NoSolutions
+        | Determinism.Fail -> NoSolutions
+        | Determinism.Det -> OneSolution
+        | Determinism.Semidet -> OneSolution
+        | Determinism.Multi -> MoreThanOneSolution
+        | Determinism.CommittedChoiceMulti -> CommittedChoice
+        | Determinism.Nondet -> MoreThanOneSolution
+        | Determinism.CommittedChoiceNondet -> CommittedChoice
+
+    let canFail =
+        function
+        | Determinism.Erroneous -> CannotFail
+        | Determinism.Fail -> CanFail
+        | Determinism.Det -> CannotFail
+        | Determinism.Semidet -> CanFail
+        | Determinism.Multi -> CannotFail
+        | Determinism.CommittedChoiceMulti -> CannotFail
+        | Determinism.Nondet -> CanFail
+        | Determinism.CommittedChoiceNondet -> CanFail
+
+    let determinismComponents (d: Determinism) = (numSolutions d, canFail d)
+
+    let determinismFromComponents numSolutions canFail =
+        match (numSolutions, canFail) with
+        | (NoSolutions, CanFail) ->
+            Fail
+        | (NoSolutions, CannotFail) ->
+            Erroneous
+        | (OneSolution, CanFail) ->
+            Semidet
+        | (OneSolution, CannotFail) ->
+            Det
+        | (MoreThanOneSolution, CanFail) ->
+            Nondet
+        | (MoreThanOneSolution, CannotFail) ->
+            Multi
+        | (CommittedChoice, CanFail) ->
+            CommittedChoiceNondet
+        | (CommittedChoice, CannotFail) ->
+            CommittedChoiceMulti
+
     let detConjunctionMaxSoln s1 s2 =
         match (s1, s2) with
         | (NumSolutions.NoSolutions, _)
@@ -43,8 +86,66 @@ module Determinism =
         determinismFromComponents (detConjunctionMaxSoln maxSoln1 maxSoln2)
                                 (detConjunctionCanFail canFail1 canFail2)
 
-    let negationDeterminism det =
-        match det with
+    let detDisjunctionMaxSoln d1 d2 =
+        match d1 with
+        | NumSolutions.NoSolutions ->
+            d2
+        | NumSolutions.OneSolution ->
+            match d2 with
+            | NumSolutions.NoSolutions -> NumSolutions.OneSolution
+            | NumSolutions.OneSolution -> NumSolutions.MoreThanOneSolution
+            | NumSolutions.CommittedChoice -> NumSolutions.CommittedChoice
+            | NumSolutions.MoreThanOneSolution -> NumSolutions.MoreThanOneSolution
+        | NumSolutions.CommittedChoice ->
+            NumSolutions.CommittedChoice
+        | NumSolutions.MoreThanOneSolution ->
+            match d2 with
+            | NumSolutions.CommittedChoice -> NumSolutions.CommittedChoice
+            | _ -> NumSolutions.MoreThanOneSolution
+
+    let detDisjunctionCanFail d1 d2 =
+        if (d1 = CanFail.CanFail && d2 = CanFail.CanFail) then
+            CanFail.CanFail
+        else
+            CanFail.CannotFail
+
+    let disjunctionDeterminism det1 det2 =
+        let (maxSoln1, canFail1) = determinismComponents det1
+        let (maxSoln2, canFail2) = determinismComponents det2
+        determinismFromComponents (detDisjunctionMaxSoln maxSoln1 maxSoln2)
+                                (detDisjunctionCanFail canFail1 canFail2)
+
+    let detSwitchMaxSoln d1 d2 =
+        match d1 with
+        | NumSolutions.NoSolutions ->
+            d2
+        | NumSolutions.OneSolution ->
+            match d2 with
+            | NumSolutions.NoSolutions -> NumSolutions.OneSolution
+            | NumSolutions.OneSolution -> NumSolutions.OneSolution
+            | NumSolutions.CommittedChoice -> NumSolutions.CommittedChoice
+            | NumSolutions.MoreThanOneSolution -> NumSolutions.MoreThanOneSolution
+        | NumSolutions.CommittedChoice ->
+            NumSolutions.CommittedChoice
+        | NumSolutions.MoreThanOneSolution ->
+            match d2 with
+            | NumSolutions.CommittedChoice -> NumSolutions.CommittedChoice
+            | _ -> NumSolutions.MoreThanOneSolution
+
+    let detSwitchCanFail d1 d2 =
+        if (d1 = CanFail.CannotFail && d2 = CanFail.CannotFail) then
+            CanFail.CannotFail
+        else
+            CanFail.CanFail
+
+    let switchDeterminism det1 det2 =
+        let (maxSoln1, canFail1) = determinismComponents det1
+        let (maxSoln2, canFail2) = determinismComponents det2
+        determinismFromComponents (detSwitchMaxSoln maxSoln1 maxSoln2)
+                                (detSwitchCanFail canFail1 canFail2)
+
+    let negationDeterminism =
+        function
         | Det -> Some Fail
         | Semidet -> Some Semidet
         | Multi -> None

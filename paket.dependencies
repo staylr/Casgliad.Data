@@ -3,13 +3,10 @@ source https://api.nuget.org/v3/index.json
 storage: none
 nuget FSharp.Core
 nuget Microsoft.SourceLink.GitHub 1.0.0 copy_local: true
-nuget Expecto
-nuget YoloDev.Expecto.TestSdk
 nuget Microsoft.NET.Test.Sdk
 nuget altcover ~> 7
 nuget NUnit
 nuget NUnit3TestAdapter
-
 nuget SQLProvider
 nuget Unquote
 // [ FAKE GROUP ]

@@ -37,9 +37,22 @@ type ConstantValue =
 
 type Constructor =
     | Constant of Value: ConstantValue * ConstType: System.Type
-    | Tuple
+    | Tuple of Arity: int
     | Record of System.Type
     | UnionCase of FSharp.Reflection.UnionCaseInfo
+    interface System.IComparable with
+        member this.CompareTo other =
+            match other with
+            | :? Constructor as p -> (this :> System.IComparable<_>).CompareTo p
+            | _ -> -1
+
+    interface System.IComparable<Constructor> with
+        member this.CompareTo other = 0
+            (*match this with
+            | Constant (constVal, constType) ->
+                match other with
+                | Constant (otherVal, otherType) ->
+                    let res = *)
 
 // TODO: user defined insts, e,g ListSkel.
 type Inst =
@@ -192,46 +205,3 @@ module Mode =
     let Out = Free => Ground
 
     let mode modes det = { Modes = modes; Determinism = det }
-
-    let numSolutions (d: Determinism) =
-        match d with
-        | Determinism.Erroneous -> NoSolutions
-        | Determinism.Fail -> NoSolutions
-        | Determinism.Det -> OneSolution
-        | Determinism.Semidet -> OneSolution
-        | Determinism.Multi -> MoreThanOneSolution
-        | Determinism.CommittedChoiceMulti -> CommittedChoice
-        | Determinism.Nondet -> MoreThanOneSolution
-        | Determinism.CommittedChoiceNondet -> CommittedChoice
-
-    let canFail (d: Determinism) =
-        match d with
-        | Determinism.Erroneous -> CannotFail
-        | Determinism.Fail -> CanFail
-        | Determinism.Det -> CannotFail
-        | Determinism.Semidet -> CanFail
-        | Determinism.Multi -> CannotFail
-        | Determinism.CommittedChoiceMulti -> CannotFail
-        | Determinism.Nondet -> CanFail
-        | Determinism.CommittedChoiceNondet -> CanFail
-
-    let determinismComponents (d: Determinism) = (numSolutions d, canFail d)
-
-    let determinismFromComponents numSolutions canFail =
-        match (numSolutions, canFail) with
-        | (NoSolutions, CanFail) ->
-            Fail
-        | (NoSolutions, CannotFail) ->
-            Erroneous
-        | (OneSolution, CanFail) ->
-            Semidet
-        | (OneSolution, CannotFail) ->
-            Det
-        | (MoreThanOneSolution, CanFail) ->
-            Nondet
-        | (MoreThanOneSolution, CannotFail) ->
-            Multi
-        | (CommittedChoice, CanFail) ->
-            CommittedChoiceNondet
-        | (CommittedChoice, CannotFail) ->
-            CommittedChoiceMulti

@@ -179,8 +179,8 @@ module QuotationParser =
             | Patterns.Value (value, constType) ->
                 return ([], Some(UnifyRhs.Constructor(Constant(translateConstant value constType, constType), [], VarCtorUnifyType.Construct, [])))
             | Patterns.NewTuple (args) ->
-                let! (argVars, extraGoals) = translateCallArgs false args (addCtorSubContext context Tuple)
-                return (extraGoals, Some(UnifyRhs.Constructor(Tuple, argVars, VarCtorUnifyType.Construct, [])))
+                let! (argVars, extraGoals) = translateCallArgs false args (addCtorSubContext context (Tuple (args.Length)))
+                return (extraGoals, Some(UnifyRhs.Constructor(Tuple (args.Length), argVars, VarCtorUnifyType.Construct, [])))
             | Patterns.NewRecord (recordType, args) ->
                 let! (argVars, extraGoals) =
                     translateCallArgs false args (addCtorSubContext context (Record(recordType)))
@@ -440,7 +440,8 @@ module QuotationParser =
         let (termExpr, ctor, propertyIndex, argTypes) =
             match expr with
             | Patterns.TupleGet (tupleExpr, tupleIndex) ->
-                (tupleExpr, Tuple, tupleIndex, FSharpType.GetTupleElements tupleExpr.Type)
+                let tupleArity = FSharp.Reflection.FSharpType.GetTupleElements(tupleExpr.Type).Length
+                (tupleExpr, Tuple tupleArity, tupleIndex, FSharpType.GetTupleElements tupleExpr.Type)
             | Patterns.PropertyGet (Some termExpr, propertyInfo, []) ->
                 let (ctor, argTypes, propertyIndex) = getPropertyInfo termExpr propertyInfo
                 (termExpr, ctor, propertyIndex, argTypes)

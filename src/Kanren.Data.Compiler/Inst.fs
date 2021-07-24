@@ -1,7 +1,6 @@
 namespace Kanren.Data.Compiler
 
 open System.Collections.Generic
-open FsToolkit.ErrorHandling
 open Kanren.Data
 
 [<AutoOpen>]
@@ -47,6 +46,7 @@ module Inst =
 
     let rec ofInst (inst: Inst) : InstE =
         match inst with
+        | Inst.NotReached -> InstE.NotReached
         | Inst.Free -> InstE.Free
         | Inst.Ground -> InstE.Ground
         | Inst.Any -> InstE.Any
@@ -226,6 +226,8 @@ module Inst =
 
             Util.mapFoldOption makeAnyBoundInst Det insts
 
+        member this.unifyInstList(insts1: InstE list, insts2: InstE list) : (InstE list * Determinism) option = None
+
         member this.unifyInst(inst1: InstE, inst2: InstE) : InstDet option =
             let unifyInst3 inst1 inst2 =
                 match inst1 with
@@ -282,6 +284,8 @@ module Inst =
                             None
                     | Bound(_, boundInsts2) ->
                         this.unifyBoundInstList(boundInsts1, boundInsts2)
+                        |> Option.map (fun (boundInsts, det) -> (Bound (InstTestResults.noResults, boundInsts), det))
+
             let unifyInst2 inst1 inst2 =
                 let inst1' = this.expand inst1
                 let inst2' = this.expand inst2
@@ -328,5 +332,36 @@ module Inst =
                 | None ->
                     None
 
-        member this.unifyBoundInstList(boundInsts1, boundInsts2) = None
+        member this.unifyBoundInstList(boundInsts1: BoundInstE list, boundInsts2: BoundInstE list) : (BoundInstE list * Determinism) option =
+            let rec unifyBoundInstList2 (boundInsts1: BoundInstE list) (boundInsts2: BoundInstE list) =
+                match (boundInsts1, boundInsts2) with
+                | ([], []) ->
+                    Some([], Determinism.Erroneous)
+                | ([], _ :: _)
+                | (_ :: _, []) ->
+                    Some([], Determinism.Fail)
+                | (boundInst1 :: boundInsts1', boundInst2 :: boundInsts2') ->
+                    if (boundInst1.Constructor = boundInst2.Constructor) then
+                        this.unifyInstList(boundInst1.ArgInsts, boundInst2.ArgInsts)
+                        |> Option.bind
+                            (fun (argInsts, det1) ->
+                                unifyBoundInstList2 boundInsts1' boundInsts2'
+                                |> Option.bind
+                                       (fun (boundInstsTail, det2) ->
+                                            let det = switchDeterminism det1 det2
+                                            if (numSolutions det1 = NumSolutions.NoSolutions) then
+                                                Some (boundInstsTail, det)
+                                            else
+                                                let boundInst = {Constructor = boundInst1.Constructor; ArgInsts = argInsts }
+                                                Some (boundInst :: boundInstsTail, det)
+                                       ))
+                    else
+                        if (boundInst1.Constructor < boundInst2.Constructor) then
+                            None
+                        else
+                            None
+            if (boundInsts1 = [] || boundInsts2 = []) then
+                Some([], Determinism.Erroneous)
+            else
+                unifyBoundInstList2 boundInsts1 boundInsts2
 
