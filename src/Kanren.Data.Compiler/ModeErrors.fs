@@ -30,7 +30,7 @@ module ModeErrors =
     type MergeError = { Var: VarId; Insts: (SourceInfo * Inst) list}
 
     type MergeContext =
-    | MergeDisj
+    | MergeDisjunction
     | MergeIfThenElse
 
     type FinalInstError =
@@ -40,13 +40,13 @@ module ModeErrors =
 
     type ModeError =
     | ModeErrorUnifyVarVar of LVar: VarId * RVar: VarId * LInst: Inst * RInst: Inst
-    | ModeErrorUnifyVarFunctor of LVar: VarId * Ctor: Constructor * Args: VarId list * VarInst: Inst * ArgInsts: Inst list 
+    | ModeErrorUnifyVarFunctor of LVar: VarId * Ctor: Constructor * Args: VarId list * VarInst: Inst * ArgInsts: Inst list
     | ModeErrorUnifyVarLambda of LVar: VarId * Inst1: Inst * Inst2: Inst
     | ModeErrorHigherOrderUnify of LVar: VarId
     | ModeErrorNotSufficientlyInstantiated of Var: VarId * VarInst: Inst * ExpectedInst: Inst
     | ModeErrorNoMatchingMode of Args: VarId list * ArgInsts: Inst list * ExpectedArgInsts: Inst list list
     | ModeErrorUnschedulableConjuncts of DelayedGoal list
-    | ModeErrorMergeDisj of MergeContext: MergeContext * MergeErrors: MergeError list
+    | ModeErrorMergeDisjunction of MergeContext: MergeContext * MergeErrors: MergeError list
     | ModeErrorBindLockedVar of Reason: VarLockReason * Var: VarId * InitialInst: Inst * FinalInst: Inst
     | ModeErrorUnexpectedFinalInst of ArgNum: int * Var: VarId * ActualInst: Inst * ExpectedInst: Inst * Error: FinalInstError
     and ModeErrorInfo = { Vars: SetOfVar; Error: ModeError; SourceInfo: SourceInfo; ModeContext: ModeContext }

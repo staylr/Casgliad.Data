@@ -30,22 +30,14 @@ module Determinism =
 
     let determinismFromComponents numSolutions canFail =
         match (numSolutions, canFail) with
-        | (NoSolutions, CanFail) ->
-            Fail
-        | (NoSolutions, CannotFail) ->
-            Erroneous
-        | (OneSolution, CanFail) ->
-            Semidet
-        | (OneSolution, CannotFail) ->
-            Det
-        | (MoreThanOneSolution, CanFail) ->
-            Nondet
-        | (MoreThanOneSolution, CannotFail) ->
-            Multi
-        | (CommittedChoice, CanFail) ->
-            CommittedChoiceNondet
-        | (CommittedChoice, CannotFail) ->
-            CommittedChoiceMulti
+        | (NoSolutions, CanFail) -> Fail
+        | (NoSolutions, CannotFail) -> Erroneous
+        | (OneSolution, CanFail) -> Semidet
+        | (OneSolution, CannotFail) -> Det
+        | (MoreThanOneSolution, CanFail) -> Nondet
+        | (MoreThanOneSolution, CannotFail) -> Multi
+        | (CommittedChoice, CanFail) -> CommittedChoiceNondet
+        | (CommittedChoice, CannotFail) -> CommittedChoiceMulti
 
     let detConjunctionMaxSoln s1 s2 =
         match (s1, s2) with
@@ -70,6 +62,7 @@ module Determinism =
 
     let conjunctionDeterminism det1 det2 =
         let (maxSoln1, canFail1) = determinismComponents det1
+
         match maxSoln1 with
         | NumSolutions.NoSolutions ->
             det1
@@ -77,27 +70,26 @@ module Determinism =
         | NumSolutions.MoreThanOneSolution
         | NumSolutions.CommittedChoice ->
             let (maxSoln2, canFail2) = determinismComponents det2
-            determinismFromComponents (detConjunctionMaxSoln maxSoln1 maxSoln2)
-                                    (detConjunctionCanFail canFail1 canFail2)
+
+            determinismFromComponents
+                (detConjunctionMaxSoln maxSoln1 maxSoln2)
+                (detConjunctionCanFail canFail1 canFail2)
 
     let parallelConjunctionDeterminism det1 det2 =
         let (maxSoln1, canFail1) = determinismComponents det1
         let (maxSoln2, canFail2) = determinismComponents det2
-        determinismFromComponents (detConjunctionMaxSoln maxSoln1 maxSoln2)
-                                (detConjunctionCanFail canFail1 canFail2)
+        determinismFromComponents (detConjunctionMaxSoln maxSoln1 maxSoln2) (detConjunctionCanFail canFail1 canFail2)
 
     let detDisjunctionMaxSoln d1 d2 =
         match d1 with
-        | NumSolutions.NoSolutions ->
-            d2
+        | NumSolutions.NoSolutions -> d2
         | NumSolutions.OneSolution ->
             match d2 with
             | NumSolutions.NoSolutions -> NumSolutions.OneSolution
             | NumSolutions.OneSolution -> NumSolutions.MoreThanOneSolution
             | NumSolutions.CommittedChoice -> NumSolutions.CommittedChoice
             | NumSolutions.MoreThanOneSolution -> NumSolutions.MoreThanOneSolution
-        | NumSolutions.CommittedChoice ->
-            NumSolutions.CommittedChoice
+        | NumSolutions.CommittedChoice -> NumSolutions.CommittedChoice
         | NumSolutions.MoreThanOneSolution ->
             match d2 with
             | NumSolutions.CommittedChoice -> NumSolutions.CommittedChoice
@@ -112,21 +104,18 @@ module Determinism =
     let disjunctionDeterminism det1 det2 =
         let (maxSoln1, canFail1) = determinismComponents det1
         let (maxSoln2, canFail2) = determinismComponents det2
-        determinismFromComponents (detDisjunctionMaxSoln maxSoln1 maxSoln2)
-                                (detDisjunctionCanFail canFail1 canFail2)
+        determinismFromComponents (detDisjunctionMaxSoln maxSoln1 maxSoln2) (detDisjunctionCanFail canFail1 canFail2)
 
     let detSwitchMaxSoln d1 d2 =
         match d1 with
-        | NumSolutions.NoSolutions ->
-            d2
+        | NumSolutions.NoSolutions -> d2
         | NumSolutions.OneSolution ->
             match d2 with
             | NumSolutions.NoSolutions -> NumSolutions.OneSolution
             | NumSolutions.OneSolution -> NumSolutions.OneSolution
             | NumSolutions.CommittedChoice -> NumSolutions.CommittedChoice
             | NumSolutions.MoreThanOneSolution -> NumSolutions.MoreThanOneSolution
-        | NumSolutions.CommittedChoice ->
-            NumSolutions.CommittedChoice
+        | NumSolutions.CommittedChoice -> NumSolutions.CommittedChoice
         | NumSolutions.MoreThanOneSolution ->
             match d2 with
             | NumSolutions.CommittedChoice -> NumSolutions.CommittedChoice
@@ -141,8 +130,7 @@ module Determinism =
     let switchDeterminism det1 det2 =
         let (maxSoln1, canFail1) = determinismComponents det1
         let (maxSoln2, canFail2) = determinismComponents det2
-        determinismFromComponents (detSwitchMaxSoln maxSoln1 maxSoln2)
-                                (detSwitchCanFail canFail1 canFail2)
+        determinismFromComponents (detSwitchMaxSoln maxSoln1 maxSoln2) (detSwitchCanFail canFail1 canFail2)
 
     let negationDeterminism =
         function
