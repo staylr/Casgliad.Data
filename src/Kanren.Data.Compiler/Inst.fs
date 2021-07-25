@@ -272,6 +272,8 @@ module Inst =
                             Some (inst1, Det)
                         else
                             None
+                    | HigherOrder _ ->
+                        None
                     | Ground ->
                         match testResults1.Groundness with
                         | InstIsGround.IsGround -> Some (inst1, Semidet)
@@ -293,7 +295,27 @@ module Inst =
                     | Bound (_, boundInsts2) ->
                         this.unifyBoundInstList (boundInsts1, boundInsts2)
                         |> Option.map (fun (boundInsts, det) -> (Bound (InstTestResults.noResults, boundInsts), det))
+                    | DefinedInst _ -> None
+                | Ground ->
+                    this.makeGroundInst (inst2)
+                | HigherOrder _ ->
+                    match inst2 with
+                    | NotReached -> Some (NotReached, Determinism.Det)
+                    | Free -> Some (inst1, Determinism.Det)
 
+                    /// Test unification of higher-order values not supported.
+                    | Bound _
+                    | Ground
+                    | HigherOrder _
+                    | Any
+                    | DefinedInst _ ->
+                        None
+
+                | Any ->
+                    this.makeAnyInst (inst2)
+                | DefinedInst _ ->
+                    // Should have been expanded before we got here.
+                    None
             let unifyInst2 inst1 inst2 =
                 let inst1' = this.expand inst1
                 let inst2' = this.expand inst2
@@ -345,6 +367,9 @@ module Inst =
                 boundInsts1: BoundInstE list,
                 boundInsts2: BoundInstE list
             ) : (BoundInstE list * Determinism) option =
+
+            let resultSetMatchCanFail (res, det) = (res, switchDeterminism det Determinism.Fail)
+
             let rec unifyBoundInstList2 (boundInsts1: BoundInstE list) (boundInsts2: BoundInstE list) =
                 match (boundInsts1, boundInsts2) with
                 | ([], []) -> Some ([], Determinism.Erroneous)
@@ -360,6 +385,8 @@ module Inst =
                                     (fun (boundInstsTail, det2) ->
                                         let det = switchDeterminism det1 det2
 
+                                        // If the unification of the two cons_ids is guaranteed
+                                        // not to succeed, don't include it in the list.
                                         if (numSolutions det1 = NumSolutions.NoSolutions) then
                                             Some (boundInstsTail, det)
                                         else
@@ -369,9 +396,11 @@ module Inst =
 
                                             Some (boundInst :: boundInstsTail, det)))
                     else if (boundInst1.Constructor < boundInst2.Constructor) then
-                        None
+                        unifyBoundInstList2 boundInsts1' boundInsts2
+                        |> Option.map resultSetMatchCanFail
                     else
-                        None
+                        unifyBoundInstList2 boundInsts1 boundInsts2'
+                        |> Option.map resultSetMatchCanFail
 
             if (boundInsts1 = [] || boundInsts2 = []) then
                 Some ([], Determinism.Erroneous)
