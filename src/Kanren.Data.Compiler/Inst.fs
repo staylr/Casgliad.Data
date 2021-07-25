@@ -63,29 +63,29 @@ module Inst =
             let modes =
                 List.map (fun (inst1, inst2) -> (ofInst inst1, ofInst inst2)) mode.Modes
 
-            InstE.HigherOrder(modes, mode.Determinism)
-        | Inst.Bound (boundInsts) -> InstE.Bound(InstTestResults.noResults, List.map ofBoundInst boundInsts)
+            InstE.HigherOrder (modes, mode.Determinism)
+        | Inst.Bound (boundInsts) -> InstE.Bound (InstTestResults.noResults, List.map ofBoundInst boundInsts)
 
     and ofBoundInst (boundInst: BoundInst) : BoundInstE =
         { Constructor = boundInst.Constructor
           ArgInsts = (List.map ofInst boundInst.ArgInsts) }
 
     type InstTable() =
-        member this.unifyInsts = Dictionary<InstPair, InstDet option>()
-        member this.mergeInsts = Dictionary<InstPair, InstE option>()
-        member this.groundInsts = Dictionary<InstName, InstDet option>()
-        member this.anyInsts = Dictionary<InstName, InstDet option>()
+        member this.unifyInsts = Dictionary<InstPair, InstDet option> ()
+        member this.mergeInsts = Dictionary<InstPair, InstE option> ()
+        member this.groundInsts = Dictionary<InstName, InstDet option> ()
+        member this.anyInsts = Dictionary<InstName, InstDet option> ()
 
         static member private lookupInst(table: Dictionary<'K, 'V>, inst: 'K) =
             match table.TryGetValue inst with
             | true, value -> value
-            | false, _ -> raise (System.Exception($"inst not found ${inst}"))
+            | false, _ -> raise (System.Exception ($"inst not found ${inst}"))
 
         static member private searchInsertInst(table: Dictionary<'K, 'V option>, inst: 'K) =
             match table.TryGetValue inst with
             | true, value -> Some value
             | false, _ ->
-                do table.Add(inst, None)
+                do table.Add (inst, None)
                 None
 
         static member private updateInst(table: Dictionary<'K, 'V>, inst: 'K, value: 'V) =
@@ -101,7 +101,7 @@ module Inst =
             let handleInstDet instName instDet : InstE =
                 match instDet with
                 | Some (inst, _) -> inst
-                | None -> DefinedInst(instName)
+                | None -> DefinedInst (instName)
 
             match instName with
             | UnifyInst (instPair) ->
@@ -113,7 +113,7 @@ module Inst =
 
                 match mergeInst with
                 | Some (inst) -> inst
-                | None -> DefinedInst(instName)
+                | None -> DefinedInst (instName)
             | GroundInst (instName) ->
                 InstTable.lookupInst (this.groundInsts, instName)
                 |> handleInstDet instName
@@ -131,27 +131,27 @@ module Inst =
 
         member this.makeGroundInst(inst: InstE) : (InstE * Determinism) option =
             match inst with
-            | NotReached -> Some(NotReached, Erroneous)
-            | Any -> Some(Ground, Semidet)
-            | Free -> Some(Ground, Det)
+            | NotReached -> Some (NotReached, Erroneous)
+            | Any -> Some (Ground, Semidet)
+            | Free -> Some (Ground, Det)
             | Bound (results, boundInsts) ->
                 this.makeGroundBoundInstList boundInsts
-                |> Option.map (fun res -> (Bound(results, fst res), parallelConjunctionDeterminism Semidet (snd res)))
-            | Ground -> Some(Ground, Semidet)
-            | HigherOrder _ -> Some(inst, Semidet)
+                |> Option.map (fun res -> (Bound (results, fst res), parallelConjunctionDeterminism Semidet (snd res)))
+            | Ground -> Some (Ground, Semidet)
+            | HigherOrder _ -> Some (inst, Semidet)
             | DefinedInst (instName) ->
-                let groundInstName = GroundInst(instName)
+                let groundInstName = GroundInst (instName)
 
                 let maybeInstDet =
                     InstTable.searchInsertInst (this.groundInsts, instName)
 
                 match maybeInstDet with
-                | Some (Some (groundInst, det)) -> Some(groundInst, det)
+                | Some (Some (groundInst, det)) -> Some (groundInst, det)
                 | Some (None) ->
                     // We can safely assume this is det, since if it were semidet,
                     // we would have noticed this in the process of unfolding the
                     // definition.
-                    Some(DefinedInst(groundInstName), Determinism.Det)
+                    Some (DefinedInst (groundInstName), Determinism.Det)
                 | None ->
                     let maybeGroundInstDet =
                         this.lookup (instName)
@@ -164,7 +164,7 @@ module Inst =
                     |> Option.map
                         (fun groundInstDet ->
                             if (this.instContainsInstName (fst groundInstDet, groundInstName)) then
-                                (DefinedInst(groundInstName), snd groundInstDet)
+                                (DefinedInst (groundInstName), snd groundInstDet)
                             else
                                 groundInstDet)
 
@@ -188,27 +188,27 @@ module Inst =
 
         member this.makeAnyInst(inst: InstE) : (InstE * Determinism) option =
             match inst with
-            | NotReached -> Some(NotReached, Erroneous)
-            | Any -> Some(Any, Semidet)
-            | Free -> Some(Any, Det)
+            | NotReached -> Some (NotReached, Erroneous)
+            | Any -> Some (Any, Semidet)
+            | Free -> Some (Any, Det)
             | Bound (results, boundInsts) ->
                 this.makeAnyBoundInstList boundInsts
-                |> Option.map (fun res -> (Bound(results, fst res), parallelConjunctionDeterminism Semidet (snd res)))
-            | Ground -> Some(Ground, Semidet)
-            | HigherOrder _ -> Some(inst, Semidet)
+                |> Option.map (fun res -> (Bound (results, fst res), parallelConjunctionDeterminism Semidet (snd res)))
+            | Ground -> Some (Ground, Semidet)
+            | HigherOrder _ -> Some (inst, Semidet)
             | DefinedInst (instName) ->
-                let anyInstName = AnyInst(instName)
+                let anyInstName = AnyInst (instName)
 
                 let maybeInstDet =
                     InstTable.searchInsertInst (this.anyInsts, instName)
 
                 match maybeInstDet with
-                | Some (Some (anyInstDet)) -> Some(anyInstDet)
+                | Some (Some (anyInstDet)) -> Some (anyInstDet)
                 | Some (None) ->
                     // We can safely assume this is det, since if it were semidet,
                     // we would have noticed this in the process of unfolding the
                     // definition.
-                    Some(DefinedInst(anyInstName), Determinism.Det)
+                    Some (DefinedInst (anyInstName), Determinism.Det)
                 | None ->
                     let maybeAnyInstDet =
                         this.lookup (instName)
@@ -221,7 +221,7 @@ module Inst =
                     |> Option.map
                         (fun anyInstDet ->
                             if (this.instContainsInstName (fst anyInstDet, anyInstName)) then
-                                (DefinedInst(anyInstName), snd anyInstDet)
+                                (DefinedInst (anyInstName), snd anyInstDet)
                             else
                                 anyInstDet)
 
@@ -248,33 +248,33 @@ module Inst =
         member this.unifyInst(inst1: InstE, inst2: InstE) : InstDet option =
             let unifyInst3 inst1 inst2 =
                 match inst1 with
-                | NotReached -> Some(NotReached, Det)
+                | NotReached -> Some (NotReached, Det)
                 | Free ->
                     match inst2 with
-                    | NotReached -> Some(NotReached, Det)
+                    | NotReached -> Some (NotReached, Det)
                     | Free -> None
                     | Bound (testResults, boundInsts) ->
                         // Disallow free-free unifications.
                         if (this.boundInstListIsGroundOrAny (testResults, boundInsts)) then
-                            Some(inst2, Det)
+                            Some (inst2, Det)
                         else
                             None
                     | Ground
                     | HigherOrder (_)
-                    | Any -> Some(inst2, Det)
+                    | Any -> Some (inst2, Det)
                     | DefinedInst (_) -> None
                 | Bound (testResults1, boundInsts1) ->
                     match inst2 with
-                    | NotReached -> Some(NotReached, Det)
+                    | NotReached -> Some (NotReached, Det)
                     | Free ->
                         // Disallow free-free unifications.
                         if (this.boundInstListIsGroundOrAny (testResults1, boundInsts1)) then
-                            Some(inst1, Det)
+                            Some (inst1, Det)
                         else
                             None
                     | Ground ->
                         match testResults1.Groundness with
-                        | InstIsGround.IsGround -> Some(inst1, Semidet)
+                        | InstIsGround.IsGround -> Some (inst1, Semidet)
                         | InstIsGround.GroundnessUnknown
                         | InstIsGround.NotGround ->
                             match this.makeGroundBoundInstList (boundInsts1) with
@@ -284,15 +284,15 @@ module Inst =
                                       ContainsAny = InstContainsAny.DoesNotContainAny
                                       ContainsInstNames = InstContainsInstNames.ContainsInstNamesUnknown }
 
-                                Some(Bound(testResults, boundInsts), det)
+                                Some (Bound (testResults, boundInsts), det)
                             | None -> None
                     | Any ->
                         match this.makeAnyBoundInstList (boundInsts1) with
-                        | Some (boundInsts, det) -> Some(Bound(InstTestResults.noResults, boundInsts), det)
+                        | Some (boundInsts, det) -> Some (Bound (InstTestResults.noResults, boundInsts), det)
                         | None -> None
                     | Bound (_, boundInsts2) ->
                         this.unifyBoundInstList (boundInsts1, boundInsts2)
-                        |> Option.map (fun (boundInsts, det) -> (Bound(InstTestResults.noResults, boundInsts), det))
+                        |> Option.map (fun (boundInsts, det) -> (Bound (InstTestResults.noResults, boundInsts), det))
 
             let unifyInst2 inst1 inst2 =
                 let inst1' = this.expand inst1
@@ -302,7 +302,7 @@ module Inst =
                 match instDet with
                 | Some (_, det) ->
                     if (numSolutions det) = NoSolutions then
-                        Some(NotReached, det)
+                        Some (NotReached, det)
                     else
                         instDet
                 | None -> None
@@ -311,7 +311,7 @@ module Inst =
                 unifyInst2 inst1 inst2
             else
                 let instPair = (inst1, inst2)
-                let instName = UnifyInst(instPair)
+                let instName = UnifyInst (instPair)
 
                 let maybeUnifyInst =
                     InstTable.searchInsertInst (this.unifyInsts, instPair)
@@ -320,24 +320,24 @@ module Inst =
                     match maybeUnifyInst with
                     | Some (maybeInst) ->
                         match maybeInst with
-                        | Some (instDet) -> Some(instDet)
-                        | None -> Some(DefinedInst(instName), Determinism.Det)
+                        | Some (instDet) -> Some (instDet)
+                        | None -> Some (DefinedInst (instName), Determinism.Det)
                     | None ->
                         let result = unifyInst2 inst1 inst2
 
                         match result with
                         | Some (inst, det) ->
-                            this.unifyInsts.[(inst1, inst2)] <- Some(inst, det)
-                            Some(inst, det)
+                            this.unifyInsts.[(inst1, inst2)] <- Some (inst, det)
+                            Some (inst, det)
                         | None -> None
 
                 match instDet0 with
                 | Some (inst, det) ->
                     // Avoid expanding recursive insts.
                     if (this.instContainsInstName (inst, instName)) then
-                        Some(DefinedInst(instName), det)
+                        Some (DefinedInst (instName), det)
                     else
-                        Some(inst, det)
+                        Some (inst, det)
                 | None -> None
 
         member this.unifyBoundInstList
@@ -347,9 +347,9 @@ module Inst =
             ) : (BoundInstE list * Determinism) option =
             let rec unifyBoundInstList2 (boundInsts1: BoundInstE list) (boundInsts2: BoundInstE list) =
                 match (boundInsts1, boundInsts2) with
-                | ([], []) -> Some([], Determinism.Erroneous)
+                | ([], []) -> Some ([], Determinism.Erroneous)
                 | ([], _ :: _)
-                | (_ :: _, []) -> Some([], Determinism.Fail)
+                | (_ :: _, []) -> Some ([], Determinism.Fail)
                 | (boundInst1 :: boundInsts1', boundInst2 :: boundInsts2') ->
                     if (boundInst1.Constructor = boundInst2.Constructor) then
                         this.unifyInstList (boundInst1.ArgInsts, boundInst2.ArgInsts)
@@ -361,19 +361,19 @@ module Inst =
                                         let det = switchDeterminism det1 det2
 
                                         if (numSolutions det1 = NumSolutions.NoSolutions) then
-                                            Some(boundInstsTail, det)
+                                            Some (boundInstsTail, det)
                                         else
                                             let boundInst =
                                                 { Constructor = boundInst1.Constructor
                                                   ArgInsts = argInsts }
 
-                                            Some(boundInst :: boundInstsTail, det)))
+                                            Some (boundInst :: boundInstsTail, det)))
                     else if (boundInst1.Constructor < boundInst2.Constructor) then
                         None
                     else
                         None
 
             if (boundInsts1 = [] || boundInsts2 = []) then
-                Some([], Determinism.Erroneous)
+                Some ([], Determinism.Erroneous)
             else
                 unifyBoundInstList2 boundInsts1 boundInsts2
