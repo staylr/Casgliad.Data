@@ -123,11 +123,55 @@ module Inst =
 
         member this.instContainsInstName(inst: InstE, instName: InstName) : bool = false
 
-        member this.instIsBoundOrAny(inst: InstE) : bool = false
+        member private this.expandAndProcess
+                                (f: HashSet<InstName> -> InstE -> 'A)
+                                (expanded: HashSet<InstName>)
+                                (instName: InstName)
+                                (resultIfRecursive: 'A) =
+            if (expanded.Add(instName)) then
+                this.lookup (instName)
+                |> f expanded
+            else
+                resultIfRecursive
 
-        member this.boundInstIsGroundOrAny(inst: BoundInstE) : bool = false
+        member this.instIsGroundOrAny(inst: InstE) : bool =
+            let rec instIsGroundOrAny2 expanded inst =
+                    match inst with
+                    | Ground | Any | NotReached | HigherOrder _ ->
+                        true
+                    | Bound (testResults, boundInsts) ->
+                        this.boundInstListIsGroundOrAny (testResults, boundInsts)
+                    | Free ->
+                        false
+                    | DefinedInst instName ->
+                        this.expandAndProcess instIsGroundOrAny2 expanded instName true
 
-        member this.boundInstListIsGroundOrAny(instResults: InstTestResults, argInsts: BoundInstE list) : bool = false
+            instIsGroundOrAny2 (HashSet<InstName>()) inst
+
+        member this.boundInstListIsGroundOrAny(instResults: InstTestResults, boundInsts: BoundInstE list) : bool =
+            boundInsts
+            |> List.forall (fun b -> List.forall this.instIsGroundOrAny b.ArgInsts)
+
+        member this.instIsGround(inst: InstE) : bool =
+            let rec instIsGround2 expanded inst =
+                    match inst with
+                    | Ground | NotReached | HigherOrder _ ->
+                        true
+                    | Bound (testResults, boundInsts) ->
+                        this.boundInstListIsGround (testResults, boundInsts)
+                    | Free ->
+                        false
+                    | Any ->
+                        // TODO maybe_any_to_bound in inst_test.m
+                        false
+                    | DefinedInst instName ->
+                        this.expandAndProcess instIsGround2 expanded instName true
+
+            instIsGround2 (HashSet<InstName>()) inst
+
+        member this.boundInstListIsGround(instResults: InstTestResults, boundInsts: BoundInstE list) : bool =
+            boundInsts
+            |> List.forall (fun b -> List.forall this.instIsGround b.ArgInsts)
 
         member this.makeGroundInst(inst: InstE) : (InstE * Determinism) option =
             match inst with
@@ -243,7 +287,13 @@ module Inst =
 
             mapFoldOption makeAnyBoundInst Det insts
 
-        member this.unifyInstList(insts1: InstE list, insts2: InstE list) : (InstE list * Determinism) option = None
+        member this.unifyInstList(insts1: InstE list, insts2: InstE list) : (InstE list * Determinism) option =
+            let unifyInstPair det (inst1, inst2) =
+                this.unifyInst (inst1, inst2)
+                |> Option.map (fun res -> (fst res, parallelConjunctionDeterminism det (snd res)))
+
+            List.zip insts1 insts2
+            |> mapFoldOption unifyInstPair Det
 
         member this.unifyInst(inst1: InstE, inst2: InstE) : InstDet option =
             let unifyInst3 inst1 inst2 =
@@ -406,3 +456,125 @@ module Inst =
                 Some ([], Determinism.Erroneous)
             else
                 unifyBoundInstList2 boundInsts1 boundInsts2
+
+        member this.mergeInst(inst1, inst2) =
+            // If they specify matching pred insts, but one is more precise
+            // (specifies more info) than the other, then we want to choose
+            // the least precise one.
+            let mergeHigherOrderInfo ho1 ho2 = ho1 // TODO
+
+            let instListMerge insts1 insts2 =
+                let mergeInstPair (inst1, inst2) =
+                        this.mergeInst (inst1, inst2)
+
+                List.zip insts1 insts2
+                |> mapOption mergeInstPair
+
+            let rec boundInstListMerge (boundInsts1: BoundInstE list) (boundInsts2: BoundInstE list) =
+                match boundInsts1 with
+                | [] ->
+                    Some boundInsts2
+                | boundInst1 :: boundInsts1' ->
+                    match boundInsts2 with
+                    | [] ->
+                        Some boundInsts1
+                    | boundInst2 :: boundInsts2' ->
+                        if (boundInst1.Constructor = boundInst2.Constructor) then
+                            instListMerge boundInst1.ArgInsts boundInst2.ArgInsts
+                            |> Option.bind
+                                (fun argInsts ->
+                                    boundInstListMerge boundInsts1' boundInsts2'
+                                    |> Option.bind
+                                        (fun tail ->
+                                            let boundInst = { Constructor = boundInst1.Constructor; ArgInsts = argInsts }
+                                            Some (boundInst :: tail)
+                                        ))
+                        elif (boundInst1.Constructor < boundInst2.Constructor) then
+                            boundInstListMerge boundInsts1' boundInsts2
+                            |> Option.map (fun tail -> boundInst1 :: tail)
+                        else
+                            boundInstListMerge boundInsts1 boundInsts2'
+                            |> Option.map (fun tail -> boundInst2 :: tail)
+
+            let boundInstListMergeWithGround instResults1 boundInsts1 =
+                if (this.boundInstListIsGround(instResults1, boundInsts1)) then
+                    Some Ground
+                elif (this.boundInstListIsGroundOrAny(instResults1, boundInsts1)) then
+                    // TODO Can do better if we know the type.
+                    Some Any
+                else
+                    None
+
+            let rec mergeInst3 inst1 inst2 =
+                match inst1, inst2 with
+                | Any, Any ->
+                    Some Any
+                | Bound(testResults, boundInsts), Any
+                | Any, Bound (testResults, boundInsts) ->
+                    // XXX We will lose any nondefault higher-order info in
+                    // boundInsts. We should at least check that there isn't any
+                    // such info, as the result may be treated as default.
+                    if (this.boundInstListIsGroundOrAny (testResults, boundInsts)) then
+                        Some Any
+                    else
+                        None
+                | Any, Ground
+                | Ground, Any ->
+                    Some Any
+                | Ground, Ground ->
+                    Some Ground
+                | HigherOrder (modes1, det1), HigherOrder (modes2, det2) ->
+                    Some (HigherOrder (mergeHigherOrderInfo (modes1, det2) (modes2, det2)))
+                | Bound (_, boundInsts1), Bound (_, boundInsts2) ->
+                    boundInstListMerge boundInsts1 boundInsts2
+                    |> Option.map (fun boundInsts -> Bound (InstTestResults.noResults, boundInsts))
+                | Bound (instResults, boundInsts), Ground
+                | Ground, Bound (instResults, boundInsts) ->
+                    boundInstListMergeWithGround instResults boundInsts
+                | _ ->
+                    None
+
+            let rec mergeInst2 inst1 inst2 =
+                let inst1' = this.expand(inst1)
+                let inst2' = this.expand(inst2)
+                if (inst2' = NotReached) then
+                    Some inst1'
+                else if (inst1' = NotReached) then
+                    Some inst2'
+                else
+                    mergeInst3 inst1' inst2
+
+            match inst1, inst2 with
+            | Bound _, Bound _ ->
+                mergeInst2 inst1 inst2
+            | _ ->
+                let instPair = (inst1, inst2)
+                let instName = MergeInst (instPair)
+
+                let maybeMergeInst =
+                    InstTable.searchInsertInst (this.mergeInsts, instPair)
+
+                let inst0 =
+                    match maybeMergeInst with
+                    | Some (maybeInst) ->
+                        match maybeInst with
+                        | Some (inst) -> Some (inst)
+                        | None -> Some (DefinedInst (instName))
+                    | None ->
+                        let result = mergeInst2 inst1 inst2
+
+                        match result with
+                        | Some inst ->
+                            this.mergeInsts.[instPair] <- result
+                            result
+                        | None -> None
+
+                match inst0 with
+                | Some (inst) ->
+                    // Avoid expanding recursive insts.
+                    if (this.instContainsInstName (inst, instName)) then
+                        Some (DefinedInst (instName))
+                    else
+                        Some (inst)
+                | None -> None
+

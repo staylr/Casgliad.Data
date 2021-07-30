@@ -55,7 +55,17 @@ module Util =
             cache.Add(x, v)
             v)
 
-    let rec foldOption (f: 'S -> 'T -> 'S Option) (state: 'S) (list: 'T list) : 'S Option =
+    let rec mapOption (f: 'T -> 'U option) (list: 'T list) : ('U list) option =
+        match list with
+        | [] -> Some []
+        | x :: xs ->
+            f x
+            |> Option.bind
+                (fun x' ->
+                    mapOption f xs
+                    |> Option.map (fun xs' -> x' :: xs'))
+
+    let rec foldOption (f: 'S -> 'T -> 'S option) (state: 'S) (list: 'T list) : 'S option =
         match list with
         | [] -> Some state
         | x :: xs ->
@@ -63,7 +73,7 @@ module Util =
             | None -> None
             | Some state' -> foldOption f state' xs
 
-    let rec mapFoldOption (f: 'S -> 'T -> ('U * 'S) Option) (state: 'S) (list: 'T list) : ('U list * 'S) option =
+    let rec mapFoldOption (f: 'S -> 'T -> ('U * 'S) option) (state: 'S) (list: 'T list) : ('U list * 'S) option =
         match list with
         | [] -> Some ([], state)
         | x :: xs ->
