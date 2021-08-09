@@ -18,6 +18,7 @@
     <Compile Include="Util.fs" />
     <Compile Include="VarSet.fs" />
     <Compile Include="Determinism.fs" />
+    <Compile Include="Type.fs" />
     <Compile Include="Inst.fs" />
     <None Include="Script.fsx" />
     <Compile Include="Goal.fs" />

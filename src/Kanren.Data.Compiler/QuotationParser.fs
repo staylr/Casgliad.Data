@@ -440,8 +440,7 @@ module QuotationParser =
         let (termExpr, ctor, propertyIndex, argTypes) =
             match expr with
             | Patterns.TupleGet (tupleExpr, tupleIndex) ->
-                let tupleArity = FSharp.Reflection.FSharpType.GetTupleElements(tupleExpr.Type).Length
-                (tupleExpr, Tuple tupleArity, tupleIndex, FSharpType.GetTupleElements tupleExpr.Type)
+                (tupleExpr, tupleConstructor tupleExpr.Type, tupleIndex, FSharpType.GetTupleElements tupleExpr.Type)
             | Patterns.PropertyGet (Some termExpr, propertyInfo, []) ->
                 let (ctor, argTypes, propertyIndex) = getPropertyInfo termExpr propertyInfo
                 (termExpr, ctor, propertyIndex, argTypes)

@@ -1,6 +1,7 @@
 namespace Kanren.Data.Compiler
 
 open System.Collections.Generic
+
 open Kanren.Data
 
 [<AutoOpen>]
@@ -52,6 +53,8 @@ module Inst =
               ContainsInstNames = ContainsInstNamesUnknown }
 
     type InstDet = InstE * Determinism
+
+    type InstMatchInputs = { Inst1: InstE; Inst2: InstE; Type: System.Type option }
 
     let rec ofInst (inst: Inst) : InstE =
         match inst with
@@ -121,8 +124,6 @@ module Inst =
                 InstTable.lookupInst (this.anyInsts, instName)
                 |> handleInstDet instName
 
-        member this.instContainsInstName(inst: InstE, instName: InstName) : bool = false
-
         member private this.expandAndProcess
                                 (f: HashSet<InstName> -> InstE -> 'A)
                                 (expanded: HashSet<InstName>)
@@ -133,6 +134,62 @@ module Inst =
                 |> f expanded
             else
                 resultIfRecursive
+
+        // A list(bound_inst) is ``complete'' for a given type iff it includes
+        // each functor of the type and each argument of each functor is also
+        // ``complete'' for its type.
+        member this.boundInstListIsCompleteForType(expansions, (boundInsts: BoundInstE list), instType) =
+            let ctors = allConstructorArgTypesForType instType
+            if (ctors = []) then
+                false
+            else
+                ctors
+                |> List.forall
+                        (fun (ctor, argTypes) ->
+                            let matchingInst =
+                                boundInsts
+                                |> List.tryFind (fun boundInst -> boundInst.Constructor = ctor)
+                            match matchingInst with
+                            | Some matchedInst ->
+                                List.forall2 (fun i t -> this.instIsCompleteForType(expansions, i, t)) matchedInst.ArgInsts argTypes
+                            | None ->
+                                false
+                        )
+
+        member this.instIsCompleteForType(expansions: HashSet<InstName>, inst: InstE, instType: System.Type) : bool =
+            match inst with
+            | DefinedInst instName ->
+                if (expansions.Contains(instName)) then
+                    true
+                else
+                    let inst' = this.lookup(instName)
+                    let expansions' = HashSet<InstName>(expansions)
+                    do expansions'.Add(instName) |> ignore
+                    this.instIsCompleteForType(expansions', inst', instType)
+            | Bound (_, boundInsts) ->
+                this.boundInstListIsCompleteForType(expansions, boundInsts, instType)
+            | Free | Any | Ground | HigherOrder _ ->
+                true
+            | NotReached ->
+                false
+
+        member this.instContainsInstName(inst: InstE, instName: InstName) : bool =
+            let rec instContainsInstName2 expanded inst =
+                    match inst with
+                    | Ground | Any | NotReached | HigherOrder _ ->
+                        true
+                    | Bound (testResults, boundInsts) ->
+                        boundInstListContainsInstName expanded testResults boundInsts
+                    | Free ->
+                        false
+                    | DefinedInst instName ->
+                        this.expandAndProcess instContainsInstName2 expanded instName false
+
+            and boundInstListContainsInstName expanded testResults boundInsts =
+                boundInsts |>
+                List.exists (fun boundInst -> List.exists (instContainsInstName2 expanded) boundInst.ArgInsts)
+
+            instContainsInstName2 (HashSet<InstName>()) inst
 
         member this.instIsGroundOrAny(inst: InstE) : bool =
             let rec instIsGroundOrAny2 expanded inst =
@@ -457,20 +514,20 @@ module Inst =
             else
                 unifyBoundInstList2 boundInsts1 boundInsts2
 
-        member this.mergeInst(inst1, inst2) =
+        member this.mergeInst(inst1: InstE, inst2: InstE, maybeType: System.Type option) : InstE option =
             // If they specify matching pred insts, but one is more precise
             // (specifies more info) than the other, then we want to choose
             // the least precise one.
             let mergeHigherOrderInfo ho1 ho2 = ho1 // TODO
 
-            let instListMerge insts1 insts2 =
-                let mergeInstPair (inst1, inst2) =
-                        this.mergeInst (inst1, inst2)
+            let instListMerge insts1 insts2 types =
+                List.zip3 insts1 insts2 types
+                |> mapOption this.mergeInst
 
-                List.zip insts1 insts2
-                |> mapOption mergeInstPair
-
-            let rec boundInstListMerge (boundInsts1: BoundInstE list) (boundInsts2: BoundInstE list) =
+            let rec boundInstListMerge
+                        (boundInsts1: BoundInstE list)
+                        (boundInsts2: BoundInstE list)
+                        (maybeType: System.Type option) =
                 match boundInsts1 with
                 | [] ->
                     Some boundInsts2
@@ -480,23 +537,25 @@ module Inst =
                         Some boundInsts1
                     | boundInst2 :: boundInsts2' ->
                         if (boundInst1.Constructor = boundInst2.Constructor) then
-                            instListMerge boundInst1.ArgInsts boundInst2.ArgInsts
+
+                            let argTypes = [] // TODO.
+                            instListMerge boundInst1.ArgInsts boundInst2.ArgInsts argTypes
                             |> Option.bind
                                 (fun argInsts ->
-                                    boundInstListMerge boundInsts1' boundInsts2'
+                                    boundInstListMerge boundInsts1' boundInsts2' maybeType
                                     |> Option.bind
                                         (fun tail ->
                                             let boundInst = { Constructor = boundInst1.Constructor; ArgInsts = argInsts }
                                             Some (boundInst :: tail)
                                         ))
                         elif (boundInst1.Constructor < boundInst2.Constructor) then
-                            boundInstListMerge boundInsts1' boundInsts2
+                            boundInstListMerge boundInsts1' boundInsts2 maybeType
                             |> Option.map (fun tail -> boundInst1 :: tail)
                         else
-                            boundInstListMerge boundInsts1 boundInsts2'
+                            boundInstListMerge boundInsts1 boundInsts2' maybeType
                             |> Option.map (fun tail -> boundInst2 :: tail)
 
-            let boundInstListMergeWithGround instResults1 boundInsts1 =
+            let boundInstListMergeWithGround instResults1 boundInsts1 maybeType =
                 if (this.boundInstListIsGround(instResults1, boundInsts1)) then
                     Some Ground
                 elif (this.boundInstListIsGroundOrAny(instResults1, boundInsts1)) then
@@ -505,7 +564,7 @@ module Inst =
                 else
                     None
 
-            let rec mergeInst3 inst1 inst2 =
+            let rec mergeInst3 inst1 inst2 maybeType =
                 match inst1, inst2 with
                 | Any, Any ->
                     Some Any
@@ -526,15 +585,15 @@ module Inst =
                 | HigherOrder (modes1, det1), HigherOrder (modes2, det2) ->
                     Some (HigherOrder (mergeHigherOrderInfo (modes1, det2) (modes2, det2)))
                 | Bound (_, boundInsts1), Bound (_, boundInsts2) ->
-                    boundInstListMerge boundInsts1 boundInsts2
+                    boundInstListMerge boundInsts1 boundInsts2 maybeType
                     |> Option.map (fun boundInsts -> Bound (InstTestResults.noResults, boundInsts))
                 | Bound (instResults, boundInsts), Ground
                 | Ground, Bound (instResults, boundInsts) ->
-                    boundInstListMergeWithGround instResults boundInsts
+                    boundInstListMergeWithGround instResults boundInsts maybeType
                 | _ ->
                     None
 
-            let rec mergeInst2 inst1 inst2 =
+            let rec mergeInst2 inst1 inst2 maybeType =
                 let inst1' = this.expand(inst1)
                 let inst2' = this.expand(inst2)
                 if (inst2' = NotReached) then
@@ -542,11 +601,11 @@ module Inst =
                 else if (inst1' = NotReached) then
                     Some inst2'
                 else
-                    mergeInst3 inst1' inst2
+                    mergeInst3 inst1' inst2 maybeType
 
             match inst1, inst2 with
             | Bound _, Bound _ ->
-                mergeInst2 inst1 inst2
+                mergeInst2 inst1 inst2 maybeType
             | _ ->
                 let instPair = (inst1, inst2)
                 let instName = MergeInst (instPair)
@@ -561,7 +620,7 @@ module Inst =
                         | Some (inst) -> Some (inst)
                         | None -> Some (DefinedInst (instName))
                     | None ->
-                        let result = mergeInst2 inst1 inst2
+                        let result = mergeInst2 inst1 inst2 maybeType
 
                         match result with
                         | Some inst ->
@@ -578,3 +637,73 @@ module Inst =
                         Some (inst)
                 | None -> None
 
+        member this.maybeAnyToBound (maybeType: System.Type option) : (InstE option) = None
+
+        /// Succeed iff `InstA' specifies at least as much information as `InstB',
+        /// and in those parts where they specify the same information, `InstA'
+        /// is at least as instantiated as `InstB'. Thus, the call
+        /// inst_matches_initial(not_reached, ground, _) succeeds, since
+        /// not_reached contains more information than ground - but not vice versa.
+        /// Similarly, inst_matches_initial(bound(a), bound(a;b), _) should
+        /// succeed, but not vice versa.
+        member this.instMatchesInitial (inst1: InstE) (inst2: InstE) (maybeType: System.Type option) : bool =
+            let rec instMatchesInitial3 expanded inst1 inst2 maybeType =
+                match inst1 with
+                | Any ->
+                    match inst2 with
+                    | Any | Free ->
+                        true
+                    | NotReached | HigherOrder _ | DefinedInst _ ->
+                        false
+                    | Ground | Bound _ ->
+                        match this.maybeAnyToBound(maybeType) with
+                        | Some inst1' ->
+                            instMatchesInitial2 expanded inst1' inst2 maybeType
+                        | None ->
+                            false
+                | Free ->
+                    inst2 = Free
+                | Bound (instResults1, boundInsts1) ->
+                    match inst2 with
+                    | Any | Free ->
+                        true
+                    | Bound (_, boundInsts2) ->
+                        boundInstListMatchesInitial boundInsts1 boundInsts2 maybeType
+                    | Ground ->
+                        this.boundInstListIsGround (instResults1, boundInsts1)
+                | Ground ->
+                    match inst2 with
+                    | Any | Free ->
+                        true
+                    | Bound (_, boundInsts2) ->
+                        match maybeType with
+                        | Some instType ->
+                            this.boundInstListIsCompleteForType((HashSet<InstName>()), boundInsts2, instType)
+                                && groundMatchesInitialBoundInstList expanded boundInsts2 maybeType
+                        | None ->
+                            false
+
+            and instMatchesInitial2 (expanded: HashSet<InstMatchInputs>) inst1 inst2 maybeType =
+                let input = { Inst1 = inst1; Inst2 = inst2; Type = maybeType }
+                // TODO: HashSet isn't the right data structure. Want to use Set, but InstE is not comparable.
+                if (expanded.Contains(input)) then
+                    true
+                else
+                    let expanded' = HashSet<InstMatchInputs>(expanded)
+                    do expanded'.Add(input) |> ignore
+                    let inst1' = this.expand(inst1)
+                    let inst2' = this.expand(inst2)
+                    instMatchesInitial3 expanded' inst1 inst2 maybeType
+
+            and groundMatchesInitialBoundInstList expanded boundInsts maybeType =
+                boundInsts
+                |> List.forall (fun boundInst ->
+                                    // TODO fix type handling.
+                                    let argTypes = constructorArgTypes boundInst.Constructor maybeType.Value
+                                    List.forall2 (fun i t -> instMatchesInitial2 expanded Ground i t)
+                                            boundInst.ArgInsts (List.map Some argTypes)
+                               )
+
+            and boundInstListMatchesInitial expanded boundInsts1 boundInsts2 = false
+
+            instMatchesInitial2 (HashSet<InstMatchInputs>()) inst1 inst2 maybeType
