@@ -135,6 +135,20 @@ module Inst =
             else
                 resultIfRecursive
 
+        static member private maybeGetConsIdArgTypes(maybeType: System.Type option, ctor: Constructor) =
+            match ctor with
+            | Constant _ ->
+                []
+            | Tuple _ | Record _ | UnionCase _ ->
+               match maybeType with
+               | Some varType ->
+                   constructorArgTypes ctor varType
+                   |> List.map Some
+               | None ->
+                   [ 1 .. (constructorArity ctor) ]
+                   |> Seq.map (fun _ -> None)
+                   |> List.ofSeq
+
         // A list(bound_inst) is ``complete'' for a given type iff it includes
         // each functor of the type and each argument of each functor is also
         // ``complete'' for its type.
@@ -524,6 +538,10 @@ module Inst =
                 List.zip3 insts1 insts2 types
                 |> mapOption this.mergeInst
 
+            // The two input lists BoundInstsA and BoundInstsB must already be sorted.
+            // Here we perform a sorted merge operation,
+            // so that the functors of the output list BoundInsts are the union
+            // of the functors of the input lists BoundInstsA and BoundInstsB.
             let rec boundInstListMerge
                         (boundInsts1: BoundInstE list)
                         (boundInsts2: BoundInstE list)
@@ -538,7 +556,7 @@ module Inst =
                     | boundInst2 :: boundInsts2' ->
                         if (boundInst1.Constructor = boundInst2.Constructor) then
 
-                            let argTypes = [] // TODO.
+                            let argTypes = InstTable.maybeGetConsIdArgTypes(maybeType, boundInst1.Constructor)
                             instListMerge boundInst1.ArgInsts boundInst2.ArgInsts argTypes
                             |> Option.bind
                                 (fun argInsts ->
@@ -668,7 +686,7 @@ module Inst =
                     | Any | Free ->
                         true
                     | Bound (_, boundInsts2) ->
-                        boundInstListMatchesInitial boundInsts1 boundInsts2 maybeType
+                        boundInstListMatchesInitial expanded boundInsts1 boundInsts2 maybeType
                     | Ground ->
                         this.boundInstListIsGround (instResults1, boundInsts1)
                 | Ground ->
@@ -693,17 +711,40 @@ module Inst =
                     do expanded'.Add(input) |> ignore
                     let inst1' = this.expand(inst1)
                     let inst2' = this.expand(inst2)
-                    instMatchesInitial3 expanded' inst1 inst2 maybeType
+                    instMatchesInitial3 expanded' inst1' inst2' maybeType
 
+            // Assumes that the check of `bound_inst_list_is_complete_for_type' is done by the caller.
             and groundMatchesInitialBoundInstList expanded boundInsts maybeType =
                 boundInsts
                 |> List.forall (fun boundInst ->
                                     // TODO fix type handling.
-                                    let argTypes = constructorArgTypes boundInst.Constructor maybeType.Value
-                                    List.forall2 (fun i t -> instMatchesInitial2 expanded Ground i t)
-                                            boundInst.ArgInsts (List.map Some argTypes)
+                                    let argTypes = InstTable.maybeGetConsIdArgTypes(maybeType, boundInst.Constructor)
+                                    List.forall2 (instMatchesInitial2 expanded Ground)
+                                            boundInst.ArgInsts argTypes
                                )
 
-            and boundInstListMatchesInitial expanded boundInsts1 boundInsts2 = false
+            // Here we check that the functors in the first list are a subset of the
+            // functors in the second list. (If a bound(...) inst only specifies the
+            // insts for some of the constructors of its type, then it implicitly means
+            // that all other constructors must have all their arguments `not_reached'.)
+            // The code here makes use of the fact that the bound_inst lists are sorted.
+            and boundInstListMatchesInitial
+                    (expanded: HashSet<InstMatchInputs>)
+                    (boundInsts1: BoundInstE list)
+                    (boundInsts2: BoundInstE list)
+                    maybeType =
+                match (boundInsts1, boundInsts2) with
+                | ([], _) ->
+                    true
+                | (boundInst1 :: boundInsts1', boundInst2 :: boundInsts2') ->
+                    if (boundInst1.Constructor = boundInst2.Constructor) then
+                        let argTypes = InstTable.maybeGetConsIdArgTypes(maybeType, boundInst1.Constructor)
+                        forall3 (instMatchesInitial2 expanded) boundInst1.ArgInsts boundInst2.ArgInsts argTypes
+                    elif (boundInst1.Constructor > boundInst2.Constructor) then
+                        boundInstListMatchesInitial expanded boundInsts1 boundInsts2' maybeType
+                    else
+                        false
+                | _ ->
+                    false
 
             instMatchesInitial2 (HashSet<InstMatchInputs>()) inst1 inst2 maybeType

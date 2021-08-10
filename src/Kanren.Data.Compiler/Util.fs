@@ -83,3 +83,12 @@ module Util =
                 mapFoldOption f state' xs |> Option.map (fun res -> (x' :: fst res, snd res))
 
 
+    let rec forall3 (f: 'T -> 'U -> 'V -> bool) (ts: 'T list) (us: 'U list) (vs: 'V list) : bool =
+        match (ts, us, vs) with
+        | ([], [], []) ->
+            true
+        | (t1 :: ts', u1 :: us', v1 :: vs') ->
+            f t1 u1 v1
+            && forall3 f ts' us' vs'
+        | _ ->
+            false

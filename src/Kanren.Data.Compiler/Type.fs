@@ -41,6 +41,13 @@ module Type =
             else
                 raise (System.ArgumentException($"invalid union case inst for ${case.Name}: ${concreteType.FullName} is not an instance of ${case.DeclaringType.FullName}"))
 
+    let constructorArity (ctor: Constructor) : int =
+        match ctor with
+        | Constant _ -> 0
+        | Tuple arity -> arity
+        | Record recordType -> FSharpType.GetRecordFields recordType |> Array.length
+        | UnionCase case -> case.GetFields() |> Array.length
+
     let allConstructorArgTypesForType instType =
         if (FSharpType.IsTuple instType) then
             let ctor = tupleConstructor instType
