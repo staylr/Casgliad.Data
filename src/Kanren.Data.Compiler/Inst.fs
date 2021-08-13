@@ -1,6 +1,7 @@
 namespace Kanren.Data.Compiler
 
 open System.Collections.Generic
+open FSharp.Reflection
 
 open Kanren.Data
 
@@ -10,10 +11,17 @@ module Inst =
         | Free
         | Ground
         | Any
-        | HigherOrder of (InstE * InstE) list * Determinism
+        | HigherOrder of RelationModeE
+        | HigherOrderAny of RelationModeE
         | Bound of TestResults: InstTestResults * BoundInsts: BoundInstE list
         | DefinedInst of InstName
         | NotReached
+
+    and ModeE = (InstE * InstE)
+
+    and RelationModeE =
+        { Modes: ModeE list
+          Determinism: Determinism }
 
     and BoundInstE =
         { Constructor: Constructor
@@ -66,7 +74,7 @@ module Inst =
             let modes =
                 List.map (fun (inst1, inst2) -> (ofInst inst1, ofInst inst2)) mode.Modes
 
-            InstE.HigherOrder (modes, mode.Determinism)
+            InstE.HigherOrder { Modes = modes; Determinism = mode.Determinism }
         | Inst.Bound (boundInsts) -> InstE.Bound (InstTestResults.noResults, List.map ofBoundInst boundInsts)
 
     and ofBoundInst (boundInst: BoundInst) : BoundInstE =
@@ -149,6 +157,27 @@ module Inst =
                    |> Seq.map (fun _ -> None)
                    |> List.ofSeq
 
+        static member private maybeGetHigherOrderArgTypes(maybeType: System.Type option, arity: int) =
+            match maybeType with
+            | Some relationType when relationType.IsInstanceOfType(typeof<Relation<_>>) ->
+                let argTypes = relationType.GetGenericArguments()
+                match argTypes with
+                | [| argType |] ->
+                    if (FSharpType.IsTuple(argType)) then
+                        Type.constructorArgTypes (Type.tupleConstructor argType) argType
+                        |> List.map Some
+                    elif (FSharpType.IsRecord(argType)) then
+                        Type.constructorArgTypes (Record argType) argType
+                        |> List.map Some
+                    else
+                        [ Some argType ]
+                | _ ->
+                    failwith "Expected one type argument for Relation<_>"
+            | _ ->
+                [1 .. arity]
+                |> Seq.map (fun _ -> None)
+                |> List.ofSeq
+
         // A list(bound_inst) is ``complete'' for a given type iff it includes
         // each functor of the type and each argument of each functor is also
         // ``complete'' for its type.
@@ -182,22 +211,26 @@ module Inst =
                     this.instIsCompleteForType(expansions', inst', instType)
             | Bound (_, boundInsts) ->
                 this.boundInstListIsCompleteForType(expansions, boundInsts, instType)
-            | Free | Any | Ground | HigherOrder _ ->
+            | Free | Any | Ground | HigherOrder _ | HigherOrderAny _ ->
                 true
             | NotReached ->
                 false
 
         member this.instContainsInstName(inst: InstE, instName: InstName) : bool =
-            let rec instContainsInstName2 expanded inst =
+            let rec instContainsInstName2 (expanded: HashSet<InstName>) inst =
                     match inst with
-                    | Ground | Any | NotReached | HigherOrder _ ->
-                        true
+                    | Free | Ground | Any | NotReached | HigherOrder _ | HigherOrderAny _ ->
+                        false
                     | Bound (testResults, boundInsts) ->
                         boundInstListContainsInstName expanded testResults boundInsts
-                    | Free ->
-                        false
-                    | DefinedInst instName ->
-                        this.expandAndProcess instContainsInstName2 expanded instName false
+                    | DefinedInst thisInstName ->
+                        if (thisInstName = instName) then
+                            true
+                        elif (expanded.Add(instName)) then
+                            let expandedInst = this.lookup (instName)
+                            instContainsInstName2 expanded expandedInst
+                        else
+                            false
 
             and boundInstListContainsInstName expanded testResults boundInsts =
                 boundInsts |>
@@ -208,7 +241,7 @@ module Inst =
         member this.instIsGroundOrAny(inst: InstE) : bool =
             let rec instIsGroundOrAny2 expanded inst =
                     match inst with
-                    | Ground | Any | NotReached | HigherOrder _ ->
+                    | Ground | Any | NotReached | HigherOrder _ | HigherOrderAny _ ->
                         true
                     | Bound (testResults, boundInsts) ->
                         this.boundInstListIsGroundOrAny (testResults, boundInsts)
@@ -232,7 +265,7 @@ module Inst =
                         this.boundInstListIsGround (testResults, boundInsts)
                     | Free ->
                         false
-                    | Any ->
+                    | Any | HigherOrderAny _ ->
                         // TODO maybe_any_to_bound in inst_test.m
                         false
                     | DefinedInst instName ->
@@ -253,7 +286,7 @@ module Inst =
                 this.makeGroundBoundInstList boundInsts
                 |> Option.map (fun res -> (Bound (results, fst res), parallelConjunctionDeterminism Semidet (snd res)))
             | Ground -> Some (Ground, Semidet)
-            | HigherOrder _ -> Some (inst, Semidet)
+            | HigherOrder _ | HigherOrderAny _ -> Some (inst, Semidet)
             | DefinedInst (instName) ->
                 let groundInstName = GroundInst (instName)
 
@@ -310,7 +343,7 @@ module Inst =
                 this.makeAnyBoundInstList boundInsts
                 |> Option.map (fun res -> (Bound (results, fst res), parallelConjunctionDeterminism Semidet (snd res)))
             | Ground -> Some (Ground, Semidet)
-            | HigherOrder _ -> Some (inst, Semidet)
+            | HigherOrder _ | HigherOrderAny _ -> Some (inst, Semidet)
             | DefinedInst (instName) ->
                 let anyInstName = AnyInst (instName)
 
@@ -381,9 +414,11 @@ module Inst =
                         else
                             None
                     | Ground
-                    | HigherOrder (_)
+                    | HigherOrder _
+                    | HigherOrderAny _
                     | Any -> Some (inst2, Det)
-                    | DefinedInst (_) -> None
+                    | DefinedInst _ ->
+                        None
                 | Bound (testResults1, boundInsts1) ->
                     match inst2 with
                     | NotReached -> Some (NotReached, Det)
@@ -393,7 +428,7 @@ module Inst =
                             Some (inst1, Det)
                         else
                             None
-                    | HigherOrder _ ->
+                    | HigherOrder _ | HigherOrderAny _ ->
                         None
                     | Ground ->
                         match testResults1.Groundness with
@@ -419,7 +454,7 @@ module Inst =
                     | DefinedInst _ -> None
                 | Ground ->
                     this.makeGroundInst (inst2)
-                | HigherOrder _ ->
+                | HigherOrder _ | HigherOrderAny _ ->
                     match inst2 with
                     | NotReached -> Some (NotReached, Determinism.Det)
                     | Free -> Some (inst1, Determinism.Det)
@@ -428,10 +463,10 @@ module Inst =
                     | Bound _
                     | Ground
                     | HigherOrder _
+                    | HigherOrderAny _
                     | Any
                     | DefinedInst _ ->
                         None
-
                 | Any ->
                     this.makeAnyInst (inst2)
                 | DefinedInst _ ->
@@ -588,9 +623,9 @@ module Inst =
                     Some Any
                 | Bound(testResults, boundInsts), Any
                 | Any, Bound (testResults, boundInsts) ->
-                    // XXX We will lose any nondefault higher-order info in
+                    // TODO We will lose any higher-order info in
                     // boundInsts. We should at least check that there isn't any
-                    // such info, as the result may be treated as default.
+                    // such info.
                     if (this.boundInstListIsGroundOrAny (testResults, boundInsts)) then
                         Some Any
                     else
@@ -600,8 +635,8 @@ module Inst =
                     Some Any
                 | Ground, Ground ->
                     Some Ground
-                | HigherOrder (modes1, det1), HigherOrder (modes2, det2) ->
-                    Some (HigherOrder (mergeHigherOrderInfo (modes1, det2) (modes2, det2)))
+                | HigherOrder info1, HigherOrder info2 ->
+                    Some (HigherOrder (mergeHigherOrderInfo info1 info2))
                 | Bound (_, boundInsts1), Bound (_, boundInsts2) ->
                     boundInstListMerge boundInsts1 boundInsts2 maybeType
                     |> Option.map (fun boundInsts -> Bound (InstTestResults.noResults, boundInsts))
@@ -657,6 +692,9 @@ module Inst =
 
         member this.maybeAnyToBound (maybeType: System.Type option) : (InstE option) = None
 
+        member this.instMatchesFinal(inst1: InstE, inst2: InstE, maybeType: System.Type option) : bool =
+            this.instMatchesInitial (inst2, inst1, maybeType)
+
         /// Succeed iff `InstA' specifies at least as much information as `InstB',
         /// and in those parts where they specify the same information, `InstA'
         /// is at least as instantiated as `InstB'. Thus, the call
@@ -664,14 +702,14 @@ module Inst =
         /// not_reached contains more information than ground - but not vice versa.
         /// Similarly, inst_matches_initial(bound(a), bound(a;b), _) should
         /// succeed, but not vice versa.
-        member this.instMatchesInitial (inst1: InstE) (inst2: InstE) (maybeType: System.Type option) : bool =
+        member this.instMatchesInitial(inst1: InstE, inst2: InstE, maybeType: System.Type option) : bool =
             let rec instMatchesInitial3 expanded inst1 inst2 maybeType =
                 match inst1 with
                 | Any ->
                     match inst2 with
                     | Any | Free ->
                         true
-                    | NotReached | HigherOrder _ | DefinedInst _ ->
+                    | NotReached | HigherOrder _ | HigherOrderAny _ | DefinedInst _ ->
                         false
                     | Ground | Bound _ ->
                         match this.maybeAnyToBound(maybeType) with
@@ -689,9 +727,11 @@ module Inst =
                         boundInstListMatchesInitial expanded boundInsts1 boundInsts2 maybeType
                     | Ground ->
                         this.boundInstListIsGround (instResults1, boundInsts1)
+                    | DefinedInst _ | HigherOrder _ | HigherOrderAny _ | NotReached->
+                        false
                 | Ground ->
                     match inst2 with
-                    | Any | Free ->
+                    | Ground | Any | Free ->
                         true
                     | Bound (_, boundInsts2) ->
                         match maybeType with
@@ -700,6 +740,17 @@ module Inst =
                                 && groundMatchesInitialBoundInstList expanded boundInsts2 maybeType
                         | None ->
                             false
+                    | DefinedInst _ | HigherOrder _ | HigherOrderAny _ | NotReached ->
+                        false
+                | HigherOrder info1 ->
+                    false // TODO
+                | HigherOrderAny info1 ->
+                    false // TODO
+                | NotReached ->
+                    false // TODO
+                | DefinedInst _ ->
+                    false
+
 
             and instMatchesInitial2 (expanded: HashSet<InstMatchInputs>) inst1 inst2 maybeType =
                 let input = { Inst1 = inst1; Inst2 = inst2; Type = maybeType }
@@ -746,5 +797,15 @@ module Inst =
                         false
                 | _ ->
                     false
+
+            and higherOrderInstInfoMatches (hoInst1: RelationModeE) (hoInst2: RelationModeE) maybeType : bool =
+                let higherOrderArgModeMatches (mode1: ModeE) (mode2: ModeE) (maybeType: System.Type option) =
+                    this.instMatchesFinal(fst mode2, fst mode1, maybeType)
+                        && this.instMatchesFinal(snd mode1, snd mode2, maybeType)
+
+                hoInst1.Determinism = hoInst2.Determinism
+                &&
+                    let argTypes = InstTable.maybeGetHigherOrderArgTypes (maybeType, hoInst1.Modes.Length)
+                    forall3 higherOrderArgModeMatches hoInst1.Modes hoInst2.Modes argTypes
 
             instMatchesInitial2 (HashSet<InstMatchInputs>()) inst1 inst2 maybeType
