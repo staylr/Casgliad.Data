@@ -399,6 +399,13 @@ module Inst =
             List.zip insts1 insts2
             |> mapFoldOption unifyInstPair Det
 
+        // Mode checking is like abstract interpretation. The predicates below
+        // define the abstract unification operation which unifies two
+        // instantiatednesses. If the unification would be illegal, then abstract
+        // unification fails. If the unification would fail, then the abstract
+        // unification will succeed, and the resulting instantiatedness will be
+        // `not_reached'.
+        // Compute the inst that results from abstractly unifying two variables.
         member this.unifyInst(inst1: InstE, inst2: InstE) : InstDet option =
             let unifyInst3 inst1 inst2 =
                 match inst1 with
@@ -563,6 +570,10 @@ module Inst =
             else
                 unifyBoundInstList2 boundInsts1 boundInsts2
 
+        // Combine the insts found in different arms of a disjunction, switch, or
+        // if-then-else. The information in InstC is the minimum of the information
+        // in InstA and InstB. Where InstA and InstB specify a binding (free or
+        // bound), it must be the same in both.
         member this.mergeInst(inst1: InstE, inst2: InstE, maybeType: System.Type option) : InstE option =
             // If they specify matching pred insts, but one is more precise
             // (specifies more info) than the other, then we want to choose
@@ -692,6 +703,13 @@ module Inst =
 
         member this.maybeAnyToBound (maybeType: System.Type option) : (InstE option) = None
 
+        // inst_matches_final(InstA, InstB, ModuleInfo):
+        //
+        // Succeed iff InstA is compatible with InstB, i.e. iff InstA will satisfy
+        // the final inst requirement InstB. This is true if the information
+        // specified by InstA is at least as great as that specified by InstB,
+        // and where the information is the same and both insts specify a binding,
+        // the binding must be identical.
         member this.instMatchesFinal(inst1: InstE, inst2: InstE, maybeType: System.Type option) : bool =
             this.instMatchesInitial (inst2, inst1, maybeType)
 
@@ -743,14 +761,21 @@ module Inst =
                     | DefinedInst _ | HigherOrder _ | HigherOrderAny _ | NotReached ->
                         false
                 | HigherOrder info1 ->
-                    false // TODO
-                | HigherOrderAny info1 ->
-                    false // TODO
+                    match inst2 with
+                    | HigherOrder info2 | HigherOrderAny info2 ->
+                        higherOrderInstInfoMatches info1 info2 maybeType
+                    | _ ->
+                        false
+                | HigherOrderAny info1->
+                    match inst2 with
+                    | HigherOrderAny info2 ->
+                        higherOrderInstInfoMatches info1 info2 maybeType
+                    | _ ->
+                        false
                 | NotReached ->
-                    false // TODO
+                    false
                 | DefinedInst _ ->
                     false
-
 
             and instMatchesInitial2 (expanded: HashSet<InstMatchInputs>) inst1 inst2 maybeType =
                 let input = { Inst1 = inst1; Inst2 = inst2; Type = maybeType }
@@ -768,7 +793,6 @@ module Inst =
             and groundMatchesInitialBoundInstList expanded boundInsts maybeType =
                 boundInsts
                 |> List.forall (fun boundInst ->
-                                    // TODO fix type handling.
                                     let argTypes = InstTable.maybeGetConsIdArgTypes(maybeType, boundInst.Constructor)
                                     List.forall2 (instMatchesInitial2 expanded Ground)
                                             boundInst.ArgInsts argTypes

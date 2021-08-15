@@ -14,6 +14,7 @@
     <Compile Include="IntSetTests.fs" />
     <Compile Include="AssemblyInfo.fs" />
     <Compile Include="QuotationTests.fs" />
+    <Compile Include="InstTests.fs" />
     <Compile Include="Main.fs" />
   </ItemGroup>
   <Import Project="..\..\.paket\Paket.Restore.targets" />
