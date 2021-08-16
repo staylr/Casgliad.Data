@@ -20,6 +20,7 @@
     <Compile Include="Determinism.fs" />
     <Compile Include="Type.fs" />
     <Compile Include="Inst.fs" />
+    <Compile Include="InstMatch.fs" />
     <None Include="Script.fsx" />
     <Compile Include="Goal.fs" />
     <Compile Include="Error.fs" />
