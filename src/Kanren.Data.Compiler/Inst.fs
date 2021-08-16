@@ -479,6 +479,7 @@ module Inst =
                 | DefinedInst _ ->
                     // Should have been expanded before we got here.
                     None
+
             let unifyInst2 inst1 inst2 =
                 let inst1' = this.expand inst1
                 let inst2' = this.expand inst2
@@ -514,7 +515,9 @@ module Inst =
                         | Some (inst, det) ->
                             this.unifyInsts.[(inst1, inst2)] <- Some (inst, det)
                             Some (inst, det)
-                        | None -> None
+                        | None ->
+                            do this.unifyInsts.Remove (instPair) |> ignore
+                            None
 
                 match instDet0 with
                 | Some (inst, det) ->
@@ -634,9 +637,8 @@ module Inst =
                     Some Any
                 | Bound(testResults, boundInsts), Any
                 | Any, Bound (testResults, boundInsts) ->
-                    // TODO We will lose any higher-order info in
-                    // boundInsts. We should at least check that there isn't any
-                    // such info.
+                    // TODO We will lose any higher-order info in boundInsts.
+                    // We should at least check that there isn't any such info.
                     if (this.boundInstListIsGroundOrAny (testResults, boundInsts)) then
                         Some Any
                     else
@@ -690,7 +692,9 @@ module Inst =
                         | Some inst ->
                             this.mergeInsts.[instPair] <- result
                             result
-                        | None -> None
+                        | None ->
+                            do this.mergeInsts.Remove instPair |> ignore
+                            None
 
                 match inst0 with
                 | Some (inst) ->
