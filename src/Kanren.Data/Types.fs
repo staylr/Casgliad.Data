@@ -55,9 +55,9 @@ type Constructor =
                 | Constant (constValue2, constType2) ->
                     let typeResult = constType1.FullName.CompareTo constType2.FullName
                     if (typeResult = 0) then
-                        0
-                    else
                         (constValue1 :> System.IComparable<_>).CompareTo constValue2
+                    else
+                        typeResult
                 | _ -> -1
             | Tuple (arity1) ->
                 match other with
