@@ -21,38 +21,36 @@ module InstMatch =
     /// not_reached contains more information than ground - but not vice versa.
     /// Similarly, inst_matches_initial(bound(a), bound(a;b), _) should
     /// succeed, but not vice versa.
-    let instMatchesInitial (instTable: InstTable) (inst1: InstE) (inst2: InstE) (maybeType: System.Type option) : bool =
+    let instMatchesInitial (instTable: InstTable) (inst1: BoundInstE) (inst2: BoundInstE) (maybeType: System.Type option) : bool =
         let rec instMatchesInitial3 expanded inst1 inst2 maybeType =
             match inst1 with
             | Any ->
                 match inst2 with
-                | Any | Free ->
+                | Any ->
                     true
                 | NotReached | HigherOrder _ | HigherOrderAny _ | DefinedInst _ ->
                     false
-                | Ground | Bound _ ->
+                | Ground | BoundCtor _ ->
                     match instTable.maybeAnyToBound(maybeType) with
                     | Some inst1' ->
                         instMatchesInitial2 expanded inst1' inst2 maybeType
                     | None ->
                         false
-            | Free ->
-                inst2 = Free
-            | Bound (instResults1, boundInsts1) ->
+            | BoundCtor (boundInsts1, instResults1) ->
                 match inst2 with
-                | Any | Free ->
+                | Any ->
                     true
-                | Bound (_, boundInsts2) ->
+                | BoundCtor (boundInsts2, _) ->
                     boundInstListMatchesInitial expanded boundInsts1 boundInsts2 maybeType
                 | Ground ->
-                    instTable.boundInstListIsGround (instResults1, boundInsts1)
+                    instTable.boundInstListIsGround (boundInsts1, instResults1)
                 | DefinedInst _ | HigherOrder _ | HigherOrderAny _ | NotReached->
                     false
             | Ground ->
                 match inst2 with
-                | Ground | Any | Free ->
+                | Ground | Any ->
                     true
-                | Bound (_, boundInsts2) ->
+                | BoundCtor (boundInsts2, _) ->
                     match maybeType with
                     | Some instType ->
                         instTable.boundInstListIsCompleteForType((HashSet<InstName>()), boundInsts2, instType)
@@ -78,7 +76,7 @@ module InstMatch =
             | DefinedInst _ ->
                 false
 
-        and instMatchesInitial2 (expanded: HashSet<InstMatchInputs>) inst1 inst2 maybeType =
+        and instMatchesInitial2 (expanded: HashSet<InstMatchInputs>) (inst1: BoundInstE) (inst2: BoundInstE) maybeType =
             let input = { Inst1 = inst1; Inst2 = inst2; Type = maybeType }
             // TODO: HashSet isn't the right data structure. Want to use Set, but InstE is not comparable.
             if (expanded.Contains(input)) then
@@ -89,6 +87,15 @@ module InstMatch =
                 let inst1' = instTable.expand(inst1)
                 let inst2' = instTable.expand(inst2)
                 instMatchesInitial3 expanded' inst1' inst2' maybeType
+
+        and instMatchesInitial1 (expanded: HashSet<InstMatchInputs>) inst1 inst2 maybeType =
+            match (inst1, inst2) with
+            | (Free, Free) -> true
+            | (Free, Bound _) -> false
+            | (Bound boundInst1, Free) ->
+                boundInst1 <> NotReached
+            | (Bound boundInst1, Bound boundInst2) ->
+                instMatchesInitial2 expanded boundInst1 boundInst2 maybeType
 
         // Assumes that the check of `bound_inst_list_is_complete_for_type' is done by the caller.
         and groundMatchesInitialBoundInstList expanded boundInsts maybeType =
@@ -106,8 +113,8 @@ module InstMatch =
         // The code here makes use of the fact that the bound_inst lists are sorted.
         and boundInstListMatchesInitial
                 (expanded: HashSet<InstMatchInputs>)
-                (boundInsts1: BoundInstE list)
-                (boundInsts2: BoundInstE list)
+                (boundInsts1: BoundCtorInstE list)
+                (boundInsts2: BoundCtorInstE list)
                 maybeType =
             match (boundInsts1, boundInsts2) with
             | ([], _) ->
@@ -126,7 +133,7 @@ module InstMatch =
         and higherOrderInstInfoMatches (hoInst1: RelationModeE) (hoInst2: RelationModeE) maybeType : bool =
             let higherOrderArgModeMatches (mode1: ModeE) (mode2: ModeE) (maybeType: System.Type option) =
                 instMatchesFinal instTable (fst mode2) (fst mode1) maybeType
-                    && instMatchesFinal instTable (snd mode1) (snd mode2) maybeType
+                    && instMatchesFinal instTable (snd mode1 |> Bound) (snd mode2 |> Bound) maybeType
 
             hoInst1.Determinism = hoInst2.Determinism
             &&

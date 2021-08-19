@@ -77,15 +77,17 @@ type Constructor =
         with override this.Equals(other: obj) = (this :> System.IComparable).CompareTo other = 0
 
 // TODO: user defined insts, e,g ListSkel.
-type Inst =
-    | Free
+type BoundInst =
     | Ground
-    | Any   // Not yet implemented. For use in constraint programming.
+    | Any   // Not yet implemented. For use in a future constraint programming implementation.
     | HigherOrder of RelationMode
-    | Bound of BoundInst list
+    | BoundCtor of BoundCtorInst list
     | NotReached
-and BoundInst = { Constructor: Constructor; ArgInsts: Inst list }
-and Mode = Inst * Inst
+and [<Struct>]Inst =
+    | Free
+    | Bound of BoundInst
+and BoundCtorInst = { Constructor: Constructor; ArgInsts: BoundInst list }
+and Mode = Inst * BoundInst
 and RelationMode =
     { Modes: Mode list
       Determinism: Determinism }
@@ -221,9 +223,9 @@ module Mode =
     let _i () : 'A =
         raise (System.Exception("'_i' should only occur in quotations"))
 
-    let (=>) (inst1: Inst) (inst2: Inst) = (inst1, inst2)
+    let (=>) (inst1: Inst) (inst2: BoundInst) = (inst1, inst2)
 
-    let In = Ground => Ground
-    let Out = Free => Ground
+    let In : Mode = Bound Ground => Ground
+    let Out : Mode = Free => Ground
 
     let mode modes det = { Modes = modes; Determinism = det }

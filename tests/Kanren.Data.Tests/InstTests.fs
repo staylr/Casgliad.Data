@@ -10,42 +10,41 @@ module InstTests =
 
     [<Test>]
     let unifyGroundFree () : unit =
-        test <@ instTable.unifyInst(InstE.Ground, InstE.Free) = Some (InstE.Ground, Det) @>
+        test <@ instTable.unifyInst(Bound Ground, Free) = Some (Ground, Det) @>
 
     [<Test>]
     let unifyFreeFreeFails () : unit =
          test <@ instTable.unifyInst(InstE.Free, InstE.Free) = None @>
 
     [<Test>]
-    let unifyFreePartialCtorFails () : unit =
-        test <@ None = instTable.unifyInst(InstE.Free, InstE.Bound (InstTestResults.noResults,
-                                            [ { Constructor = Tuple 2; ArgInsts = [InstE.Free; InstE.Ground] } ])) @>
-
-    [<Test>]
     let unifyFreeGroundCtorSucceeds () : unit =
-        let boundInst = InstE.Bound (InstTestResults.noResults, [ { Constructor = Tuple 2; ArgInsts = [InstE.Ground; InstE.Ground] } ] )
-        test <@ Some (boundInst, Det) = instTable.unifyInst(InstE.Free, boundInst) @>
+        let boundInst = BoundCtor ([ { Constructor = Tuple 2; ArgInsts = [Ground; Ground] } ], InstTestResults.noResults)
+        test <@ Some (boundInst, Det) = instTable.unifyInst(InstE.Free, Bound boundInst) @>
 
     [<Test>]
     let unifyIntersectsBoundInsts () : unit =
-        let boundInst1 = InstE.Bound (InstTestResults.noResults,
+        let boundInst1 = BoundCtor (
                                     [ { Constructor = Constant(IntValue(1L), typeof<int>); ArgInsts = [] };
-                                      { Constructor = Constant(IntValue(2L), typeof<int>); ArgInsts = [] } ])
-        let boundInst2 = InstE.Bound (InstTestResults.noResults,
-                                    [ { Constructor = Constant(IntValue(2L), typeof<int>); ArgInsts = [] };
-                                      { Constructor = Constant(IntValue(3L), typeof<int>); ArgInsts = [] } ])
-        test <@ instTable.unifyInst(boundInst1, boundInst2) =
-                                    Some (InstE.Bound (InstTestResults.noResults,
-                                            [ { Constructor = Constant(IntValue(2L), typeof<int>); ArgInsts = [] } ] ),
+                                      { Constructor = Constant(IntValue(2L), typeof<int>); ArgInsts = [] } ],
+                                    InstTestResults.noResults)
+        let boundInst2 = BoundCtor ([ { Constructor = Constant(IntValue(2L), typeof<int>); ArgInsts = [] };
+                                      { Constructor = Constant(IntValue(3L), typeof<int>); ArgInsts = [] } ],
+                                    InstTestResults.noResults)
+        test <@ instTable.unifyInst(Bound boundInst1, Bound boundInst2) =
+                                    Some (BoundCtor (
+                                            [ { Constructor = Constant(IntValue(2L), typeof<int>); ArgInsts = [] } ],
+                                            InstTestResults.noResults ),
                                         Semidet) @>
 
     [<Test>]
     let unifyDisjointBoundInstsReturnsNotReached () : unit =
-        let boundInst1 = InstE.Bound (InstTestResults.noResults,
+        let boundInst1 = BoundCtor (
                                     [ { Constructor = Constant(IntValue(1L), typeof<int>); ArgInsts = [] };
-                                      { Constructor = Constant(IntValue(2L), typeof<int>); ArgInsts = [] } ])
-        let boundInst2 = InstE.Bound (InstTestResults.noResults,
+                                      { Constructor = Constant(IntValue(2L), typeof<int>); ArgInsts = [] } ],
+                                    InstTestResults.noResults)
+        let boundInst2 = BoundCtor (
                                     [ { Constructor = Constant(IntValue(3L), typeof<int>); ArgInsts = [] };
-                                      { Constructor = Constant(IntValue(4L), typeof<int>); ArgInsts = [] } ])
-        test <@ instTable.unifyInst(boundInst1, boundInst2) =
+                                      { Constructor = Constant(IntValue(4L), typeof<int>); ArgInsts = [] } ],
+                                    InstTestResults.noResults)
+        test <@ instTable.unifyInst(Bound boundInst1, Bound boundInst2) =
                                     Some (NotReached, Fail) @>

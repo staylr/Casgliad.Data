@@ -11,3 +11,5 @@ module Modecheck =
 
 
    // type ModeInfo = { ]
+
+   // let modecheckProcedure
