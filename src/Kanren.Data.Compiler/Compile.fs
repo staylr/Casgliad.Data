@@ -37,7 +37,7 @@ module Compile =
             match combineResults modeResult with
             | Ok _ ->
                 let relation =
-                    initRelation rel relation args goal' parserInfo''.varset
+                    initRelation moduleInfo.InstTable rel relation args goal' parserInfo''.varset
 
                 (moduleInfo.addRelation (relation), parserInfo''.errors)
             | Error modeErrors -> (moduleInfo, List.concat (parserInfo''.errors :: modeErrors))

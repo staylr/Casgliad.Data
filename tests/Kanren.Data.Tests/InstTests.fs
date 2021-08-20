@@ -1,5 +1,6 @@
 ﻿namespace Kanren.Data.Tests
 
+open System.Collections.Generic
 open Swensen.Unquote
 open Kanren.Data
 open Kanren.Data.Compiler
@@ -33,7 +34,7 @@ module InstTests =
         test <@ instTable.unifyInst(Bound boundInst1, Bound boundInst2) =
                                     Some (BoundCtor (
                                             [ { Constructor = Constant(IntValue(2L), typeof<int>); ArgInsts = [] } ],
-                                            InstTestResults.noResults ),
+                                            InstTestResults.groundTestResults ),
                                         Semidet) @>
 
     [<Test>]

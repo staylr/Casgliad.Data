@@ -28,6 +28,7 @@ module ModuleInfoModule =
           EndCol = 0 }
 
     let initProc
+        (instTable: InstTable)
         (relAttr: RelationAttribute)
         (args: VarId list)
         (goal: Goal)
@@ -41,7 +42,7 @@ module ModuleInfoModule =
         | Ok modes ->
             { ProcId = procId
               SourceInfo = sourceInfo
-              Modes = List.map (fun (i1, i2) -> (ofInst i1, ofBoundInst i2)) mode.Modes
+              Modes = List.map (fun (i1, i2) -> (ofInst instTable i1, ofBoundInst instTable i2)) mode.Modes
               Determinism = mode.Determinism
               Args = args
               ProcGoal = goal
@@ -54,6 +55,7 @@ module ModuleInfoModule =
           Procedures: Map<int, ProcInfo> }
 
     let initRelation
+        (instTable: InstTable)
         (relAttr: RelationAttribute)
         (relation: RelationBase)
         (args: VarId list)
@@ -63,7 +65,7 @@ module ModuleInfoModule =
         let sourceInfo = relationSourceInfo relAttr
 
         let procs =
-            List.mapi (initProc relAttr args goal varset) relation.Modes
+            List.mapi (initProc instTable relAttr args goal varset) relation.Modes
 
         let procMap =
             List.fold (fun map (proc: ProcInfo) -> Map.add proc.ProcId proc map) Map.empty procs
@@ -73,8 +75,9 @@ module ModuleInfoModule =
           Procedures = procMap }
 
     type ModuleInfo =
-        { Relations: Map<string, RelationInfo> }
-        static member init = { Relations = Map.empty }
+        { Relations: Map<string, RelationInfo>
+          InstTable: InstTable }
+        static member init = { Relations = Map.empty; InstTable = InstTable() }
 
         member x.addRelation(relation) =
             { x with
