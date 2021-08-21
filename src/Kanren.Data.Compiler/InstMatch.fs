@@ -36,24 +36,24 @@ module InstMatch =
                         instMatchesInitial2 expanded inst1' inst2 maybeType
                     | None ->
                         false
-            | BoundCtor (boundInsts1, instResults1) ->
+            | BoundCtor (boundInsts1) ->
                 match inst2 with
                 | Any ->
                     true
-                | BoundCtor (boundInsts2, _) ->
-                    boundInstListMatchesInitial expanded boundInsts1 boundInsts2 maybeType
+                | BoundCtor (boundInsts2) ->
+                    boundInstListMatchesInitial expanded boundInsts1.BoundInsts boundInsts2.BoundInsts maybeType
                 | Ground ->
-                    instTable.boundInstListIsGround (boundInsts1, instResults1)
+                    instTable.boundInstListIsGround (boundInsts1)
                 | DefinedInst _ | HigherOrder _ | HigherOrderAny _ | NotReached->
                     false
             | Ground ->
                 match inst2 with
                 | Ground | Any ->
                     true
-                | BoundCtor (boundInsts2, _) ->
+                | BoundCtor (boundInsts2) ->
                     match maybeType with
                     | Some instType ->
-                        instTable.boundInstListIsCompleteForType((HashSet<InstName>()), boundInsts2, instType)
+                        instTable.boundInstListIsCompleteForType((HashSet<InstName>()), boundInsts2.BoundInsts, instType)
                             && groundMatchesInitialBoundInstList expanded boundInsts2 maybeType
                     | None ->
                         false
@@ -99,7 +99,7 @@ module InstMatch =
 
         // Assumes that the check of `bound_inst_list_is_complete_for_type' is done by the caller.
         and groundMatchesInitialBoundInstList expanded boundInsts maybeType =
-            boundInsts
+            boundInsts.BoundInsts
             |> List.forall (fun boundInst ->
                                 let argTypes = InstTable.maybeGetConsIdArgTypes(maybeType, boundInst.Constructor)
                                 List.forall2 (instMatchesInitial2 expanded Ground)
