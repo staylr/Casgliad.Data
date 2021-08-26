@@ -29,6 +29,7 @@
     <Compile Include="Simplify.fs" />
     <Compile Include="QuotationParser.fs" />
     <Compile Include="ModeErrors.fs" />
+    <Compile Include="DelayInfo.fs" />
     <Compile Include="Modecheck.fs" />
     <Compile Include="Compile.fs" />
     <Compile Include="AssemblyInfo.fs" />

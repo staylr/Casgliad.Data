@@ -1,15 +1,11 @@
 namespace Kanren.Data.Compiler
 
-open Kanren.Data.Compiler.State
+open System.Collections.Generic
+
+open Kanren.Data.Compiler.ModeErrors
 
 module Modecheck =
-    type DepthNum = int
-    type SeqNum = int
-    type DelayGoalNum = { DepthNum: DepthNum; SeqNum: SeqNum }
 
-    //type DelayInfo = { }
-
-
-   // type ModeInfo = { ]
+    type ModeInfo = unit
 
    // let modecheckProcedure

@@ -58,3 +58,4 @@ module ModeErrors =
     | CannotSucceedGroundOccurCheck of LVar: VarId * Ctor: Constructor
 
     type ModeWarningInfo = { Warning: ModeWarning; SourceInfo: SourceInfo; ModeContext: ModeContext }
+
