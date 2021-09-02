@@ -32,15 +32,15 @@ module GoalWriter =
             fun (b: GoalToStringInfo) ->
                 match vs with
                 | v :: vs' ->
-                    b |> __.Yield("(")
-                    b |> __.Yield(v)
+                    b |> __.Yield ("(")
+                    b |> __.Yield (v)
 
                     for v' in vs' do
-                        b |> __.Yield(", ")
-                        b |> __.Yield(v')
+                        b |> __.Yield (", ")
+                        b |> __.Yield (v')
 
-                    b |> __.Yield(')')
-                | _ -> b |> __.Yield(')')
+                    b |> __.Yield (')')
+                | _ -> b |> __.Yield (')')
 
         member inline __.Yield(strings: #seq<string>) =
             fun (b: GoalToStringInfo) ->
@@ -59,9 +59,9 @@ module GoalWriter =
 
         member __.For(xs: 'a seq, f: 'a -> GoalToStringFunc) =
             fun (b: GoalToStringInfo) ->
-                let e = xs.GetEnumerator()
+                let e = xs.GetEnumerator ()
 
-                while e.MoveNext() do
+                while e.MoveNext () do
                     (f e.Current) b
 
         member __.While(p: unit -> bool, f: GoalToStringFunc) =
@@ -71,14 +71,14 @@ module GoalWriter =
 
         member __.Run(f: GoalToStringFunc) = f
 
-    let gts = new GoalToStringBuilder()
+    let gts = new GoalToStringBuilder ()
 
     let indent (f: GoalToStringFunc) (info: GoalToStringInfo) =
         do info.Writer.Indent <- info.Writer.Indent + 4
-        do info.Writer.WriteLine()
+        do info.Writer.WriteLine ()
         do f info
         do info.Writer.Indent <- info.Writer.Indent - 4
-        do info.Writer.WriteLine()
+        do info.Writer.WriteLine ()
         ()
 
     let rec listToString l f (sep: string) =
@@ -102,20 +102,66 @@ module Goal =
 
     let emptySetOfVar = TagSet.empty<varIdMeasure>
 
-    type Instmap =
-    | Reachable of Map<VarId, Kanren.Data.Inst>
-    | Unreachable
+    type InstMap =
+        private
+        | Reachable of Map<VarId, BoundInstE>
+        | Unreachable
+        static member initReachable = Reachable (Map.empty)
+        static member initUnreachable = Unreachable
+        member this.isReachable () = this <> Unreachable
 
-    type InstmapDelta = Instmap
+        member this.lookupVar v =
+            match this with
+            | Reachable m ->
+                match m.TryGetValue (v) with
+                | true, inst -> InstE.Bound inst
+                | _ -> InstE.Free
+            | Unreachable -> InstE.Bound BoundInstE.NotReached
+
+        member this.setVar v inst =
+            match this with
+            | Reachable m -> m.Add (v, inst) |> Reachable
+            | Unreachable -> this
+
+        member this.restrict vars =
+            match this with
+            | Reachable m ->
+                Map.filter (fun v _ -> TagSet.contains v vars) m
+                |> Reachable
+            | Unreachable -> Unreachable
+
+        static member computeInstMapDelta instMapA instMapB nonLocals =
+            match instMapA with
+            | Unreachable -> Unreachable
+            | Reachable mA ->
+                match instMapB with
+                | Unreachable -> Unreachable
+                | Reachable mB ->
+                    let addVarToInstMapDelta instMapDelta v =
+                        let instA = instMapA.lookupVar v
+                        let instB = instMapB.lookupVar v
+
+                        if (instA = instB) then
+                            instMapDelta
+                        else
+                            match instB with
+                            | InstE.Bound boundInstB -> Map.add v boundInstB instMapDelta
+                            | InstE.Free -> instMapDelta
+
+                    nonLocals
+                    |> TagSet.fold addVarToInstMapDelta Map.empty
+                    |> Reachable
+
+    type InstMapDelta = InstMap
 
     type GoalInfo =
         { NonLocals: SetOfVar
-          InstmapDelta: InstmapDelta
+          InstMapDelta: InstMapDelta
           Determinism: Determinism
           SourceInfo: SourceInfo }
         static member init sourceInfo =
             { NonLocals = TagSet.empty<varIdMeasure>
-              InstmapDelta = Unreachable
+              InstMapDelta = Unreachable
               Determinism = Determinism.Det
               SourceInfo = sourceInfo }
 
@@ -166,7 +212,7 @@ module Goal =
                 | Unify (lhs, rhs, _, _) ->
                     yield lhs
                     yield " = "
-                    yield! rhs.Dump()
+                    yield! rhs.Dump ()
                 | Call (property, args) ->
                     yield property.Name
                     yield args
@@ -175,22 +221,22 @@ module Goal =
                     yield " = F#"
                     yield method.Name
                     yield args
-                | Conj (goals) -> yield! indent (listToString goals (fun goal -> goal.Dump()) ",\n")
+                | Conj (goals) -> yield! indent (listToString goals (fun goal -> goal.Dump ()) ",\n")
                 | Disj (goals) ->
                     yield "("
-                    yield! indent (listToString goals (fun goal -> goal.Dump()) ";\n")
+                    yield! indent (listToString goals (fun goal -> goal.Dump ()) ";\n")
                 | Switch (var, canFail, cases) -> yield ""
                 | IfThenElse (condGoal, thenGoal, elseGoal) -> yield ""
                 | Not (negGoal) ->
                     yield " not ("
-                    yield! indent (negGoal.Dump())
+                    yield! indent (negGoal.Dump ())
                     yield ")"
             }
 
     and Goal =
         { Goal: GoalExpr
           Info: GoalInfo }
-        member x.Dump() = gts { yield! x.Goal.Dump() }
+        member x.Dump() = gts { yield! x.Goal.Dump () }
 
     and Case =
         { Constructor: Constructor
@@ -204,18 +250,13 @@ module Goal =
             Args: VarId list *
             UnifyType: VarCtorUnifyType *
             ArgModes: UnifyMode list
-        | Lambda of
-            NonLocals: VarId list *
-            Args: VarId list *
-            Modes: Mode list *
-            Detism: Determinism *
-            Goal: Goal
+        | Lambda of NonLocals: VarId list * Args: VarId list * Modes: Mode list * Detism: Determinism * Goal: Goal
         member x.Dump() : GoalToStringFunc =
             gts {
                 match x with
                 | Var (v, _) -> yield v
                 | Constructor (ctor, args, _, _) ->
-                    yield ctor.ToString()
+                    yield ctor.ToString ()
 
                     match args with
                     | _ :: _ -> yield args
@@ -225,12 +266,12 @@ module Goal =
 
     let (|Fail|_|) goalExpr =
         match goalExpr with
-        | Disj ([]) -> Some()
+        | Disj ([]) -> Some ()
         | _ -> None
 
     let (|Succeed|_|) goalExpr =
         match goalExpr with
-        | Conj ([]) -> Some()
+        | Conj ([]) -> Some ()
         | _ -> None
 
     let rec goalExprVars goal (vars: SetOfVar) =

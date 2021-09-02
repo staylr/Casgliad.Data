@@ -5,8 +5,13 @@ open Kanren.Data
 [<AutoOpen>]
 module ModuleInfoModule =
 
+    [<Measure>]
+    type procIdMeasure
+
+    type ProcId = int<procIdMeasure>
+
     type ProcInfo =
-        { ProcId: int
+        { ProcId: ProcId
           SourceInfo: SourceInfo
           Modes: (InstE * BoundInstE) list
           Determinism: Determinism
@@ -33,7 +38,7 @@ module ModuleInfoModule =
         (args: VarId list)
         (goal: Goal)
         (varset: VarSet)
-        (procId: int)
+        (procId: ProcId)
         (mode: RelationMode)
         =
         let sourceInfo = relationSourceInfo relAttr
@@ -52,7 +57,7 @@ module ModuleInfoModule =
     type RelationInfo =
         { Name: string
           SourceInfo: SourceInfo
-          Procedures: Map<int, ProcInfo> }
+          Procedures: Map<ProcId, ProcInfo> }
 
     let initRelation
         (instTable: InstTable)
@@ -65,7 +70,7 @@ module ModuleInfoModule =
         let sourceInfo = relationSourceInfo relAttr
 
         let procs =
-            List.mapi (initProc instTable relAttr args goal varset) relation.Modes
+            List.mapi (fun i -> initProc instTable relAttr args goal varset (i * 1<procIdMeasure>)) relation.Modes
 
         let procMap =
             List.fold (fun map (proc: ProcInfo) -> Map.add proc.ProcId proc map) Map.empty procs
@@ -74,8 +79,10 @@ module ModuleInfoModule =
           SourceInfo = sourceInfo
           Procedures = procMap }
 
+    type RelationId = string
+
     type ModuleInfo =
-        { Relations: Map<string, RelationInfo>
+        { Relations: Map<RelationId, RelationInfo>
           InstTable: InstTable }
         static member init = { Relations = Map.empty; InstTable = InstTable() }
 
