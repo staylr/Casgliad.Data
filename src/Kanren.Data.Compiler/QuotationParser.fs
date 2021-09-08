@@ -122,7 +122,7 @@ module QuotationParser =
           Info = GoalInfo.init (sourceInfo) }
 
     let initUnify lhs rhs context =
-        Unify(lhs, rhs, (Mode.In, Mode.In), context)
+        Unify(lhs, rhs, ((InstE.Free, BoundInstE.NotReached), (InstE.Free, BoundInstE.NotReached)), context)
 
     let listToGoal (goals: Goal list) =
         match goals with

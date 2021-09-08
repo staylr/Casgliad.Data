@@ -103,10 +103,15 @@ module Inst =
             do table.[inst] <- value
             ()
 
-        member this.expand(inst) : BoundInstE =
+        member this.expand(inst: BoundInstE) : BoundInstE =
             match inst with
             | DefinedInst name -> this.lookup name |> this.expand
             | _ -> inst
+
+        member this.expand(inst: InstE): InstE =
+            match inst with
+            | Free -> Free
+            | Bound inst -> this.expand(inst) |> Bound
 
         member this.lookup(instName: InstName) : BoundInstE =
             let handleInstDet instName instDet : BoundInstE =
@@ -645,7 +650,7 @@ module Inst =
                 | _ ->
                     None
 
-            and mergeInst2 inst1 inst2 maybeType =
+            and mergeInst2 (inst1: BoundInstE) (inst2: BoundInstE) maybeType =
                 let inst1' = this.expand(inst1)
                 let inst2' = this.expand(inst2)
                 if (inst2' = NotReached) then

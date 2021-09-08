@@ -118,10 +118,15 @@ module Goal =
                 | _ -> InstE.Free
             | Unreachable -> InstE.Bound BoundInstE.NotReached
 
-        member this.setVar v inst =
+        member this.setVarBound v inst =
             match this with
             | Reachable m -> m.Add (v, inst) |> Reachable
             | Unreachable -> this
+
+        member this.setVar v inst =
+            match inst with
+            | InstE.Free -> this
+            | InstE.Bound boundInst -> this.setVarBound v boundInst
 
         member this.restrict vars =
             match this with
@@ -173,7 +178,7 @@ module Goal =
         | Construct
         | Deconstruct
 
-    type UnifyMode = Mode * Mode
+    type UnifyMode = ModeE * ModeE
 
     type UnifyMainContext =
         | ExplicitUnify

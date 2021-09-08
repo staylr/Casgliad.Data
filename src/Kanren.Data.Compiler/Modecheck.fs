@@ -61,10 +61,44 @@ module Modecheck =
 
     type ModeStateFunc<'T> = StateFunc<ModeInfo, 'T>
 
-    let state = new StateBuilder()
+    let state = StateBuilder()
 
     let setContext (goal: Goal) (modeInfo: ModeInfo) =
         ( (), { modeInfo with CurrentSourceInfo = goal.Info.SourceInfo } )
+
+    let getInstMap (modeInfo: ModeInfo) =
+        ( modeInfo.InstMap, modeInfo )
+
+    let getInstTable (modeInfo: ModeInfo) =
+        (modeInfo.InstTable, modeInfo)
+
+    let setVarInst (var: VarId) (newInst0: InstE) (maybeUnifiedInst: InstE option) modeInfo =
+        if not (modeInfo.InstMap.isReachable()) then
+            ((), modeInfo)
+        else
+            let oldInst = modeInfo.InstMap.lookupVar var
+            let newInst =
+                if (oldInst = newInst0) then
+                    newInst0
+                else
+                    match (modeInfo.InstTable.unifyInst(oldInst, newInst0)) with
+                    | Some (unifiedInst, _) -> Bound unifiedInst
+                    | None -> failwith "unexpected: unify_inst failed"
+            let varDefn = modeInfo.VarSet.Vars.[var]
+            if (Bound NotReached = (modeInfo.InstTable.expand(newInst))) then
+                // If the top-level inst of the variable is NotReached then the
+                // instmap as a whole must be unreachable.
+                ((), { modeInfo with InstMap = InstMap.initUnreachable })
+            elif (InstMatch.instMatchesInitial modeInfo.InstTable oldInst newInst (Some varDefn.VarType)) then
+                // No added information or binding.
+                // TODO - can this actually happen? It can in Mercury when uniqueness is lost.
+                ((), { modeInfo with InstMap = modeInfo.InstMap.setVar var newInst })
+            elif (not (InstMatch.instMatchesBinding modeInfo.InstTable newInst oldInst (Some varDefn.VarType) InstMatch.AnyMatchesAny)) then
+                // TODO
+                ((), modeInfo)
+            else
+                do modeInfo.DelayInfo.bindVar(var)
+                ((), { modeInfo with InstMap = modeInfo.InstMap.setVar var newInst })
 
     let computeGoalInstMapDelta (f: Goal -> ModeStateFunc<GoalExpr>) goal modeInfo =
         let initialInstMap = modeInfo.InstMap
@@ -76,7 +110,7 @@ module Modecheck =
                 (InstMap.initReachable, { modeInfo' with InstMap = initialInstMap } )
             | _ ->
                 (InstMap.computeInstMapDelta initialInstMap modeInfo'.InstMap goal.Info.NonLocals, modeInfo')
-        ( { Goal = goalExpr; Info = goal.Info }, modeInfo')
+        ( { Goal = goalExpr; Info = { goal.Info with InstMapDelta = instMapDelta } }, modeInfo'')
 
     let rec modecheckGoal goal =
         state {
@@ -85,5 +119,31 @@ module Modecheck =
         }
     and modecheckGoalExpr goal =
         state {
-            return goal.Goal
+            match goal.Goal with
+            | Unify (lhs, rhs, _, unifyContext) ->
+                // set context
+                return! modecheckUnify lhs rhs unifyContext goal.Info
+        }
+
+    and modecheckUnify lhs rhs context goalInfo =
+        state {
+            match rhs with
+            | Var (var, varType) -> return! modecheckUnifyVar lhs var varType context goalInfo
+        }
+
+    and modecheckUnifyVar lhs rhs rhsType context goalInfo =
+        state {
+            let! instTable = getInstTable
+            let! instMap = getInstMap
+
+            let lhsInst = instMap.lookupVar lhs
+            let rhsInst = instMap.lookupVar rhs
+
+            match instTable.unifyInst(lhsInst, rhsInst) with
+            | Some (inst, det) ->
+                do! setVarInst lhs (Bound inst) (Some lhsInst)
+                do! setVarInst rhs (Bound inst) (Some rhsInst)
+                return Unify (lhs, (Var (rhs, rhsType)), UnifyMode ((lhsInst, inst), (rhsInst, inst)), context)
+            | None ->
+                return (raise (System.Exception("TODO")))
         }
