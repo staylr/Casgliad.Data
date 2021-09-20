@@ -44,8 +44,8 @@ module QuotationTests =
                 @>
 
         match goal.Goal with
-        | Conj([{ Goal = Unify(var1, Constructor(Constant(IntValue(arg1), _), [], _, _), _, _) };
-                { Goal = Unify(var2, Constructor(Constant(IntValue(arg2), _), [], _, _), _, _) }]) ->
+        | Conj([{ Goal = Unify(var1, Constructor(Constant(IntValue(arg1), _), [], _, _, _), _, _) };
+                { Goal = Unify(var2, Constructor(Constant(IntValue(arg2), _), [], _, _, _), _, _) }]) ->
             test <@ testVarName info var1 "x" @>
             test <@ testVarName info var2 "y" @>
             test <@ arg1 = 4L @>
@@ -66,7 +66,7 @@ module QuotationTests =
                     false
                 @>
         match goal.Goal with
-        | Unify(var1, Constructor(Constant(IntValue(arg1), _), [], _, _), _, _) ->
+        | Unify(var1, Constructor(Constant(IntValue(arg1), _), [], _, _, _), _, _) ->
             test <@ testVarName info var1 "x" @>
             test <@ arg1 = 4L @>
         | _ -> raise(Exception($"invalid goal {goal.Goal}"))
@@ -85,10 +85,10 @@ module QuotationTests =
             let checkDisjunct disjunct =
                 match disjunct.Goal with
                 | Conj([
-                        { Goal = Unify(lhs, Constructor(UnionCase(case), [_; _], _, _), _, _) };
-                        { Goal = Unify(lhsd, Constructor( UnionCase(cased), [_; _], _, _), _, _) };
+                        { Goal = Unify(lhs, Constructor(UnionCase(case), [_; _], _, _, _), _, _) };
+                        { Goal = Unify(lhsd, Constructor( UnionCase(cased), [_; _], _, _, _), _, _) };
                         { Goal = Unify(lhst, Var(rhst, _), _, _) };
-                        { Goal = Unify(lhs2, Constructor(Constant(StringValue(constant), _), [], _, _), _, _) }]) ->
+                        { Goal = Unify(lhs2, Constructor(Constant(StringValue(constant), _), [], _, _, _), _, _) }]) ->
                     test <@ constant = case.Name @>
                 | _ ->
                     raise(Exception($"unexpected disjunct {goal.Goal}"))
@@ -113,8 +113,8 @@ module QuotationTests =
                     false
             @>
         match goal.Goal with
-        | Conj([{ Goal = Unify(var1, Constructor(Constant(IntValue(arg1), _), [], _, _), _, _) };
-                { Goal = Unify(var2, Constructor(Tuple 2, [var3; var4], _, _), _, _) };
+        | Conj([{ Goal = Unify(var1, Constructor(Constant(IntValue(arg1), _), [], _, _, _), _, _) };
+                { Goal = Unify(var2, Constructor(Tuple 2, [var3; var4], _, _, _), _, _) };
                 { Goal = Unify(var5, Var(var6, _), _, _) }]) ->
             test <@ testVarName info var1 "x" @>
             test <@ arg1 = 1L @>
@@ -138,13 +138,13 @@ module QuotationTests =
             let ((args, goal), info) = compileExpr expr
             test <@ info.errors = [] @>
             match goal.Goal with
-            | Conj([{ Goal = Unify(arg1, Constructor(Tuple 3, [arga; argeModes1; argc], _, _), _, _) };
-                    { Goal = Unify(argeModes2, Constructor(Tuple 2, [arge; argModes1], _, _), _, _) };
-                    { Goal = Unify(argModes2, Constructor(Record(relationModeType), [argm; argd], _, _), _, _) };
+            | Conj([{ Goal = Unify(arg1, Constructor(Tuple 3, [arga; argeModes1; argc], _, _, _), _, _) };
+                    { Goal = Unify(argeModes2, Constructor(Tuple 2, [arge; argModes1], _, _, _), _, _) };
+                    { Goal = Unify(argModes2, Constructor(Record(relationModeType), [argm; argd], _, _, _), _, _) };
                     { Goal = Unify(argx2, Var(arge2, _), _, _) };
                     { Goal = Unify(arga2, Var(argc2, _), _, _) };
-                    { Goal = Unify(argm2, Constructor(UnionCase(listEmptyCase), [], _, _), _, _) };
-                    { Goal = Unify(argd2, Constructor(UnionCase(determinismDetCase), [], _, _), _, _) }]) ->
+                    { Goal = Unify(argm2, Constructor(UnionCase(listEmptyCase), [], _, _, _), _, _) };
+                    { Goal = Unify(argd2, Constructor(UnionCase(determinismDetCase), [], _, _, _), _, _) }]) ->
                 test <@ testVarName info arga "a" @>
                 test <@ arg1 = args.[0] @>
                 test <@ testVarName info argc "c" @>
@@ -170,9 +170,9 @@ module QuotationTests =
         let ((args, goal), info) = compileExpr expr
         test <@ info.errors = [] @>
         match goal.Goal with
-        | Conj([{ Goal = Unify(var1, Constructor(Constant(IntValue(arg1), _), [], _, _), _, _) };
-                { Goal = Unify(var2, Constructor(Constant(IntValue(arg2), _), [], _, _), _, _) };
-                { Goal = Unify(var3, Constructor(Constant(IntValue(arg3), _), [], _, _), _, _) }]) ->
+        | Conj([{ Goal = Unify(var1, Constructor(Constant(IntValue(arg1), _), [], _, _, _), _, _) };
+                { Goal = Unify(var2, Constructor(Constant(IntValue(arg2), _), [], _, _, _), _, _) };
+                { Goal = Unify(var3, Constructor(Constant(IntValue(arg3), _), [], _, _, _), _, _) }]) ->
             test <@ testVarName info var1 "x" @>
             test <@ testVarName info var2 "y" @>
             test <@ testVarName info var3 "z" @>
@@ -187,10 +187,10 @@ module QuotationTests =
         let ((args, goal), info) = compileExpr expr
         test <@ info.errors = [] @>
         match goal.Goal with
-        | Conj([{ Goal = Unify(var1, Constructor(Constant(IntValue(arg1), _), [], _, _), _, _) };
-                { Goal = Unify(var2, Constructor(Constant(IntValue(arg2), _), [], _, _), _, _) };
-                { Goal = Unify(var3, Constructor(Constant(IntValue(arg3), _), [], _, _), _, _) };
-                { Goal = Unify(var4, Constructor(Constant(IntValue(arg4), _), [], _, _), _, _) }]) ->
+        | Conj([{ Goal = Unify(var1, Constructor(Constant(IntValue(arg1), _), [], _, _, _), _, _) };
+                { Goal = Unify(var2, Constructor(Constant(IntValue(arg2), _), [], _, _, _), _, _) };
+                { Goal = Unify(var3, Constructor(Constant(IntValue(arg3), _), [], _, _, _), _, _) };
+                { Goal = Unify(var4, Constructor(Constant(IntValue(arg4), _), [], _, _, _), _, _) }]) ->
             test <@ testVarName info var1 "x" @>
             test <@ testVarName info var2 "y" @>
             test <@ testVarName info var3 "z1" @>

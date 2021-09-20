@@ -254,13 +254,14 @@ module Goal =
             Constructor: Constructor *
             Args: VarId list *
             UnifyType: VarCtorUnifyType *
-            ArgModes: UnifyMode list
+            ArgModes: ModeE list *
+            CanFail: CanFail
         | Lambda of NonLocals: VarId list * Args: VarId list * Modes: Mode list * Detism: Determinism * Goal: Goal
         member x.Dump() : GoalToStringFunc =
             gts {
                 match x with
                 | Var (v, _) -> yield v
-                | Constructor (ctor, args, _, _) ->
+                | Constructor (ctor, args, _, _, _) ->
                     yield ctor.ToString ()
 
                     match args with
@@ -297,7 +298,7 @@ module Goal =
     and unifyRhsVars rhs (vars: SetOfVar) =
         match rhs with
         | Var (var, _) -> TagSet.add var vars
-        | Constructor (_, args, _, _) -> List.fold (flip TagSet.add) vars args
+        | Constructor (_, args, _, _, _) -> List.fold (flip TagSet.add) vars args
         | Lambda (nonLocals, args, _, _, goal) ->
             TagSet.union vars (TagSet.union (TagSet.ofList nonLocals) (TagSet.ofList args))
             |> goalVars goal

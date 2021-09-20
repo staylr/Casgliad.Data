@@ -61,3 +61,6 @@ module Type =
             |> List.ofArray
         else
             []
+
+    // For future CLP implementation.
+    let typeIsSolverType t = false

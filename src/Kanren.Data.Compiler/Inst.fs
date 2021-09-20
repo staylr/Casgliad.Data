@@ -81,6 +81,11 @@ module Inst =
 
     type InstMatchInputs = { Inst1: BoundInstE; Inst2: BoundInstE; Type: System.Type option }
 
+    let initialFinalInstsIsOutput inst1 inst2 =
+        match (inst1, inst2) with
+        | (Free, Bound _) -> true
+        | _ -> false
+
     type InstTable() =
         member this.unifyInsts = Dictionary<InstPair, InstDet option> ()
         member this.mergeInsts = Dictionary<InstPair, BoundInstE option> ()
@@ -569,8 +574,101 @@ module Inst =
             else
                 unifyBoundInstList2 boundInsts1 boundInsts2
 
+        // Get the argument insts of unifying the given inst with the constructor.
+        // The unification must succeed, or an exception will be throuwn.
+        member this.getArgInsts(inst: InstE, ctor: Constructor, arity: int) =
+            match inst with
+            | Free | Bound NotReached | Bound Ground | Bound Any ->
+                List.replicate arity inst
+            | Bound (BoundCtor details) ->
+                match details.BoundInsts |> List.tryFind (fun b -> b.Constructor = ctor) with
+                | Some boundInst ->
+                    boundInst.ArgInsts |> List.map Bound
+                | None ->
+                    failwith "InstTable.getArgInsts: could not find bound inst"
+            | _ ->
+                failwith $"InstTable.getARgInsts: unexpected inst {inst}"
+
+        member this.unifyInstFunctor(inst: InstE, ctor: Constructor, argInsts: InstE list, varType: System.Type): InstDet option =
+
+            let argBoundInsts =
+                if (List.forall (fun i -> i <> Free) argInsts) then
+                    Some (List.map (function | Bound i -> i) argInsts)
+                else
+                    None
+
+            match inst with
+            | Bound NotReached -> Some (NotReached, Erroneous)
+            | Free ->
+                match argBoundInsts with
+                | Some boundInsts ->
+                    Some (this.makeBoundInst(ctor, boundInsts), Det)
+                | None ->
+                    // Don't allow partially instantiated terms.
+                    None
+            | Bound Any ->
+                // We only allow `any' to unify with a functor if we know that
+                // the type is not a solver type.
+                if (typeIsSolverType varType) then
+                    None
+                else
+                    argInsts
+                    |> Util.foldOption
+                        (fun (insts, det) i ->
+                            match i with
+                            | Free ->
+                                Some (Any :: insts, det)
+                            | Bound bi ->
+                                this.makeAnyInst(bi)
+                                |> Option.map
+                                    (fun (anyInst, det1) ->
+                                        (anyInst :: insts, parallelConjunctionDeterminism det det1)
+                                    )
+                        )
+                        ([], Det)
+                    |> Option.map (fun (insts, det) -> (this.makeBoundInst(ctor, List.rev insts), det))
+
+            | Bound (BoundCtor boundInstList1) ->
+                match List.tryFind (fun i -> i.Constructor = ctor) boundInstList1.BoundInsts with
+                | Some (boundInst1) ->
+                    Util.foldOption2
+                        (fun (insts, det) i1 i2 ->
+                            match i1 with
+                            | Free ->
+                                Some (i2 :: insts, det)
+                            | Bound _ ->
+                                this.unifyInst(i1, Bound i2)
+                                |> Option.map (
+                                    fun (unifyInst, det1) ->
+                                        (unifyInst :: insts, parallelConjunctionDeterminism det det1))
+                        )
+                        ([], Det)
+                        argInsts
+                        boundInst1.ArgInsts
+                   |> Option.map (fun (insts, det) -> (this.makeBoundInst(ctor, List.rev insts), det))
+                | None ->
+                    None
+            | Bound Ground ->
+                argInsts
+                |> Util.foldOption
+                    (fun (insts, det) i ->
+                        match i with
+                        | Free ->
+                            Some (Any :: insts, det)
+                        | Bound bi ->
+                            this.makeGroundInst(bi)
+                            |> Option.map
+                                (fun (anyInst, det1) ->
+                                    (anyInst :: insts, parallelConjunctionDeterminism det det1)
+                                )
+                    )
+                    ([], Det)
+                |> Option.map (fun (insts, det) -> (this.makeBoundInst(ctor, List.rev insts), det))
+            | _ ->
+                None
+
         // Combine the insts found in different arms of a disjunction, switch, or
-        // if-then-else. The information in InstC is the minimum of the information
+        // if-then-else. The information in InstC ifs the minimum of the information
         // in InstA and InstB. Where InstA and InstB specify a binding (free or
         // bound), it must be the same in both.
         member this.mergeInst(inst1: InstE, inst2: InstE, maybeType: System.Type option) : InstE option =
@@ -717,7 +815,7 @@ module Inst =
 
         member this.maybeAnyToBound (maybeType: System.Type option) : (BoundInstE option) = None
 
-        member this.makeBoundInst (boundInsts: BoundCtorInstE list) : (BoundInstE) =
+        member this.makeBoundInst (boundInsts: BoundCtorInstE list) : BoundInstE =
             let defaultDetails = { BoundInsts = boundInsts; TestResults = InstTestResults.noResults }
             let groundness =
                 if (this.boundInstListIsGround(defaultDetails)) then
@@ -730,7 +828,11 @@ module Inst =
 
             let testResults = { Groundness = groundness; ContainsInstNames =  ContainsInstNames instNames }
 
-            BoundCtor { BoundInsts = boundInsts; TestResults = testResults }
+            let orderedInsts = boundInsts |> List.sortBy (fun b -> b.Constructor)
+            BoundCtor { BoundInsts = orderedInsts; TestResults = testResults }
+
+        member this.makeBoundInst (ctor: Constructor, argInsts: BoundInstE list) : BoundInstE =
+            this.makeBoundInst([{ Constructor = ctor; ArgInsts = argInsts }])
 
     let rec ofInst instTable (inst: Inst) : InstE =
         match inst with

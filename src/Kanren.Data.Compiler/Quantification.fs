@@ -76,7 +76,7 @@ module Quantification =
     and unifyRhsVarsBoth rhs set lambdaSet =
         match rhs with
         | Var (var, _) -> (TagSet.add var set, lambdaSet)
-        | Constructor (ctor, args, _, _) -> (TagSet.ofList args |> TagSet.union set, lambdaSet)
+        | Constructor (ctor, args, _, _, _) -> (TagSet.ofList args |> TagSet.union set, lambdaSet)
         | Lambda (_, lambdaVars, _, _, goal) ->
             let (goalSet, goalLambdaSet) = goalVarsBoth goal
 
@@ -297,7 +297,7 @@ module Quantification =
         state {
             match rhs with
             | Var (rhsVar, uType) -> return (rhs, TagSet.singleton rhsVar)
-            | Constructor (_, args, _, _) -> return (rhs, TagSet.ofList args)
+            | Constructor (_, args, _, _, _) -> return (rhs, TagSet.ofList args)
             | Lambda (lambdaNonLocals, lambdaVars, modes, det, goal) ->
                 let! outside = outside
                 let! qvars = quantVars

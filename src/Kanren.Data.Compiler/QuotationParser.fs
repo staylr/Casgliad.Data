@@ -168,6 +168,8 @@ module QuotationParser =
         then BoolValue(value :?> bool)
         else raise (System.InvalidOperationException($"Invalid constant {value} of type {valueType.Name}"))
 
+    let makeCtorRhs ctor args = UnifyRhs.Constructor(ctor, args, VarCtorUnifyType.Construct, [], CanFail)
+
     let rec translateUnifyRhs rhs (context: UnifyContext) =
         parse {
             let! sourceInfo = currentSourceInfo
@@ -177,23 +179,23 @@ module QuotationParser =
                 let! var = newQVar v
                 return ([], Some(UnifyRhs.Var(var, VarVarUnifyType.Assign)))
             | Patterns.Value (value, constType) ->
-                return ([], Some(UnifyRhs.Constructor(Constant(translateConstant value constType, constType), [], VarCtorUnifyType.Construct, [])))
+                return ([], Some(makeCtorRhs (Constant(translateConstant value constType, constType)) []))
             | Patterns.NewTuple (args) ->
                 let! (argVars, extraGoals) = translateCallArgs false args (addCtorSubContext context (Tuple (args.Length)))
-                return (extraGoals, Some(UnifyRhs.Constructor(Tuple (args.Length), argVars, VarCtorUnifyType.Construct, [])))
+                return (extraGoals, Some(makeCtorRhs (Tuple (args.Length)) argVars))
             | Patterns.NewRecord (recordType, args) ->
                 let! (argVars, extraGoals) =
                     translateCallArgs false args (addCtorSubContext context (Record(recordType)))
 
                 return
-                    (extraGoals, Some(UnifyRhs.Constructor(Record(recordType), argVars, VarCtorUnifyType.Construct, [])))
+                    (extraGoals, Some(makeCtorRhs (Record(recordType)) argVars))
             | Patterns.NewUnionCase (caseInfo, args) ->
                 let! (argVars, extraGoals) =
                     translateCallArgs false args (addCtorSubContext context (UnionCase(caseInfo)))
 
                 return
                     (extraGoals,
-                     Some(UnifyRhs.Constructor(UnionCase(caseInfo), argVars, VarCtorUnifyType.Construct, [])))
+                     Some(makeCtorRhs (UnionCase(caseInfo)) argVars))
             | Patterns.Call (None, callee, args) ->
                 let! (argVars, extraGoals) = translateCallArgs false args (addCallSubContext context callee)
                 let! returnVar = newVar callee.ReturnType
@@ -540,10 +542,7 @@ module QuotationParser =
             | ExprShape.ShapeVar v ->
                 if (v.Type = typeof<bool>) then
                     let! lhsVar = newQVar v
-
-                    let rhs =
-                        Constructor(Constant(BoolValue(true), typeof<bool>), [], VarCtorUnifyType.Construct, [])
-
+                    let rhs = makeCtorRhs (Constant(BoolValue(true), typeof<bool>)) []
                     return initUnify lhsVar rhs (initUnifyContext ExplicitUnify)
                 else
                     return! unsupportedExpression expr
@@ -574,7 +573,7 @@ module QuotationParser =
             let unifyGoal =
                 initUnify
                     var
-                    (Constructor(case, fieldVars, VarCtorUnifyType.Construct, []))
+                    (makeCtorRhs case fieldVars)
                     (initUnifyContext ImplicitUnify)
 
             let! goal = translateSubExprGoal expr
@@ -653,8 +652,7 @@ module QuotationParser =
             let! assignedDeconstructVars = foldParse2 assignVar [] deconstructVars
 
             let generateDeconstructGoal sourceInfo (var, _, ctor, unifyArgs) =
-                let unifyRhs =
-                    Constructor(ctor, unifyArgs, VarCtorUnifyType.Construct, [])
+                let unifyRhs = makeCtorRhs ctor unifyArgs
                 // TODO: fix context
                 let unifyContext = initUnifyContext ImplicitUnify
                 initGoal sourceInfo (initUnify var unifyRhs unifyContext)

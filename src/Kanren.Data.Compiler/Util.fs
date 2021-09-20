@@ -73,6 +73,16 @@ module Util =
             | None -> None
             | Some state' -> foldOption f state' xs
 
+    let rec foldOption2 (f: 'S -> 'T -> 'U -> 'S option) (state: 'S) (list1: 'T list) (list2: 'U list) : 'S option =
+        match (list1, list2) with
+        | ([], []) -> Some state
+        | (x :: xs, y :: ys) ->
+            match f state x y with
+            | None -> None
+            | Some state' -> foldOption2 f state' xs ys
+        | ([], _ :: _) | (_ :: _, []) ->
+            failwith "length mismatch in Util.foldOption2"
+
     let rec mapFoldOption (f: 'S -> 'T -> ('U * 'S) option) (state: 'S) (list: 'T list) : ('U list * 'S) option =
         match list with
         | [] -> Some ([], state)

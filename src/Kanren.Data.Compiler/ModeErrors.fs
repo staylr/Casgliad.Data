@@ -39,22 +39,22 @@ module ModeErrors =
     | WronglyInstantiated
 
     type ModeError =
-    | ModeErrorUnifyVarVar of LVar: VarId * RVar: VarId * LInst: Inst * RInst: Inst
-    | ModeErrorUnifyVarFunctor of LVar: VarId * Ctor: Constructor * Args: VarId list * VarInst: Inst * ArgInsts: Inst list
-    | ModeErrorUnifyVarLambda of LVar: VarId * Inst1: Inst * Inst2: Inst
+    | ModeErrorUnifyVarVar of LVar: VarId * RVar: VarId * LInst: InstE * RInst: InstE
+    | ModeErrorUnifyVarFunctor of LVar: VarId * Ctor: Constructor * Args: VarId list * VarInst: InstE * ArgInsts: InstE list
+    | ModeErrorUnifyVarLambda of LVar: VarId * Inst1: InstE * Inst2: InstE
     | ModeErrorHigherOrderUnify of LVar: VarId
-    | ModeErrorNotSufficientlyInstantiated of Var: VarId * VarInst: Inst * ExpectedInst: Inst
-    | ModeErrorNoMatchingMode of Args: VarId list * ArgInsts: Inst list * ExpectedArgInsts: Inst list list
+    | ModeErrorNotSufficientlyInstantiated of Var: VarId * VarInst: InstE * ExpectedInst: InstE
+    | ModeErrorNoMatchingMode of Args: VarId list * ArgInsts: InstE list * ExpectedArgInsts: InstE list list
     | ModeErrorUnschedulableConjuncts of DelayedGoal list
     | ModeErrorMergeDisjunction of MergeContext: MergeContext * MergeErrors: MergeError list
-    | ModeErrorBindLockedVar of Reason: VarLockReason * Var: VarId * InitialInst: Inst * FinalInst: Inst
-    | ModeErrorUnexpectedFinalInst of ArgNum: int * Var: VarId * ActualInst: Inst * ExpectedInst: Inst * Error: FinalInstError
+    | ModeErrorBindLockedVar of Reason: VarLockReason * Var: VarId * InitialInst: InstE * FinalInst: InstE
+    | ModeErrorUnexpectedFinalInst of ArgNum: int * Var: VarId * ActualInst: InstE * ExpectedInst: InstE * Error: FinalInstError
     and ModeErrorInfo = { Vars: SetOfVar; Error: ModeError; SourceInfo: SourceInfo; ModeContext: ModeContext }
     and DelayedGoal = { Vars: SetOfVar; ErrorInfo: ModeErrorInfo; Goal: Goal }
 
     type ModeWarning =
-    | CannotSucceedVarVar of LVar: VarId * RVar: VarId * LInst: Inst * RInst: Inst
-    | CannotSucceedVarFunctor of LVar: VarId * Inst: Inst * Ctor: Constructor
+    | CannotSucceedVarVar of LVar: VarId * RVar: VarId * LInst: InstE * RInst: InstE
+    | CannotSucceedVarFunctor of LVar: VarId * Inst: InstE * Ctor: Constructor
     | CannotSucceedGroundOccurCheck of LVar: VarId * Ctor: Constructor
 
     type ModeWarningInfo = { Warning: ModeWarning; SourceInfo: SourceInfo; ModeContext: ModeContext }
