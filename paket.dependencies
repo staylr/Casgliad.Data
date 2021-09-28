@@ -9,6 +9,7 @@ nuget NUnit
 nuget NUnit3TestAdapter
 nuget SQLProvider
 nuget Unquote
+nuget System.Collections.Immutable
 // [ FAKE GROUP ]
 group Build
     storage: none

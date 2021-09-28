@@ -76,8 +76,17 @@ module Modecheck =
     let haveErrors (modeInfo: ModeInfo) =
         ( modeInfo.Errors <> [], modeInfo )
 
+    let clearErrors (modeInfo: ModeInfo) =
+        ( (), { modeInfo with Errors = [] })
+
+    let getErrors (modeInfo: ModeInfo) =
+        ( modeInfo.Errors, modeInfo )
+
     let getInstMap (modeInfo: ModeInfo) =
         ( modeInfo.InstMap, modeInfo )
+
+    let getDelayInfo (modeInfo: ModeInfo) =
+        ( modeInfo.DelayInfo, modeInfo )
 
     let setInstMap instMap (modeInfo: ModeInfo) =
         ( (), { modeInfo with InstMap = instMap } )
@@ -87,11 +96,13 @@ module Modecheck =
 
     let cloneVar v (modeInfo: ModeInfo) =
         let var = modeInfo.VarSet.Vars.[v]
-        let (varSet, newVar) = modeInfo.VarSet.newNamedVar(var.Name, var.VarType)
-        ( newVar, { modeInfo with VarSet = varSet })
+        let (varset, newVar) = modeInfo.VarSet.newNamedVar(var.Name, var.VarType)
+        ( newVar, { modeInfo with VarSet = varset })
 
     let getInstTable (modeInfo: ModeInfo) =
         (modeInfo.InstTable, modeInfo)
+
+    let varIsLocked (modeInfo: ModeInfo) var = false
 
     let setVarInst (var: VarId) (newInst0: InstE) (maybeUnifiedInst: InstE option) modeInfo =
         if not (modeInfo.InstMap.isReachable()) then
@@ -114,12 +125,13 @@ module Modecheck =
                 // No added information or binding.
                 // TODO - can this actually happen? It can in Mercury when uniqueness is lost.
                 ((), { modeInfo with InstMap = modeInfo.InstMap.setVar var newInst })
-            elif (not (InstMatch.instMatchesBinding modeInfo.InstTable newInst oldInst (Some varDefn.VarType) InstMatch.AnyMatchesAny)) then
+            elif (not (InstMatch.instMatchesBinding modeInfo.InstTable newInst oldInst (Some varDefn.VarType) InstMatch.AnyMatchesAny)
+                  && varIsLocked modeInfo var ) then
                 // TODO
                 ((), modeInfo)
             else
-                do modeInfo.DelayInfo.bindVar(var)
-                ((), { modeInfo with InstMap = modeInfo.InstMap.setVar var newInst })
+                let delayInfo = modeInfo.DelayInfo.bindVar(var)
+                ((), { modeInfo with InstMap = modeInfo.InstMap.setVar var newInst; DelayInfo = delayInfo })
 
     let bindArgs inst argVars unifyArgInsts =
         state {
@@ -158,6 +170,18 @@ module Modecheck =
     let modeError waitingVars error (modeInfo: ModeInfo) =
         let errorInfo = { ModeErrorInfo.Vars = waitingVars; Error = error; SourceInfo = modeInfo.CurrentSourceInfo; ModeContext = modeInfo.ModeContext  }
         ((), { modeInfo with Errors = List.append (modeInfo.Errors) [errorInfo] })
+
+    let modeErrorWithInfo errorInfo (modeInfo: ModeInfo) =
+        ((), { modeInfo with Errors = List.append (modeInfo.Errors) [errorInfo] })
+
+    let delayConjunct firstError goal instMap0 (delayInfo0: DelayInfo) (modeInfo: ModeInfo) : unit * ModeInfo =
+        let delayInfo = delayInfo0.delayGoal firstError goal
+        ((), { modeInfo with InstMap = instMap0; DelayInfo = delayInfo; Errors = [] })
+
+
+    let wakeupGoals (modeInfo: ModeInfo) =
+        let (wokenGoals, delayInfo) = modeInfo.DelayInfo.wakeupGoals()
+        (wokenGoals, { modeInfo with DelayInfo = delayInfo })
 
     let getModeOfArgs (argInitialInsts: InstE list) (finalInst: BoundInstE) =
         let pairWithFinalInst argInitialInsts finalInst =
@@ -198,6 +222,9 @@ module Modecheck =
             | Unify (lhs, rhs, _, unifyContext) ->
                 // set context
                 return! modecheckUnify lhs rhs unifyContext goal.Info
+            | Conj(goals) ->
+                let! goals' = modecheckConjList goals
+                return Conj(goals')
         }
 
     and modecheckUnify lhs rhs context goalInfo =
@@ -338,23 +365,117 @@ module Modecheck =
                 let goalInfo = { goalInfo0 with NonLocals = nonLocals }
                 let goalList = List.append (List.ofSeq extraGoals.BeforeGoals)
                                    ({ Goal = goalExpr; Info = goalInfo } :: List.ofSeq extraGoals.AfterGoals)
-                let! revGoals = withNoDelayOrExtraGoals (modecheckConjListNoDelay goalList [])
-                return Conj (List.rev revGoals)
+                let goalArray = ResizeArray<Goal>()
+                let! _ = withNoDelayOrExtraGoals (modecheckConjListNoDelay goalList goalArray)
+                return Conj (List.ofSeq goalArray)
             else
                 return goalExpr
         }
 
-    and modecheckConjListNoDelay goals revGoals =
+    and modecheckConjListNoDelay goals goalArray =
         state {
             match goals with
             | [] ->
-                return revGoals
+                return ()
             | goal :: goals' ->
                 let! goal' = modecheckGoal goal
                 let! instMap = getInstMap
                 if (instMap.isReachable ()) then
-                    return! modecheckConjListNoDelay goals' (goal' :: revGoals)
+                    do goalArray.Add(goal')
+                    return! modecheckConjListNoDelay goals' goalArray
                 else
-                    return (goal :: revGoals)
+                    do goalArray.Add(goal)
+                    return ()
         }
 
+    and modecheckConjList (goals: Goal list) =
+        state {
+            let scheduledGoals = ResizeArray<Goal>()
+            let! (_, delayedGoals) = processConj (modecheckConjListFlattenAndSchedule goals scheduledGoals)
+
+            let scheduledDelayedGoals = ResizeArray<Goal>()
+            let! delayedGoals' = modecheckDelayedGoals delayedGoals scheduledDelayedGoals
+            do scheduledGoals.AddRange(scheduledDelayedGoals)
+            match delayedGoals' with
+            | [] ->
+                ()
+            | [delayedGoal] ->
+                do! modeErrorWithInfo delayedGoal.ErrorInfo
+            | _ :: _ ->
+                let error = ModeErrorUnschedulableConjuncts delayedGoals
+                let waitingVars = delayedGoals |> List.fold (fun vs g -> TagSet.union vs g.Vars) TagSet.empty
+                do! modeError waitingVars error
+
+            return Seq.append scheduledGoals scheduledDelayedGoals |> List.ofSeq
+        }
+
+    and modecheckConjListFlattenAndSchedule goals scheduledGoals : StateFunc<ModeInfo, unit> =
+        state {
+            match goals with
+            | [] ->
+                return ()
+            | goal :: goals' ->
+                match goal.Goal with
+                | Conj(subGoals) ->
+                    return! modecheckConjListFlattenAndSchedule
+                            (List.append subGoals goals') scheduledGoals
+                | _ ->
+                    let! instMap0 = getInstMap
+                    let! delayInfo0 = getDelayInfo
+
+                    let! goal' = modecheckGoal goal
+                    let! goalErrors = getErrors
+                    match goalErrors with
+                    | [] ->
+                        match goal'.Goal with
+                        | Conj(subGoals) ->
+                            do scheduledGoals.AddRange(subGoals)
+                        | _ ->
+                            do scheduledGoals.Add(goal')
+                    | firstError :: _ ->
+                        do! delayConjunct firstError goal instMap0 delayInfo0
+
+                    let! wokenGoals = wakeupGoals
+                    let goals'' = List.append wokenGoals goals'
+
+                    let! instMap = getInstMap
+                    if (instMap.isReachable()) then
+                        return! modecheckConjListFlattenAndSchedule goals'' scheduledGoals
+                    else
+                        // We should not mode-analyse the remaining goals, since they are
+                        // unreachable. Instead we optimize them away, so that later passes
+                        // won't complain about them not having mode information.
+                        return ()
+        }
+
+    and modecheckDelayedGoals delayedGoals (goals: ResizeArray<Goal>) =
+        state {
+            match delayedGoals with
+            | [] ->
+                return []
+            | _ :: _ ->
+                let goalsToProcess = delayedGoals |> List.map (fun dg -> dg.Goal)
+                let scheduledGoals = ResizeArray<Goal>()
+                let! (_, delayedGoals1) = processConj (modecheckConjListFlattenAndSchedule goalsToProcess scheduledGoals)
+                if (List.length delayedGoals1) < (List.length delayedGoals) then
+                    // We scheduled some goals. Keep going until we either
+                    // flounder or succeed.
+                    return! modecheckDelayedGoals delayedGoals1 goals
+                else
+                    return delayedGoals1
+        }
+
+    and processConj<'T> (f: StateFunc<ModeInfo, 'T>) (modeInfo: ModeInfo) : ('T * DelayedGoal list) * ModeInfo =
+        let errors0 = modeInfo.Errors
+        let modeInfo' = { modeInfo with Errors = []; DelayInfo = modeInfo.DelayInfo.enterConj() }
+        let (res, modeInfo'') = f modeInfo'
+        let (delayedGoals, delayInfo') = modeInfo''.DelayInfo.leaveConj()
+        ((res, delayedGoals), { modeInfo'' with Errors = List.append errors0 modeInfo''.Errors; DelayInfo = delayInfo' } )
+
+
+    let modecheckBodyGoal predId procId varset args argModes instTable (goal: Goal) =
+        let instMap = List.fold2 (fun (instMap': InstMap) arg (initialInst, _) -> instMap'.setVar arg initialInst) InstMap.initReachable args argModes
+
+        let modeInfo = ModeInfo.init predId procId ModeContext.ModeContextUninitialized goal.Info.SourceInfo varset instTable instMap true
+        let (goal', modeInfo') = State.run (modecheckGoal goal) modeInfo
+        (goal', modeInfo'.Errors, modeInfo'.InstMap, modeInfo'.VarSet)

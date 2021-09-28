@@ -1,7 +1,8 @@
 ﻿namespace Kanren.Data.Compiler
 
-open System.Collections.Generic
+open System.Collections.Immutable
 
+open System.Collections.Immutable
 open Kanren.Data.Compiler.ModeErrors
 
 module Delay =
@@ -20,135 +21,145 @@ module Delay =
     // at each depth maps the seq_num of each conjunct to the delayed_goal
     // construct of that goal.
     type private DelayConjInfo =
-        { DelayedGoals: ResizeArray<DelayedGoal option>
-          mutable NextSeqNum: SeqNum }
+        { DelayedGoals: ImmutableDictionary<SeqNum, DelayedGoal>
+          NextSeqNum: SeqNum }
 
-    type private WaitingGoals = Dictionary<DelayGoalNum, SetOfVar>
+    type private WaitingGoals = ImmutableDictionary<DelayGoalNum, SetOfVar>
 
-    type private WaitingGoalsTable = Dictionary<VarId, WaitingGoals>
+    type private WaitingGoalsTable = ImmutableDictionary<VarId, WaitingGoals>
 
-    type private PendingGoalsTable = Dictionary<DepthNum, ResizeArray<SeqNum>>
+    type private PendingGoalsTable = ImmutableDictionary<DepthNum, ImmutableList<SeqNum>>
 
     type DelayInfo =
         private
-            { mutable CurrentDepth: DepthNum
-              DelayedGoalStack: Stack<DelayConjInfo>
+            { CurrentDepth: DepthNum
+              DelayedGoalStack: ImmutableStack<DelayConjInfo>
               WaitingGoals: WaitingGoalsTable
               PendingGoals: PendingGoalsTable }
         static member init() =
             { CurrentDepth = 0<depthNumMeasure>
-              DelayedGoalStack = Stack<DelayConjInfo> ()
-              WaitingGoals = WaitingGoalsTable ()
-              PendingGoals = PendingGoalsTable () }
+              DelayedGoalStack = ImmutableStack.Create<DelayConjInfo> ()
+              WaitingGoals = WaitingGoalsTable.Empty
+              PendingGoals = PendingGoalsTable.Empty }
 
-        member this.enterConj() =
+        member this.enterConj () =
             let conjInfo =
-                { DelayedGoals = ResizeArray<DelayedGoal option> ()
+                { DelayedGoals = ImmutableDictionary.Empty
                   NextSeqNum = 0<seqNumMeasure> }
 
-            do this.DelayedGoalStack.Push (conjInfo)
-            this.CurrentDepth <- this.CurrentDepth + 1<depthNumMeasure>
+            { this with
+                DelayedGoalStack = this.DelayedGoalStack.Push (conjInfo)
+                CurrentDepth = this.CurrentDepth + 1<depthNumMeasure>
+            }
 
-        member this.leaveConj delayedGoalsList =
+        member this.leaveConj () =
             let currentDepth = this.CurrentDepth
-            let delayedGoals = this.DelayedGoalStack.Pop ()
+            let delayedGoals = this.DelayedGoalStack.Peek()
+            let delayedGoalStack = this.DelayedGoalStack.Pop()
 
             let flounderedGoals =
                 delayedGoals.DelayedGoals
-                |> Seq.filter Option.isSome
-                |> Seq.map Option.get
+                |> Seq.map (fun x -> x.Value)
                 |> List.ofSeq
 
             // When a conjunction flounders, we need to remove the delayed sub-goals
             // from the waiting goals table before we delay the conjunction as a whole.
-            delayedGoals.DelayedGoals
-            |> Seq.iteri
-                (fun i delayedGoal ->
-                    match (delayedGoal) with
-                    | Some (delayedGoal) ->
-                        let goalNum =
-                            { DepthNum = currentDepth
-                              SeqNum = i * 1<seqNumMeasure> }
 
-                        this.deleteWaitingVars goalNum delayedGoal.Vars
-                    | None -> ())
+            let this' =
+                delayedGoals.DelayedGoals
+                |> Seq.fold
+                    (fun (s: DelayInfo) delayedGoal ->
+                        let goalNum = { DepthNum = currentDepth; SeqNum = delayedGoal.Key }
+                        s.deleteWaitingVars goalNum delayedGoal.Value.Vars
+                    )
+                    this
 
-            do this.CurrentDepth <- this.CurrentDepth - 1<depthNumMeasure>
+            (flounderedGoals,
+                { this' with DelayedGoalStack = delayedGoalStack;
+                            CurrentDepth = currentDepth - 1<depthNumMeasure> })
 
-            flounderedGoals
+        member this.delayGoal (error: ModeErrorInfo) (goal: Goal) =
+            let delayConjInfo = this.DelayedGoalStack.Peek ()
+            let nextSeqNum = delayConjInfo.NextSeqNum
 
-        member this.delayGoal (error: ModeErrorInfo) (goal: DelayedGoal) =
-            let delayedGoals = this.DelayedGoalStack.Peek ()
-            delayedGoals.DelayedGoals.Add (Some goal)
+            let delayedGoal = { DelayedGoal.Goal = goal; Vars = error.Vars; ErrorInfo = error }
 
+            let delayedGoals' = delayConjInfo.DelayedGoals.Add (delayConjInfo.NextSeqNum, delayedGoal)
+            let delayConjInfo' = { delayConjInfo with NextSeqNum = delayConjInfo.NextSeqNum + 1<seqNumMeasure>;
+                                                        DelayedGoals = delayedGoals' }
+
+            let delayedGoalStack = this.DelayedGoalStack.Pop().Push(delayConjInfo')
             let goalNum =
                 { DepthNum = this.CurrentDepth
-                  SeqNum = delayedGoals.NextSeqNum }
+                  SeqNum = nextSeqNum }
 
-            do delayedGoals.NextSeqNum <- delayedGoals.NextSeqNum + 1<seqNumMeasure>
-
-            let addWaitingVar var =
+            let addWaitingVar (wg: WaitingGoalsTable) var =
                 let waitingGoals =
-                    match this.WaitingGoals.TryGetValue (var) with
+                    match wg.TryGetValue (var) with
                     | true, waitingGoals -> waitingGoals
-                    | _ ->
-                        let goals = WaitingGoals ()
-                        do this.WaitingGoals.[var] <- goals
-                        goals
+                    | _ -> WaitingGoals.Empty
 
-                waitingGoals.[goalNum] <- error.Vars
+                wg.SetItem(var, waitingGoals.SetItem(goalNum, error.Vars))
 
-            error.Vars |> TagSet.iter addWaitingVar
+            let waitingGoalsTable = error.Vars |> TagSet.fold addWaitingVar this.WaitingGoals
+
+            { this with
+                DelayedGoalStack = delayedGoalStack
+                WaitingGoals = waitingGoalsTable }
 
         member private this.addPendingGoal goalNum waitingVars =
-            this.deleteWaitingVars goalNum waitingVars
+            let this' = this.deleteWaitingVars goalNum waitingVars
 
-            let pendingSeqNums =
-                match this.PendingGoals.TryGetValue goalNum.DepthNum with
-                | true, pendingSeq -> pendingSeq
-                | _ ->
-                    let pendingSeq = ResizeArray<SeqNum> ()
-                    this.PendingGoals.[goalNum.DepthNum] <- pendingSeq
-                    pendingSeq
-
-            pendingSeqNums.Add (goalNum.SeqNum)
+            match this'.PendingGoals.TryGetValue goalNum.DepthNum with
+            | true, pendingSeq ->
+                { this' with PendingGoals = this'.PendingGoals.SetItem(goalNum.DepthNum, pendingSeq.Add(goalNum.SeqNum)) }
+            | _ ->
+                let pendingSeq = ImmutableList<SeqNum>.Empty.Add(goalNum.SeqNum)
+                { this' with PendingGoals = this'.PendingGoals.SetItem(goalNum.DepthNum, pendingSeq) }
 
         member this.bindAllVars() =
             this.WaitingGoals
-            |> Seq.iter (fun g -> this.bindVar g.Key)
+            |> Seq.fold (fun (s: DelayInfo) g -> s.bindVar g.Key) this
 
-        member this.bindVar var =
+        member this.bindVar var : DelayInfo =
             match this.WaitingGoals.TryGetValue (var) with
             | true, waitingGoals ->
                 waitingGoals
-                |> Seq.iter (fun g -> this.addPendingGoal g.Key g.Value)
-            | _ -> ()
+                |> Seq.fold (fun s g -> s.addPendingGoal g.Key g.Value) this
+            | _ ->
+                this
 
         // Remove all references to a goal from the waiting goals table.
-        member private this.deleteWaitingVars goalNum (vars: SetOfVar) =
+        member private this.deleteWaitingVars goalNum (vars: SetOfVar) : DelayInfo =
             vars
-            |> TagSet.iter
-                (fun var ->
-                    let waitingGoals = this.WaitingGoals.[var]
-                    waitingGoals.Remove (goalNum) |> ignore
+            |> TagSet.fold
+                (fun (di: DelayInfo) var ->
+                    let waitingGoals = di.WaitingGoals.[var]
+                    let waitingGoals' = waitingGoals.Remove (goalNum)
 
-                    if (waitingGoals.Count = 0) then
-                        this.WaitingGoals.Remove (var) |> ignore)
+                    if (waitingGoals'.Count = 0) then
+                        { di with WaitingGoals = di.WaitingGoals.Remove (var) }
+                    else
+                        { di with WaitingGoals = di.WaitingGoals.SetItem(var, waitingGoals') }
+                )
+                this
 
         member this.wakeupGoals() =
             match this.PendingGoals.TryGetValue this.CurrentDepth with
             | true, pendingGoals ->
                 let conjInfo = this.DelayedGoalStack.Peek ()
 
-                let goals =
+                let (goals, conjInfo'') =
                     pendingGoals
-                    |> Seq.map
-                        (fun s ->
-                            let goal = conjInfo.DelayedGoals.[int s]
-                            conjInfo.DelayedGoals.[int s] <- None
-                            goal.Value.Goal)
-                    |> List.ofSeq
+                    |> Seq.mapFold
+                        (fun conjInfo' pg->
+                            let goal = conjInfo.DelayedGoals.[pg]
+                            (goal.Goal, { conjInfo' with DelayedGoals = conjInfo'.DelayedGoals.Remove(pg) })
+                        )
+                        conjInfo
 
-                pendingGoals.Clear ()
-                goals
-            | _ -> []
+                let dgs = this.DelayedGoalStack.Pop().Push(conjInfo'')
+                (List.ofSeq goals,
+                    { this with PendingGoals = this.PendingGoals.SetItem(this.CurrentDepth, ImmutableList<SeqNum>.Empty) })
+            | _ ->
+                ([], this)

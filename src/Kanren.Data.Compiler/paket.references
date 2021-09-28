@@ -1,3 +1,4 @@
 FSharp.Core
 Microsoft.SourceLink.GitHub
 SQLProvider
+System.Collections.Immutable
