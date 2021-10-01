@@ -27,7 +27,7 @@ module ModeErrors =
 
     type RelationMultiModeError = { Relation: RelationInfo; Error: VarMultiModeError }
 
-    type MergeError = { Var: VarId; Insts: (SourceInfo * Inst) list}
+    type MergeError = { Var: VarId; Insts: (SourceInfo * InstE) list}
 
     type MergeContext =
     | MergeDisjunction

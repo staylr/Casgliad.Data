@@ -29,7 +29,7 @@ module Type =
             else
                 raise (System.ArgumentException($"record inst for non-record type ${concreteType.Name}"))
         | UnionCase (case) ->
-            if (concreteType.IsInstanceOfType(case.DeclaringType)) then
+            if (concreteType.IsAssignableTo(case.DeclaringType)) then
                 let concreteCase =
                     if (case.DeclaringType = concreteType) then
                             case

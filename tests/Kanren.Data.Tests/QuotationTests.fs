@@ -76,7 +76,6 @@ module QuotationTests =
             test <@ arg1 = 4L @>
         | _ -> raise(Exception($"invalid goal {goal.Goal}"))
 
-(*
     [<Test>]
     let matchCase () : unit =
         let expr = <@ fun (x, y) -> match x with
@@ -102,7 +101,7 @@ module QuotationTests =
             do checkDisjunct disjunct2
             do checkDisjunct disjunct3
         | _ -> raise(Exception($"unexpected goal {goal.Goal}"))
-*)
+
     [<Test>]
     let deconstructTuple () : unit =
         let expr = <@ fun (x, y) ->
