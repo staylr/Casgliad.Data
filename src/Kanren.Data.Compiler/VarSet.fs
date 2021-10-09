@@ -5,6 +5,9 @@ type varIdMeasure
 
 type VarId = int<varIdMeasure>
 
+
+type SetOfVar = TagSet<varIdMeasure>
+
 type ProgVar =
     { Id: VarId
       Name: string

@@ -31,6 +31,13 @@ module Error =
           Context = ErrorContext.Expr expr
           Severity = ErrorSeverity.Error }
 
+    let invalidCallee sourceInfo expr =
+        { Error.Location = Some sourceInfo
+          Text = "expected `this.<property>' in callee of kanren.call"
+          Context = ErrorContext.Expr expr
+          Severity = ErrorSeverity.Error }
+
+
     let unsupportedUnifyRhsError sourceInfo expr =
         { Error.Location = Some sourceInfo
           Text = "Unsupported unify RHS"
@@ -39,7 +46,7 @@ module Error =
 
     let invalidModeError sourceInfo mode =
         { Text = $"invalid mode {mode}"
-          Context = String "mode declarationattribute"
+          Context = String "mode declaration attribute"
           Location = Some sourceInfo
           Severity = ErrorSeverity.Error }
 

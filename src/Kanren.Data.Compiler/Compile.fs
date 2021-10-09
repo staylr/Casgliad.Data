@@ -6,7 +6,11 @@ open Kanren.Data
 
 module Compile =
 
-    let internal parseRelation (rel: RelationAttribute) (relation: RelationBase) (moduleInfo: ModuleInfo) =
+    let internal parseRelation
+                    (sourceModule: kanrenModule)
+                    (rel: RelationAttribute)
+                    (relation: RelationBase)
+                    (moduleInfo: ModuleInfo) =
         let varset = VarSet.init
 
         let varset' =
@@ -19,7 +23,7 @@ module Compile =
               StartCol = 0
               EndCol = 0 }
 
-        let parserInfo = ParserInfo.init varset' sourceInfo
+        let parserInfo = ParserInfo.init sourceModule varset' sourceInfo
 
         let ((args, goal: Goal), parserInfo'') =
             State.run (QuotationParser.translateExpr relation.Body) parserInfo
@@ -37,12 +41,12 @@ module Compile =
             match combineResults modeResult with
             | Ok _ ->
                 let relation =
-                    initRelation moduleInfo.InstTable rel relation args goal' parserInfo''.varset
+                    initRelation moduleInfo.InstTable sourceModule.moduleName rel relation args goal' parserInfo''.varset
 
                 (moduleInfo.addRelation (relation), parserInfo''.errors)
             | Error modeErrors -> (moduleInfo, List.concat (parserInfo''.errors :: modeErrors))
 
-    let compileRelationMethod (instance: obj) (moduleInfo, errors) (property: PropertyInfo) =
+    let compileRelationMethod (instance: kanrenModule) (moduleInfo, errors) (property: PropertyInfo) =
         let relationAttribute =
             property.GetCustomAttribute(typeof<RelationAttribute>) :?> RelationAttribute
 
@@ -52,7 +56,7 @@ module Compile =
         do System.Console.WriteLine($"{relation.Body}")
 
         let (moduleInfo', errors') =
-            parseRelation relationAttribute relation moduleInfo
+            parseRelation instance relationAttribute relation moduleInfo
 
         (moduleInfo', errors' :: errors)
 
@@ -60,7 +64,7 @@ module Compile =
         let moduleInfo = ModuleInfo.init
 
         let instance =
-            System.Activator.CreateInstance(moduleType)
+            System.Activator.CreateInstance(moduleType) :?> kanrenModule
 
         let bindingFlags =
             BindingFlags.Public

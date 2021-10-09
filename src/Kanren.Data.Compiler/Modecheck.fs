@@ -44,11 +44,13 @@ module Modecheck =
             | Unify (lhs, rhs, _, unifyContext) ->
                 // set context
                 return! modecheckUnify lhs rhs unifyContext goal.Info
-            | Conj(goals) ->
+            | Conj (goals) ->
                 let! goals' = modecheckConjList goals
-                return Conj(goals')
-            | Disj(goals) ->
+                return Conj (goals')
+            | Disj (goals) ->
                 return! modecheckDisjunction goals goal.Info
+            | Call (relationId, args) ->
+                return goal.Goal
         }
 
     and modecheckUnify lhs rhs context goalInfo =

@@ -8,18 +8,75 @@ open Kanren.Data.Compiler
 open NUnit.Framework
 
 module QuotationTests =
+    type Union =
+    | Case1 of x: int * y: int
+    | Case2 of a: int * b: int
+    | Case3 of c: int * d: int
+
+    type kanrenTest() =
+        interface kanrenModule with
+            member this.moduleName = "kanrenTest"
+
+        [<Relation>]
+        member this.rel2 =
+            Relation ("rel3", [ mode [ Out; Out ] Determinism.Nondet ], (fun (x, y) -> x = 4 && y = 2))
+
+        [<Relation>]
+        member this.rel3 =
+            Relation ("rel3", [ mode [ In; Out ] Determinism.Nondet ], (fun (x, y) -> x = 4 && y = 2))
+
+        [<Relation>]
+        member this.rel =
+            Relation (
+                "rel",
+                [ mode [ Out; Out; Out; Out ] Determinism.Nondet ],
+                //fun((a, ( e, ({ Modes = m; Determinism = d }: RelationMode)), c), x, y, z, u) ->
+                fun (x, y, z, u) ->
+                    x = 1
+                    && y = 2
+                    && z = y + 3
+                    && z < 10
+                    && kanren.call (this.rel2, (x, _i ()))
+                    && (match u with
+                        | Case1 (_, _) -> true
+                        | Case2 (_, _) -> false
+                        | Case3 (_) -> false)
+            )
+
+
+        [<Relation>]
+        member this.rel4 =
+            Relation (
+                "rel",
+                [ mode [ Out; Out; Out; Out; Out ] Determinism.Nondet ],
+                fun ((a, (e, ({ Modes = m; Determinism = d }: RelationMode)), c), x, y, z, u) ->
+                    x = 1
+                    && y = 2
+                    && z = 4
+                    && kanren.call (this.rel2, (x, z))
+            )
+//[<AbstractClass>]
+//type 'A tree() =
+//    abstract member p : Expr<('A * 'A) -> bool>
+
+//    member this.anc = <@ fun (x: 'A, y: 'A) ->
+//                        call this.p (x, y)
+//                        || exists(fun z -> call this.p (x, z) && call this.anc (z, y)) @>
+
+//type concrete() =
+//    inherit tree<int>()
+
+//    override this.p = <@ fun(x, y) -> x = y @>
+
+
+
     let newParserInfo (expr: Expr) =
         let varset = QuotationParser.getVars VarSet.init expr
         let testSourceInfo =
                 match (QuotationParser.getSourceInfo expr) with
                 | Some sourceInfo -> sourceInfo
                 | None -> { SourceInfo.File = "..."; StartLine = 0; EndLine= 0; StartCol = 0; EndCol = 0 }
-        ParserInfo.init varset testSourceInfo
-
-    type Union =
-    | Case1 of x: int * y: int
-    | Case2 of a: int * b: int
-    | Case3 of c: int * d: int
+        ParserInfo.init (kanrenTest()) varset testSourceInfo
 
     [<ReflectedDefinitionAttribute>]
     let testVarName info var varName = info.varset.[var].Name = varName
@@ -206,4 +263,8 @@ module QuotationTests =
             test <@ arg4 = 7L @>
         | _ -> raise(Exception($"unexpected goal {goal.Goal}"))
 
-
+    [<Test>]
+    let callRelation () : unit =
+        let testModule = kanrenTest()
+        let ((args, goal), info) = compileExpr testModule.rel4.Body None
+        test <@ info.errors = [] @>

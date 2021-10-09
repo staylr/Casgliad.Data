@@ -98,8 +98,6 @@ module Goal =
 
     open GoalWriter
 
-    type SetOfVar = TagSet<varIdMeasure>
-
     let emptySetOfVar = TagSet.empty<varIdMeasure>
 
     type InstMap =
@@ -159,6 +157,18 @@ module Goal =
 
     type InstMapDelta = InstMap
 
+    type RelationId = { ModuleName: string; RelationName: string }
+
+    [<Measure>]
+    type procIdMeasure
+
+    // The ID of a specific mode for a relation.
+    type ProcId = int<procIdMeasure>
+
+    let invalidProcId = -1<procIdMeasure>
+
+    type RelationProcId = RelationId * ProcId
+
     type GoalInfo =
         { NonLocals: SetOfVar
           InstMapDelta: InstMapDelta
@@ -204,7 +214,7 @@ module Goal =
 
     type GoalExpr =
         | Unify of lhs: VarId * rhs: UnifyRhs * mode: UnifyMode * context: UnifyContext
-        | Call of func: System.Reflection.PropertyInfo * args: (VarId list)
+        | Call of relationId: RelationProcId * args: (VarId list)
         | FSharpCall of func: System.Reflection.MethodInfo * returnValue: VarId * args: (VarId list)
         | Conj of Goal list
         | Disj of Goal list
@@ -218,8 +228,8 @@ module Goal =
                     yield lhs
                     yield " = "
                     yield! rhs.Dump ()
-                | Call (property, args) ->
-                    yield property.Name
+                | Call (callee, args) ->
+                    yield callee.ToString()
                     yield args
                 | FSharpCall (method, returnValue, args) ->
                     yield returnValue

@@ -5,11 +5,6 @@ open Kanren.Data
 [<AutoOpen>]
 module ModuleInfoModule =
 
-    [<Measure>]
-    type procIdMeasure
-
-    type ProcId = int<procIdMeasure>
-
     type ProcInfo =
         { ProcId: ProcId
           SourceInfo: SourceInfo
@@ -55,12 +50,13 @@ module ModuleInfoModule =
         | Error _ -> raise (System.Exception("invalid modes"))
 
     type RelationInfo =
-        { Name: string
+        { Name: RelationId
           SourceInfo: SourceInfo
           Procedures: Map<ProcId, ProcInfo> }
 
     let initRelation
         (instTable: InstTable)
+        (moduleName: string)
         (relAttr: RelationAttribute)
         (relation: RelationBase)
         (args: VarId list)
@@ -75,11 +71,9 @@ module ModuleInfoModule =
         let procMap =
             List.fold (fun map (proc: ProcInfo) -> Map.add proc.ProcId proc map) Map.empty procs
 
-        { Name = relation.Name
+        { Name = { ModuleName = moduleName; RelationName = relation.Name }
           SourceInfo = sourceInfo
           Procedures = procMap }
-
-    type RelationId = string
 
     type ModuleInfo =
         { Relations: Map<RelationId, RelationInfo>

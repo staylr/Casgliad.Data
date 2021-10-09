@@ -5,6 +5,15 @@ open Kanren.Data.Compiler.Delay
 open Kanren.Data.Compiler.State
 
 module ModeInfo =
+
+    type RelationModeInfo =
+        { ProcId: ProcId
+          Modes: RelationModeE
+          // TODO statistics
+        }
+
+    //type LookupRelationModes =
+
     type ModeInfo =
         { PredId: string
           ProcId: int
@@ -15,8 +24,6 @@ module ModeInfo =
           InstMap: InstMap
           DelayInfo: DelayInfo
 
-          Errors: ModeErrorInfo list
-
           ModeContext: ModeContext
 
           CurrentSourceInfo: SourceInfo
@@ -25,14 +32,16 @@ module ModeInfo =
           // in a negated context.
           LockedVars: SetOfVar
 
-          // Warnings found.
+          Errors: ModeErrorInfo list
+
           Warnings: ModeWarningInfo list
 
           // If rechecking a goal, can calls be made to use a different procedure.
           MayChangeCalledProc: bool
 
           // Are we checking extra unifications inserted for implied modes.
-          // In that case we shouldn't add more such unifications.
+          // In that case we shouldn't add more such unifications to avoid
+          // infinite recursion.
           CheckingExtraGoals: bool
 
           // Do we need to rerun quantification.

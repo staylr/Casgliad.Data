@@ -7,7 +7,8 @@ open FSharp.Quotations
 open FSharp.Collections
 
 type ParserInfo =
-    { varset: VarSet
+    { sourceModule: kanrenModule
+      varset: VarSet
       errors: Error list
       sourceInfo: SourceInfo }
     member x.newVar(varType) =
@@ -20,8 +21,9 @@ type ParserInfo =
 
     member x.newError(error) = { x with errors = error :: x.errors }
 
-    static member init varset sourceInfo =
-        { varset = varset
+    static member init sourceModule varset sourceInfo =
+        { sourceModule = sourceModule
+          varset = varset
           errors = []
           sourceInfo = sourceInfo }
 
@@ -54,6 +56,8 @@ module QuotationParser =
          | None -> parserInfo)
 
     let currentSourceInfo (parserInfo: ParserInfo) = (parserInfo.sourceInfo, parserInfo)
+
+    let getSourceModule (parserInfo: ParserInfo) = (parserInfo.sourceModule, parserInfo)
 
     let newVar varType (parserInfo: ParserInfo) =
         let (parserInfo', var) = parserInfo.newVar (varType)
@@ -260,17 +264,43 @@ module QuotationParser =
             return (List.rev argVars, extraGoals)
         }
 
-    let translateCall (callee: System.Reflection.PropertyInfo) args =
+    let translateCall (calleeModule: Expr) (callee: System.Reflection.PropertyInfo) args =
+        let rec extractCalleeModule
+                    (sourceModule: kanrenModule)
+                    (calleeModuleExpr: Expr)
+                    (callee: System.Reflection.PropertyInfo)
+                    : (kanrenModule * obj) option =
+            match calleeModuleExpr with
+            | Patterns.ValueWithName (_, _, "this") ->
+                Some (sourceModule, callee.GetValue(sourceModule))
+            | Patterns.PropertyGet (Some calleeSubExpr, property, []) ->
+                extractCalleeModule sourceModule calleeSubExpr property
+                |> Option.map (fun (_, innerModule) -> (innerModule :?> kanrenModule, callee.GetValue(innerModule)))
+            | _ ->
+                None
+
         parse {
             let! sourceInfo = currentSourceInfo
+            let! sourceModule = getSourceModule
 
             let! (argVars, extraGoals) =
                 translateCallArgs false args (fun index -> initUnifyContext (CallArgUnify(callee.Name, index)))
 
-            let call =
-                initGoal sourceInfo (Goal.Call(callee, argVars))
+            let maybeCalledRelation = extractCalleeModule sourceModule calleeModule callee
 
-            return listToGoal (List.rev (call :: extraGoals))
+            match maybeCalledRelation with
+            | Some (calledModule, calledRelationObj) ->
+                try
+                    let calledRelation = calledRelationObj :?> RelationBase
+                    let calledRelationId = { ModuleName = calledModule.moduleName; RelationName = calledRelation.Name }
+                    let call = initGoal sourceInfo (Goal.Call((calledRelationId, invalidProcId), argVars))
+                    return listToGoal (List.rev (call :: extraGoals))
+                with _ ->
+                    do! newError (Error.invalidCallee sourceInfo calleeModule)
+                    return Disj([])
+            | None ->
+                do! newError (Error.invalidCallee sourceInfo calleeModule)
+                return Disj([])
         }
 
     let rec translateUnify lhs rhs unifyType unifyContext =
@@ -499,8 +529,8 @@ module QuotationParser =
             | DerivedPatterns.SpecificCall (<@@ kanren.call @@>)
                                            (_,
                                             _,
-                                            [ Patterns.PropertyGet (_, callee, []); Patterns.NewTuple (args); _; _ ]) ->
-                return! translateCall callee args
+                                            [ Patterns.PropertyGet (Some calleeObj, callee, []); Patterns.NewTuple (args); _; _ ]) ->
+                return! translateCall calleeObj callee args
             | DerivedPatterns.SpecificCall (<@@ (=) @@>) (_, [ unifyType ], [ lhs; rhs ]) ->
                 return! translateUnify lhs rhs unifyType (initUnifyContext ExplicitUnify)
             | Patterns.Call (None, callee, args) ->

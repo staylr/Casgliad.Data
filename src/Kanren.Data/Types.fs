@@ -123,6 +123,10 @@ type Aggregate<'Query, 'Input, 'Res> =
     { Func: AggregateFunc
       Select: ('Query -> 'Input) }
 
+type kanrenModule = interface
+    abstract member moduleName : string
+    end
+
 type kanren() =
     static member exists
         (
