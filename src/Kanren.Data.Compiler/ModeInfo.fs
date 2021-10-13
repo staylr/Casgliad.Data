@@ -12,7 +12,16 @@ module ModeInfo =
           // TODO statistics
         }
 
-    //type LookupRelationModes =
+    type LookupRelationModes = RelationId -> RelationModeInfo list
+
+    type FunctionModeInfo =
+        {
+            Method: System.Reflection.MethodInfo
+            ProcId: ProcId
+            Modes: RelationModeE
+            ResultMode: ModeE
+        }
+    type LookupFSharpFunctionModes = System.Reflection.MethodInfo -> FunctionModeInfo list
 
     type ModeInfo =
         { PredId: string
@@ -23,6 +32,9 @@ module ModeInfo =
 
           InstMap: InstMap
           DelayInfo: DelayInfo
+
+          LookupRelationModes: LookupRelationModes
+          LookupFSharpFunctionModes: LookupFSharpFunctionModes
 
           ModeContext: ModeContext
 
@@ -48,7 +60,8 @@ module ModeInfo =
           NeedToRequantify: bool
         }
         with
-        static member init predId procId modeContext currentSourceInfo varset instTable instmap mayChangeProc =
+        static member init predId procId modeContext currentSourceInfo varset instTable instmap mayChangeProc
+                                lookupRelationModes lookupFunctionModes =
                             { PredId = predId
                               ProcId = procId
                               InstMap = instmap
@@ -63,6 +76,8 @@ module ModeInfo =
                               MayChangeCalledProc = mayChangeProc
                               CheckingExtraGoals = false
                               NeedToRequantify = false
+                              LookupFSharpFunctionModes = lookupFunctionModes
+                              LookupRelationModes = lookupRelationModes
                             }
 
     type ModeStateFunc<'T> = StateFunc<ModeInfo, 'T>

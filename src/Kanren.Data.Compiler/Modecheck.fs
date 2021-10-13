@@ -50,7 +50,14 @@ module Modecheck =
             | Disj (goals) ->
                 return! modecheckDisjunction goals goal.Info
             | Call (relationId, args) ->
+                return! modecheckCall relationId args goal.Info
+            | FSharpCall (callee, retVal, args) ->
                 return goal.Goal
+        }
+
+    and modecheckCall callee args goalInfo =
+        state {
+            return Call (callee, args)
         }
 
     and modecheckUnify lhs rhs context goalInfo =
@@ -320,11 +327,12 @@ module Modecheck =
                 return (goal' :: goals'', (goal'.Info.SourceInfo, armInstMap) :: armInstMaps)
         }
 
-    let modecheckBodyGoal predId procId varset args argModes instTable (goal: Goal) =
+    let modecheckBodyGoal predId procId varset args argModes instTable lookupRelationModes lookupFunctionModes (goal: Goal) =
         let instMap = List.fold2 (fun (instMap': InstMap) arg (initialInst, _) -> instMap'.setVar arg initialInst)
                             InstMap.initReachable args argModes
 
         let modeInfo = ModeInfo.init predId procId ModeContext.ModeContextUninitialized
                             goal.Info.SourceInfo varset instTable instMap true
+                            lookupRelationModes lookupFunctionModes
         let (goal', modeInfo') = State.run (modecheckGoal goal) modeInfo
         (goal', modeInfo'.Errors, modeInfo'.InstMap, modeInfo'.VarSet)

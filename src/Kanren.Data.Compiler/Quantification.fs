@@ -44,7 +44,7 @@ module Quantification =
         match goal with
         | Unify (lhs, rhs, _, _) -> unifyRhsVarsBoth rhs (TagSet.add lhs set) lambdaSet
         | Call (_, args) -> (TagSet.union set (TagSet.ofList args), lambdaSet)
-        | FSharpCall (_, ret, args) -> (TagSet.union set (TagSet.ofList (ret :: args)), lambdaSet)
+        | FSharpCall (_, ret, args) -> (TagSet.union set (TagSet.ofList (consOption ret args)), lambdaSet)
         | Conj (goals)
         | Disj (goals) -> goalListVarsBoth goals set lambdaSet
         | Not (goal) -> goalExprVarsBoth goal.Goal set lambdaSet
@@ -122,7 +122,7 @@ module Quantification =
             match goalExpr with
             | Unify (lhs, rhs, mode, context) -> return! quantifyUnify lhs rhs mode context goalInfo
             | Call (_, args) -> return! quantifyPrimitiveGoal goalExpr args
-            | FSharpCall (_, returnArg, args) -> return! quantifyPrimitiveGoal goalExpr (returnArg :: args)
+            | FSharpCall (_, returnArg, args) -> return! quantifyPrimitiveGoal goalExpr (consOption returnArg args)
             | Conj (goals) -> return! quantifyConj goals
             | Disj (goals) -> return! quantifyDisj goals
             | Not (negGoal) -> return! quantifyNegation negGoal

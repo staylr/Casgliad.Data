@@ -169,6 +169,8 @@ module Goal =
 
     type RelationProcId = RelationId * ProcId
 
+    type FSharpProcId = System.Reflection.MethodInfo * ProcId
+
     type GoalInfo =
         { NonLocals: SetOfVar
           InstMapDelta: InstMapDelta
@@ -214,8 +216,18 @@ module Goal =
 
     type GoalExpr =
         | Unify of lhs: VarId * rhs: UnifyRhs * mode: UnifyMode * context: UnifyContext
+
+        // A call to a Kanren relation.
         | Call of relationId: RelationProcId * args: (VarId list)
-        | FSharpCall of func: System.Reflection.MethodInfo * returnValue: VarId * args: (VarId list)
+
+        // A call to a F# function.
+        | FSharpCall of
+            // The called function.
+            func: FSharpProcId *
+            // The return value. This will be `None' if the call is used as a goal e.g. x < y
+            returnValue: VarId option *
+            // Function arguments.
+            args: (VarId list)
         | Conj of Goal list
         | Disj of Goal list
         | Switch of var: VarId * canFail: bool * cases: Case list
@@ -232,9 +244,9 @@ module Goal =
                     yield callee.ToString()
                     yield args
                 | FSharpCall (method, returnValue, args) ->
-                    yield returnValue
+                    yield returnValue.ToString()
                     yield " = F#"
-                    yield method.Name
+                    yield (fst method).Name
                     yield args
                 | Conj (goals) -> yield! indent (listToString goals (fun goal -> goal.Dump ()) ",\n")
                 | Disj (goals) ->
@@ -294,7 +306,7 @@ module Goal =
         match goal with
         | Unify (lhs, rhs, _, _) -> unifyRhsVars rhs (TagSet.add lhs vars)
         | Call (_, args) -> List.fold (flip TagSet.add) vars args
-        | FSharpCall (_, ret, args) -> List.fold (flip TagSet.add) vars (ret :: args)
+        | FSharpCall (_, ret, args) -> List.fold (flip TagSet.add) vars (consOption ret args)
         | Conj (goals)
         | Disj (goals) -> List.fold (flip goalVars) vars goals
         | Switch (var, _, cases) ->

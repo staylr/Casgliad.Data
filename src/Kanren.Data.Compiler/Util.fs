@@ -93,6 +93,9 @@ module Util =
                 mapFoldOption f state' xs |> Option.map (fun res -> (x' :: fst res, snd res))
 
 
+    let consOption (o: 'T option) (l: 'T list) : 'T list =
+        Option.fold (fun l' o' -> o' :: l') l o
+
     let rec forall3 (f: 'T -> 'U -> 'V -> bool) (ts: 'T list) (us: 'U list) (vs: 'V list) : bool =
         match (ts, us, vs) with
         | ([], [], []) ->
@@ -102,3 +105,32 @@ module Util =
             && forall3 f ts' us' vs'
         | _ ->
             false
+
+
+    let rec mapWithState f list =
+        Kanren.Data.Compiler.State.StateBuilder() {
+            match list with
+            | [] -> return []
+            | x :: xs ->
+                let! x' = f x
+                let! xs' = mapWithState f xs
+                return x' :: xs'
+        }
+
+    let rec foldWithState f list =
+        Kanren.Data.Compiler.State.StateBuilder()  {
+            match list with
+            | [] -> return ()
+            | x :: xs ->
+                let! _ = f x
+                return! foldWithState f xs
+        }
+
+    let rec foldWithState2 f state list =
+        Kanren.Data.Compiler.State.StateBuilder() {
+            match list with
+            | [] -> return state
+            | x :: xs ->
+                let! state' = f x state
+                return! foldWithState2 f state' xs
+        }

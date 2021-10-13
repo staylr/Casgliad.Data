@@ -53,6 +53,7 @@ module QuotationTests =
                     x = 1
                     && y = 2
                     && z = 4
+                    && a < e
                     && kanren.call (this.rel2, (x, z))
             )
 //[<AbstractClass>]
@@ -88,7 +89,9 @@ module QuotationTests =
             match maybeArgModes with
             | Some argModes -> argModes
             | None -> args |> List.map (fun _ -> (InstE.Free, BoundInstE.Ground))
-        let (goal'', errors, _, varset') = Modecheck.modecheckBodyGoal "pred" 0 varset args argModes (InstTable()) goal'
+        let lookupRelationModes = fun _ -> failwith "lookup modes"
+        let (goal'', errors, _, varset') = Modecheck.modecheckBodyGoal "pred" 0 varset args argModes (InstTable())
+                                                            lookupRelationModes Builtins.lookupFSharpFunctionModes goal'
         ((args, goal''), { info with varset = varset' })
 
     [<Test>]
