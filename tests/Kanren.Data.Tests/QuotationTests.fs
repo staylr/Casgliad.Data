@@ -266,8 +266,10 @@ module QuotationTests =
             test <@ arg4 = 7L @>
         | _ -> raise(Exception($"unexpected goal {goal.Goal}"))
 
+    (*
     [<Test>]
     let callRelation () : unit =
         let testModule = kanrenTest()
         let ((args, goal), info) = compileExpr testModule.rel4.Body None
         test <@ info.errors = [] @>
+    *)

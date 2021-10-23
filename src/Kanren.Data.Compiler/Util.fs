@@ -117,13 +117,13 @@ module Util =
                 return x' :: xs'
         }
 
-    let rec foldWithState f list =
+    let rec iterWithState f list =
         Kanren.Data.Compiler.State.StateBuilder()  {
             match list with
             | [] -> return ()
             | x :: xs ->
                 let! _ = f x
-                return! foldWithState f xs
+                return! iterWithState f xs
         }
 
     let rec foldWithState2 f state list =
@@ -133,4 +133,15 @@ module Util =
             | x :: xs ->
                 let! state' = f x state
                 return! foldWithState2 f state' xs
+        }
+
+    let rec iterWithState2 f list1 list2 =
+        Kanren.Data.Compiler.State.StateBuilder() {
+            match (list1, list2) with
+            | ([], []) -> return ()
+            | (x :: xs, y :: ys) ->
+                do!  f x y
+                return! iterWithState2 f xs ys
+            | _ ->
+                failwith "iterWithState2: mismatching lengths"
         }

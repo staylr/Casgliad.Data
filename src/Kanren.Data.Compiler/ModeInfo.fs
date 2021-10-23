@@ -90,9 +90,26 @@ module ModeInfo =
 
         member x.isEmpty () = x.BeforeGoals.Count = 0 && x.AfterGoals.Count = 0
 
+    let unifyContextOfModeContext modeContext =
+        match modeContext with
+        | ModeContextUnify (uc) -> uc
+        | ModeContextCall (name, index) ->
+            { MainContext = UnifyMainContext.CallArgUnify (name, index)
+              SubContext = []  }
+        | ModeContextHigherOrderCall (index) ->
+            { MainContext = UnifyMainContext.CallArgUnify ("call", index)
+              SubContext = [] }
+        | ModeContextUninitialized ->
+            invalidOp "uninitialized context"
+
+    let getContext (modeInfo: ModeInfo) =
+        ( modeInfo.CurrentSourceInfo, modeInfo )
+
     let setContext (goal: Goal) (modeInfo: ModeInfo) =
         ( (), { modeInfo with CurrentSourceInfo = goal.Info.SourceInfo } )
 
+    let getModeContext (modeInfo: ModeInfo) =
+        ( modeInfo.ModeContext, modeInfo )
 
     let haveErrors (modeInfo: ModeInfo) =
         ( modeInfo.Errors <> [], modeInfo )
@@ -108,6 +125,28 @@ module ModeInfo =
 
     let getDelayInfo (modeInfo: ModeInfo) =
         ( modeInfo.DelayInfo, modeInfo )
+
+    let getMayChangeCalledProc (modeInfo: ModeInfo) =
+         ( modeInfo.MayChangeCalledProc, modeInfo )
+
+    let getCalledRelationModeInfo (relationProcId: RelationProcId) (modeInfo: ModeInfo) =
+        let modes = modeInfo.LookupRelationModes (fst relationProcId)
+        let modes' =
+            if (modeInfo.MayChangeCalledProc) then
+                modes
+            else
+                List.filter (fun m -> m.ProcId = snd relationProcId) modes
+
+        if (modes' = []) then
+            failwith $"No modes for relation {relationProcId}"
+        ( modes', modeInfo )
+
+    let getCalledFunctionModeInfo (methodInfo: System.Reflection.MethodInfo) (modeInfo: ModeInfo) =
+        let modes = modeInfo.LookupFSharpFunctionModes methodInfo
+        if (modes = []) then
+            failwith $"No modes for {methodInfo.DeclaringType.Name}.${methodInfo.Name}"
+
+        ( modes, modeInfo )
 
     let setInstMap instMap (modeInfo: ModeInfo) =
         ( (), { modeInfo with InstMap = instMap } )
@@ -131,6 +170,20 @@ module ModeInfo =
 
     let modeErrorWithInfo errorInfo (modeInfo: ModeInfo) =
         ((), { modeInfo with Errors = List.append (modeInfo.Errors) [errorInfo] })
+
+    let varHasInstNoExactMatch var inst (modeInfo: ModeInfo) =
+        let varInst = modeInfo.InstMap.lookupVar var
+        let varDefn = modeInfo.VarSet.Vars.[var]
+        if (not (InstMatch.instMatchesInitial (modeInfo.InstTable) varInst inst (Some (varDefn.VarType)))) then
+            // TODO multi-mode error map
+            modeError (TagSet.ofList [var])
+                (ModeError.ModeErrorNotSufficientlyInstantiated (var, varInst, inst))
+                modeInfo
+        else
+            ((), modeInfo)
+
+    let varHasInstListNoExactMatch vars insts (modeInfo:ModeInfo) =
+        Util.iterWithState2 varHasInstNoExactMatch vars insts modeInfo
 
     let setVarInst (var: VarId) (newInst0: InstE) (maybeUnifiedInst: InstE option) modeInfo =
         if not (modeInfo.InstMap.isReachable()) then

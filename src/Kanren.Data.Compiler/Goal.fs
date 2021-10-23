@@ -158,6 +158,8 @@ module Goal =
     type InstMapDelta = InstMap
 
     type RelationId = { ModuleName: string; RelationName: string }
+        with
+        override this.ToString() = $"{this.ModuleName}.{this.RelationName}"
 
     [<Measure>]
     type procIdMeasure

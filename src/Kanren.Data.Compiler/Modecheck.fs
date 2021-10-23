@@ -22,9 +22,9 @@ module Modecheck =
             | [singleFunctor] ->
                 List.map2 (fun i1 i2 -> (i1, i2)) argInitialInsts singleFunctor.ArgInsts
             | _ ->
-                failwith "expected single functor in getModeOfArgs"
+                invalidOp "expected single functor in getModeOfArgs"
         | _ ->
-            failwith $"unexpected inst in getModeOfArgs {finalInst}"
+            invalidOp $"unexpected inst in getModeOfArgs {finalInst}"
 
     let processConj<'T> (f: StateFunc<ModeInfo, 'T>) (modeInfo: ModeInfo) : ('T * DelayedGoal list) * ModeInfo =
         let errors0 = modeInfo.Errors
@@ -32,6 +32,68 @@ module Modecheck =
         let (res, modeInfo'') = f modeInfo'
         let (delayedGoals, delayInfo') = modeInfo''.DelayInfo.leaveConj()
         ((res, delayedGoals), { modeInfo'' with Errors = List.append errors0 modeInfo''.Errors; DelayInfo = delayInfo' } )
+
+    let createVarVarUnify (arg: VarId) (var: VarId) modeContext (sourceInfo: SourceInfo) : Goal =
+        let unifyGoalInfo =
+            { GoalInfo.init sourceInfo with
+                NonLocals = seq { arg; var } |> TagSet.ofSeq
+            }
+        let unifyMode = ((Bound NotReached, NotReached), (Bound NotReached, NotReached))
+        let unifyContext = unifyContextOfModeContext modeContext
+        { Goal = Unify (arg, Var (var, VarVarUnifyType.Test), unifyMode, unifyContext)
+          Info = unifyGoalInfo }
+
+    let handleImpliedMode var (varInst0: InstE) (initialInst0: InstE) (extraGoals: ExtraGoals) =
+        state {
+            let! instTable = getInstTable
+            let varInst = instTable.expand(varInst0)
+            let initialInst = instTable.expand(initialInst0)
+            let! varDefn = lookupVar var
+
+            // If the initial inst of the variable matches_final the initial inst
+            // specified in the pred's mode declaration, then it is not a call
+            // to an implied mode, it is an exact match with a genuine mode.
+            if (InstMatch.instMatchesFinal instTable varInst initialInst (Some varDefn.VarType)) then
+                return var
+            elif (initialInst = Bound Any && varInst = Free) then
+                invalidOp "Any implied insts not yet implemented"
+                return var
+            else
+                let! var' = cloneVar var
+                let! modeContext = getModeContext
+                let! sourceInfo = getContext
+                let unifyGoal = createVarVarUnify var'.Id var modeContext sourceInfo
+                extraGoals.AfterGoals.Add(unifyGoal)
+                return var'.Id
+        }
+
+    let setVarInstCall var initialInst finalInst (extraGoals: ExtraGoals) =
+        state {
+            let! instMap = getInstMap
+            if (instMap.isReachable()) then
+                let varInst = instMap.lookupVar var
+                let! var' = handleImpliedMode var varInst initialInst extraGoals
+                do! setVarInst var (Bound finalInst) None
+                if (var <> var') then
+                    do! setVarInst var' (Bound finalInst) None
+
+                return var'
+            else
+                return var
+        }
+
+    let rec setVarInstListCall vars initialInsts finalInsts (extraGoals: ExtraGoals) =
+        state {
+            match (vars, initialInsts, finalInsts) with
+            | ([], [], []) ->
+                return []
+            | (var :: vars', initialInst :: initialInsts', finalInst :: finalInsts') ->
+                let! var' = setVarInstCall var initialInst finalInst extraGoals
+                let! vars'' = setVarInstListCall vars' initialInsts' finalInsts' extraGoals
+                return var' :: vars''
+            | _ ->
+                return invalidOp "setVarInstListCall"
+        }
 
     let rec modecheckGoal goal =
         state {
@@ -57,7 +119,28 @@ module Modecheck =
 
     and modecheckCall callee args goalInfo =
         state {
-            return Call (callee, args)
+            let! mayChangeProc = getMayChangeCalledProc
+            let! modes = getCalledRelationModeInfo callee
+            let! instMap0 = getInstMap
+
+            match modes with
+            | [] ->
+                return invalidOp "unexpected - no modes in modecheckCall"
+            | [singleMode] ->
+                let initialInsts = (List.map fst singleMode.Modes.Modes)
+                let finalInsts = (List.map snd singleMode.Modes.Modes)
+                do! varHasInstListNoExactMatch args initialInsts
+                let extraGoals = ExtraGoals.init()
+                let! args' = setVarInstListCall args initialInsts finalInsts extraGoals
+                let (maxSoln, _) = determinismComponents singleMode.Modes.Determinism
+                if (maxSoln = Kanren.Data.NumSolutions.NoSolutions) then
+                    do! setInstMap (InstMap.initUnreachable)
+
+                let call = Call ((fst callee, singleMode.ProcId), args')
+                let! goal = handleExtraGoals args args' goalInfo call instMap0 extraGoals
+                return goal
+            | _ :: _ ->
+                return Disj([])
         }
 
     and modecheckUnify lhs rhs context goalInfo =
@@ -103,15 +186,6 @@ module Modecheck =
         }
 
     and modecheckUnifyVarCtor lhs ctor args context goalInfo =
-        let createSubUnify (arg: VarId) (var: VarId) (extraGoals: ExtraGoals) =
-            let unifyGoalInfo =
-                { GoalInfo.init goalInfo.SourceInfo with
-                    NonLocals = seq { arg; var } |> TagSet.ofSeq
-                }
-            let unifyMode = ((Bound NotReached, NotReached), (Bound NotReached, NotReached))
-            let goal = { Goal = Unify(arg, Var (var, VarVarUnifyType.Test), unifyMode, context); Info = unifyGoalInfo  }
-            extraGoals.AfterGoals.Add(goal)
-
         let rec splitComplicatedSubUnifies (args0: VarId list) (modes: UnifyMode list) (argsRes: VarId list) (extraGoals: ExtraGoals) =
             state {
                 match (args0, modes) with
@@ -121,12 +195,13 @@ module Modecheck =
                     // If both sides are input we need to add a test unification.
                     if (li <> Free && ri <> Free) then
                         let! var = cloneVar arg
-                        do createSubUnify arg var.Id extraGoals
+                        let unifyGoal = createVarVarUnify arg var.Id (ModeContextUnify context) goalInfo.SourceInfo
+                        do extraGoals.AfterGoals.Add(unifyGoal)
                         return! splitComplicatedSubUnifies args1 modes1 (var.Id :: argsRes) extraGoals
                     else
                         return! splitComplicatedSubUnifies args1 modes1 (arg :: argsRes) extraGoals
                 | _ ->
-                    return failwith "length mismatch in splitComplicatedSubUnifies"
+                    return invalidOp "length mismatch in splitComplicatedSubUnifies"
             }
 
         state {
@@ -182,12 +257,12 @@ module Modecheck =
                 return Disj([])
         }
     and handleExtraGoals (oldArgs: VarId list) (newArgs: VarId list) (goalInfo0: GoalInfo) (goalExpr: GoalExpr)
-                            (initialInstMap: InstMap) (extraGoals: ExtraGoals) =
+                            (initialInstMap: InstMap) (extraGoals: ExtraGoals) : ModeStateFunc<GoalExpr> =
         state {
             let! haveErrors = haveErrors
             let! checkingExtraGoals = checkingExtraGoals
             if (checkingExtraGoals) then
-                failwith "handleExtraGoals called recursively"
+                invalidOp "handleExtraGoals called recursively"
 
             if (haveErrors
                 || not (extraGoals.isEmpty ())
