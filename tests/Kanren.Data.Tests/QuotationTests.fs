@@ -19,7 +19,7 @@ module QuotationTests =
 
         [<Relation>]
         member this.rel2 =
-            Relation ("rel3", [ mode [ Out; Out ] Determinism.Nondet ], (fun (x, y) -> x = 4 && y = 2))
+            Relation ("rel2", [ mode [ Out; Out ] Determinism.Nondet ], (fun (x, y) -> x = 4 && y = 2))
 
         [<Relation>]
         member this.rel3 =
@@ -70,17 +70,24 @@ module QuotationTests =
 //    override this.p = <@ fun(x, y) -> x = y @>
 
 
+    let defaultSourceInfo = { SourceInfo.File = "..."; StartLine = 0; EndLine= 0; StartCol = 0; EndCol = 0 }
 
     let newParserInfo (expr: Expr) =
         let varset = QuotationParser.getVars VarSet.init expr
         let testSourceInfo =
                 match (QuotationParser.getSourceInfo expr) with
                 | Some sourceInfo -> sourceInfo
-                | None -> { SourceInfo.File = "..."; StartLine = 0; EndLine= 0; StartCol = 0; EndCol = 0 }
+                | None -> defaultSourceInfo
         ParserInfo.init (kanrenTest()) varset testSourceInfo
 
     [<ReflectedDefinitionAttribute>]
     let testVarName info var varName = info.varset.[var].Name = varName
+
+    let lookupRelationModes (relationId: RelationId): (ModeInfo.RelationModeInfo list) =
+        match relationId.RelationName with
+        | "rel2" -> [ { Modes = { Modes = [ (Free, Ground); (Free, Ground) ]; Determinism = Nondet }
+                        ProcId = 1<procIdMeasure>
+                    } ]
 
     let compileExpr expr maybeArgModes =
         let ((args, goal), info) = State.run (QuotationParser.translateExpr expr) (newParserInfo expr)
@@ -89,7 +96,6 @@ module QuotationTests =
             match maybeArgModes with
             | Some argModes -> argModes
             | None -> args |> List.map (fun _ -> (InstE.Free, BoundInstE.Ground))
-        let lookupRelationModes = fun _ -> failwith "lookup modes"
         let (goal'', errors, _, varset') = Modecheck.modecheckBodyGoal "pred" 0 varset args argModes (InstTable())
                                                             lookupRelationModes Builtins.lookupFSharpFunctionModes goal'
         ((args, goal''), { info with varset = varset' })
@@ -266,10 +272,9 @@ module QuotationTests =
             test <@ arg4 = 7L @>
         | _ -> raise(Exception($"unexpected goal {goal.Goal}"))
 
-    (*
     [<Test>]
     let callRelation () : unit =
         let testModule = kanrenTest()
         let ((args, goal), info) = compileExpr testModule.rel4.Body None
         test <@ info.errors = [] @>
-    *)
+
