@@ -260,9 +260,6 @@ module QuotationParser =
             let! sourceInfo = currentSourceInfo
             let! sourceModule = getSourceModule
 
-            let! (argVars, extraGoals) =
-                translateCallArgs false args (fun index -> initUnifyContext (CallArgUnify(callee.Name, index)))
-
             let maybeCalledRelation = extractCalleeModule sourceModule calleeModule callee
 
             match maybeCalledRelation with
@@ -270,6 +267,10 @@ module QuotationParser =
                 try
                     let calledRelation = calledRelationObj :?> RelationBase
                     let calledRelationId = { ModuleName = calledModule.moduleName; RelationName = calledRelation.Name }
+                    let! (argVars, extraGoals) =
+                        translateCallArgs false args (fun index -> initUnifyContext (CallArgUnify(calledRelationId, index)))
+
+
                     let call = initGoal sourceInfo (Goal.Call((calledRelationId, invalidProcId), argVars))
                     return listToGoal (List.rev (call :: extraGoals))
                 with _ ->
@@ -515,7 +516,7 @@ module QuotationParser =
             | DerivedPatterns.SpecificCall (<@@ (=) @@>) (_, [ unifyType ], [ lhs; rhs ]) ->
                 return! translateUnify lhs rhs unifyType (initUnifyContext ExplicitUnify)
             | Patterns.Call (None, callee, args) ->
-                let! (argVars, extraGoals) = translateCallArgs false args (fun index -> initUnifyContext (CallArgUnify(callee.Name, index)))
+                let! (argVars, extraGoals) = translateCallArgs false args (fun index -> initUnifyContext (FSharpCallArgUnify(callee, index)))
                 let goal = FSharpCall((callee, invalidProcId), None, argVars)
                 return
                     List.append extraGoals [ initGoal sourceInfo goal ]

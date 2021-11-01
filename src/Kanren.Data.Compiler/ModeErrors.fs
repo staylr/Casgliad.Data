@@ -4,7 +4,7 @@ open Kanren.Data
 
 module ModeErrors =
     type ModeContext =
-    | ModeContextCall of Name: string * ArgNumber: int
+    | ModeContextCall of Name: RelationId * ArgNumber: int
     | ModeContextHigherOrderCall of ArgNumber: int
     | ModeContextUnify of UnifyContext: UnifyContext
     | ModeContextUninitialized

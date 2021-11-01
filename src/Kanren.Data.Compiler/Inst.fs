@@ -483,7 +483,7 @@ module Inst =
 
         // Mode checking is like abstract interpretation. The predicates below
         // define the abstract unification operation which unifies two
-        // instantiatednesses. If the unification would be illegal, then abstract
+        // insts. If the unification would be illegal, then abstract
         // unification fails. If the unification would fail, then the abstract
         // unification will succeed, and the resulting instantiatedness will be
         // `not_reached'.
@@ -575,7 +575,7 @@ module Inst =
                 unifyBoundInstList2 boundInsts1 boundInsts2
 
         // Get the argument insts of unifying the given inst with the constructor.
-        // The unification must succeed, or an exception will be throuwn.
+        // The unification must succeed, or an exception will be thrown.
         member this.getArgInsts(inst: InstE, ctor: Constructor, arity: int) =
             match inst with
             | Free | Bound NotReached | Bound Ground | Bound Any ->

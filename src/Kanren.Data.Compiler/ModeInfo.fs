@@ -97,7 +97,7 @@ module ModeInfo =
             { MainContext = UnifyMainContext.CallArgUnify (name, index)
               SubContext = []  }
         | ModeContextHigherOrderCall (index) ->
-            { MainContext = UnifyMainContext.CallArgUnify ("call", index)
+            { MainContext = UnifyMainContext.HigherOrderCallArgUnify (index)
               SubContext = [] }
         | ModeContextUninitialized ->
             invalidOp "uninitialized context"
@@ -107,6 +107,21 @@ module ModeInfo =
 
     let setContext (goal: Goal) (modeInfo: ModeInfo) =
         ( (), { modeInfo with CurrentSourceInfo = goal.Info.SourceInfo } )
+
+    let setCallContext (callee: RelationId) (modeInfo: ModeInfo) =
+        ( (), { modeInfo with ModeContext = ModeContextCall (callee, 0) } )
+
+    let setCallArgContext (argNum: int) (modeInfo: ModeInfo) =
+        let modeContext =
+            match modeInfo.ModeContext with
+            | ModeContextCall (callee, _) -> ModeContextCall (callee, argNum)
+            | ModeContextHigherOrderCall (_) -> ModeContextHigherOrderCall (argNum)
+            | _ ->
+                invalidOp "unexpected ModeContext for setCallArgContext"
+        ( (), { modeInfo with ModeContext = modeContext } )
+
+    let unsetCallContext (modeInfo: ModeInfo) =
+        ( (), { modeInfo with ModeContext = ModeContextUninitialized } )
 
     let getModeContext (modeInfo: ModeInfo) =
         ( modeInfo.ModeContext, modeInfo )
@@ -183,7 +198,7 @@ module ModeInfo =
             ((), modeInfo)
 
     let varHasInstListNoExactMatch vars insts (modeInfo:ModeInfo) =
-        Util.iterWithState2 varHasInstNoExactMatch vars insts modeInfo
+        iterWithState2 varHasInstNoExactMatch vars insts modeInfo
 
     let setVarInst (var: VarId) (newInst0: InstE) (maybeUnifiedInst: InstE option) modeInfo =
         if not (modeInfo.InstMap.isReachable()) then

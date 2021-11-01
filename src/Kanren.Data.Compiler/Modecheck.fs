@@ -1,7 +1,5 @@
 namespace Kanren.Data.Compiler
 
-open System.Collections.Generic
-
 open Kanren.Data.Compiler.ModeErrors
 open Kanren.Data.Compiler.ModeInfo
 open Kanren.Data.Compiler.State
@@ -51,7 +49,7 @@ module Modecheck =
             let! varDefn = lookupVar var
 
             // If the initial inst of the variable matches_final the initial inst
-            // specified in the pred's mode declaration, then it is not a call
+            // specified in the relation's mode declaration, then it is not a call
             // to an implied mode, it is an exact match with a genuine mode.
             if (InstMatch.instMatchesFinal instTable varInst initialInst (Some varDefn.VarType)) then
                 return var
@@ -82,14 +80,15 @@ module Modecheck =
                 return var
         }
 
-    let rec setVarInstListCall vars initialInsts finalInsts (extraGoals: ExtraGoals) =
+    let rec setVarInstListCall argNum vars initialInsts finalInsts (extraGoals: ExtraGoals) =
         state {
             match (vars, initialInsts, finalInsts) with
             | ([], [], []) ->
                 return []
             | (var :: vars', initialInst :: initialInsts', finalInst :: finalInsts') ->
+                do! setCallArgContext argNum
                 let! var' = setVarInstCall var initialInst finalInst extraGoals
-                let! vars'' = setVarInstListCall vars' initialInsts' finalInsts' extraGoals
+                let! vars'' = setVarInstListCall (argNum + 1) vars' initialInsts' finalInsts' extraGoals
                 return var' :: vars''
             | _ ->
                 return invalidOp "setVarInstListCall"
@@ -123,6 +122,7 @@ module Modecheck =
             let! modes = getCalledRelationModeInfo callee
             let! instMap0 = getInstMap
 
+            do! setCallContext (fst callee)
             match modes with
             | [] ->
                 return invalidOp "unexpected - no modes in modecheckCall"
@@ -130,17 +130,25 @@ module Modecheck =
                 let initialInsts = (List.map fst singleMode.Modes.Modes)
                 let finalInsts = (List.map snd singleMode.Modes.Modes)
                 do! varHasInstListNoExactMatch args initialInsts
-                let extraGoals = ExtraGoals.init()
-                let! args' = setVarInstListCall args initialInsts finalInsts extraGoals
-                let (maxSoln, _) = determinismComponents singleMode.Modes.Determinism
-                if (maxSoln = Kanren.Data.NumSolutions.NoSolutions) then
-                    do! setInstMap (InstMap.initUnreachable)
-
-                let call = Call ((fst callee, singleMode.ProcId), args')
-                let! goal = handleExtraGoals args args' goalInfo call instMap0 extraGoals
-                return goal
+                return! modecheckEndOfCall callee args initialInsts finalInsts
+                            singleMode.ProcId singleMode.Modes.Determinism instMap0 goalInfo
             | _ :: _ ->
-                return Disj([])
+                 // TODO
+                 return invalidOp "not implemented - relations with multiple modes"
+        }
+
+    and modecheckEndOfCall callee args initialInsts finalInsts procId det instMap0 goalInfo =
+        state {
+            let extraGoals = ExtraGoals.init()
+            let! args' = setVarInstListCall 1 args initialInsts finalInsts extraGoals
+            let (maxSoln, _) = determinismComponents det
+            if (maxSoln = Kanren.Data.NumSolutions.NoSolutions) then
+                do! setInstMap (InstMap.initUnreachable)
+
+            let call = Call ((fst callee, procId), args')
+            let! goal = handleExtraGoals args args' goalInfo call instMap0 extraGoals
+            do! unsetCallContext
+            return goal
         }
 
     and modecheckUnify lhs rhs context goalInfo =
@@ -174,7 +182,7 @@ module Modecheck =
 
             | None ->
                 let waitingVars = TagSet.ofList [lhs; rhs]
-                let error = ModeErrors.ModeErrorUnifyVarVar (lhs, rhs, lhsInst, rhsInst)
+                let error = ModeErrorUnifyVarVar (lhs, rhs, lhsInst, rhsInst)
                 do! modeError waitingVars error
 
                 // Suppress follow-on errors.
@@ -209,9 +217,9 @@ module Modecheck =
             let! instTable = getInstTable
             let initialLhsInst = instMap.lookupVar lhs
             let initialArgInsts = List.map instMap.lookupVar args
-            let! lvar = lookupVar lhs
+            let! lhsVar = lookupVar lhs
 
-            let instDet = instTable.unifyInstFunctor(initialLhsInst, ctor, initialArgInsts, lvar.VarType)
+            let instDet = instTable.unifyInstFunctor(initialLhsInst, ctor, initialArgInsts, lhsVar.VarType)
             match instDet with
             | Some (unifiedInst, det) ->
                 // TODO Fix Free here. Hopefully will be able to remove unifyMode altogether.
@@ -246,7 +254,7 @@ module Modecheck =
                     return! handleExtraGoals args args' goalInfo expr instMap extraGoals
             | None ->
                 let waitingVars = args |> Seq.ofList |> Seq.append [lhs] |> TagSet.ofSeq
-                let error = ModeErrors.ModeErrorUnifyVarFunctor (lhs, ctor, args, initialLhsInst, initialArgInsts)
+                let error = ModeErrorUnifyVarFunctor (lhs, ctor, args, initialLhsInst, initialArgInsts)
                 do! modeError waitingVars error
 
                 // Suppress follow-on errors.
@@ -409,5 +417,5 @@ module Modecheck =
         let modeInfo = ModeInfo.init predId procId ModeContext.ModeContextUninitialized
                             goal.Info.SourceInfo varset instTable instMap true
                             lookupRelationModes lookupFunctionModes
-        let (goal', modeInfo') = State.run (modecheckGoal goal) modeInfo
+        let (goal', modeInfo') = run (modecheckGoal goal) modeInfo
         (goal', modeInfo'.Errors, modeInfo'.InstMap, modeInfo'.VarSet)

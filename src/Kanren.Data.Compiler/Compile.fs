@@ -1,7 +1,6 @@
 namespace Kanren.Data.Compiler
 
 open System.Reflection
-open FSharp.Quotations
 open Kanren.Data
 
 module Compile =

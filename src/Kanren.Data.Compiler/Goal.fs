@@ -197,7 +197,9 @@ module Goal =
     type UnifyMainContext =
         | ExplicitUnify
         | HeadUnify of ArgIndex: int
-        | CallArgUnify of Name: string * ArgIndex: int
+        | CallArgUnify of Name: RelationId * ArgIndex: int
+        | FSharpCallArgUnify of Callee: System.Reflection.MethodInfo * ArgIndex: int
+        | HigherOrderCallArgUnify of ArgIndex: int
         | ImplicitUnify
 
     type UnifySubContextFunctor =

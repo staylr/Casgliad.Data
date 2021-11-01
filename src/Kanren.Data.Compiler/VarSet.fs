@@ -45,14 +45,14 @@ type VarSet =
            QVars = v.QVars },
          progVar)
 
-    member v.addQuotationVar(qvar) =
-        if (v.QVars.ContainsKey(qvar)) then
-            (v, v.QVars.[qvar])
+    member v.addQuotationVar(quotationVar) =
+        if (v.QVars.ContainsKey(quotationVar)) then
+            (v, v.QVars.[quotationVar])
         else
-            let (v', var) = v.newNamedVar (qvar.Name, qvar.Type)
+            let (v', var) = v.newNamedVar (quotationVar.Name, quotationVar.Type)
 
             ({ v' with
-                   QVars = v'.QVars.Add(qvar, var) },
+                   QVars = v'.QVars.Add(quotationVar, var) },
              var)
 
     member v.newVar(varType) =
