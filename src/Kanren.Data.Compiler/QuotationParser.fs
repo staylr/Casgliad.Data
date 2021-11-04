@@ -268,7 +268,7 @@ module QuotationParser =
                     let calledRelation = calledRelationObj :?> RelationBase
                     let calledRelationId = { ModuleName = calledModule.moduleName; RelationName = calledRelation.Name }
                     let! (argVars, extraGoals) =
-                        translateCallArgs false args (fun index -> initUnifyContext (CallArgUnify(calledRelationId, index)))
+                        translateCallArgs false args (fun index -> initUnifyContext (CallArgUnify(RelationCallee(calledRelationId), index)))
 
 
                     let call = initGoal sourceInfo (Goal.Call((calledRelationId, invalidProcId), argVars))
@@ -516,7 +516,7 @@ module QuotationParser =
             | DerivedPatterns.SpecificCall (<@@ (=) @@>) (_, [ unifyType ], [ lhs; rhs ]) ->
                 return! translateUnify lhs rhs unifyType (initUnifyContext ExplicitUnify)
             | Patterns.Call (None, callee, args) ->
-                let! (argVars, extraGoals) = translateCallArgs false args (fun index -> initUnifyContext (FSharpCallArgUnify(callee, index)))
+                let! (argVars, extraGoals) = translateCallArgs false args (fun index -> initUnifyContext (CallArgUnify(FSharpCallee(callee), index)))
                 let goal = FSharpCall((callee, invalidProcId), None, argVars)
                 return
                     List.append extraGoals [ initGoal sourceInfo goal ]

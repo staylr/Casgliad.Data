@@ -194,12 +194,15 @@ module Goal =
 
     type UnifyMode = ModeE * ModeE
 
+    type Callee =
+    | RelationCallee of Name: RelationId
+    | FSharpCallee of System.Reflection.MethodInfo
+    | HigherOrderCallee
+
     type UnifyMainContext =
         | ExplicitUnify
         | HeadUnify of ArgIndex: int
-        | CallArgUnify of Name: RelationId * ArgIndex: int
-        | FSharpCallArgUnify of Callee: System.Reflection.MethodInfo * ArgIndex: int
-        | HigherOrderCallArgUnify of ArgIndex: int
+        | CallArgUnify of Callee: Callee * ArgIndex: int
         | ImplicitUnify
 
     type UnifySubContextFunctor =

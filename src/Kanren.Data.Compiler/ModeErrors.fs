@@ -3,9 +3,9 @@ namespace Kanren.Data.Compiler
 open Kanren.Data
 
 module ModeErrors =
+
     type ModeContext =
-    | ModeContextCall of Name: RelationId * ArgNumber: int
-    | ModeContextHigherOrderCall of ArgNumber: int
+    | ModeContextCall of Callee: Callee * ArgNumber: int
     | ModeContextUnify of UnifyContext: UnifyContext
     | ModeContextUninitialized
 

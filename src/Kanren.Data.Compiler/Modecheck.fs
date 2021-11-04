@@ -113,16 +113,14 @@ module Modecheck =
             | Call (relationId, args) ->
                 return! modecheckCall relationId args goal.Info
             | FSharpCall (callee, retVal, args) ->
-                return goal.Goal
+                return! modecheckFSharpCall callee retVal args goal.Info
         }
 
     and modecheckCall callee args goalInfo =
         state {
-            let! mayChangeProc = getMayChangeCalledProc
-            let! modes = getCalledRelationModeInfo callee
             let! instMap0 = getInstMap
-
-            do! setCallContext (fst callee)
+            let! modes = getCalledRelationModeInfo callee
+            do! setCallContext (RelationCallee (fst callee))
             match modes with
             | [] ->
                 return invalidOp "unexpected - no modes in modecheckCall"
@@ -130,14 +128,48 @@ module Modecheck =
                 let initialInsts = (List.map fst singleMode.Modes.Modes)
                 let finalInsts = (List.map snd singleMode.Modes.Modes)
                 do! varHasInstListNoExactMatch args initialInsts
-                return! modecheckEndOfCall callee args initialInsts finalInsts
+                let buildCall = (fun a -> Call ((fst callee, singleMode.ProcId), a))
+                return! modecheckEndOfCall buildCall args initialInsts finalInsts
                             singleMode.ProcId singleMode.Modes.Determinism instMap0 goalInfo
             | _ :: _ ->
                  // TODO
                  return invalidOp "not implemented - relations with multiple modes"
         }
 
-    and modecheckEndOfCall callee args initialInsts finalInsts procId det instMap0 goalInfo =
+    and modecheckFSharpCall callee ret args goalInfo =
+        state {
+            let! instMap0 = getInstMap
+            let! modes = getCalledFunctionModeInfo callee
+            do! setCallContext (FSharpCallee (fst callee))
+            match modes with
+            | [] ->
+                return invalidOp "unexpected - no modes in modecheckCall"
+            | [singleMode] ->
+                let (allArgs, allModes) =
+                    match ret with
+                    | Some (retArg) ->
+                        (List.append args [retArg], List.append singleMode.Modes.Modes [singleMode.ResultMode])
+                    | None ->
+                        (args, singleMode.Modes.Modes)
+
+                let initialInsts = List.map fst allModes
+                let finalInsts = List.map snd allModes
+                do! varHasInstListNoExactMatch allArgs initialInsts
+                let buildCall a =
+                    match ret with
+                    | Some _ ->
+                        FSharpCall ((fst callee, singleMode.ProcId), Some (List.head a), List.tail a)
+                    | None ->
+                        FSharpCall ((fst callee, singleMode.ProcId), None, a)
+
+                return! modecheckEndOfCall buildCall allArgs initialInsts finalInsts
+                            singleMode.ProcId singleMode.Modes.Determinism instMap0 goalInfo
+            | _ :: _ ->
+                 // TODO
+                 return invalidOp "not implemented - relations with multiple modes"
+        }
+
+    and modecheckEndOfCall buildCall args initialInsts finalInsts procId det instMap0 goalInfo =
         state {
             let extraGoals = ExtraGoals.init()
             let! args' = setVarInstListCall 1 args initialInsts finalInsts extraGoals
@@ -145,7 +177,7 @@ module Modecheck =
             if (maxSoln = Kanren.Data.NumSolutions.NoSolutions) then
                 do! setInstMap (InstMap.initUnreachable)
 
-            let call = Call ((fst callee, procId), args')
+            let call = buildCall args'
             let! goal = handleExtraGoals args args' goalInfo call instMap0 extraGoals
             do! unsetCallContext
             return goal
@@ -269,17 +301,20 @@ module Modecheck =
         state {
             let! haveErrors = haveErrors
             let! checkingExtraGoals = checkingExtraGoals
-            if (checkingExtraGoals) then
-                invalidOp "handleExtraGoals called recursively"
 
-            if (haveErrors
-                || not (extraGoals.isEmpty ())
-                || not (initialInstMap.isReachable ()))
+            if (not haveErrors
+                && not (extraGoals.isEmpty ())
+                && not (initialInstMap.isReachable ()))
             then
+                if (checkingExtraGoals) then
+                    invalidOp "handleExtraGoals called recursively"
+
                 let oldArgVars = TagSet.ofList oldArgs
                 let newArgVars = TagSet.ofList newArgs
                 let introducedVars = TagSet.difference newArgVars oldArgVars
-                let nonLocals = (TagSet.union goalInfo0.NonLocals introducedVars) |> TagSet.intersect newArgVars
+                let nonLocals =
+                        TagSet.union goalInfo0.NonLocals introducedVars
+                        |> TagSet.intersect newArgVars
                 let goalInfo = { goalInfo0 with NonLocals = nonLocals }
                 let goalList = List.append (List.ofSeq extraGoals.BeforeGoals)
                                    ({ Goal = goalExpr; Info = goalInfo } :: List.ofSeq extraGoals.AfterGoals)

@@ -96,9 +96,6 @@ module ModeInfo =
         | ModeContextCall (name, index) ->
             { MainContext = UnifyMainContext.CallArgUnify (name, index)
               SubContext = []  }
-        | ModeContextHigherOrderCall (index) ->
-            { MainContext = UnifyMainContext.HigherOrderCallArgUnify (index)
-              SubContext = [] }
         | ModeContextUninitialized ->
             invalidOp "uninitialized context"
 
@@ -108,14 +105,13 @@ module ModeInfo =
     let setContext (goal: Goal) (modeInfo: ModeInfo) =
         ( (), { modeInfo with CurrentSourceInfo = goal.Info.SourceInfo } )
 
-    let setCallContext (callee: RelationId) (modeInfo: ModeInfo) =
+    let setCallContext (callee: Callee) (modeInfo: ModeInfo) =
         ( (), { modeInfo with ModeContext = ModeContextCall (callee, 0) } )
 
     let setCallArgContext (argNum: int) (modeInfo: ModeInfo) =
         let modeContext =
             match modeInfo.ModeContext with
             | ModeContextCall (callee, _) -> ModeContextCall (callee, argNum)
-            | ModeContextHigherOrderCall (_) -> ModeContextHigherOrderCall (argNum)
             | _ ->
                 invalidOp "unexpected ModeContext for setCallArgContext"
         ( (), { modeInfo with ModeContext = modeContext } )
@@ -156,12 +152,17 @@ module ModeInfo =
             failwith $"No modes for relation {relationProcId}"
         ( modes', modeInfo )
 
-    let getCalledFunctionModeInfo (methodInfo: System.Reflection.MethodInfo) (modeInfo: ModeInfo) =
-        let modes = modeInfo.LookupFSharpFunctionModes methodInfo
-        if (modes = []) then
-            failwith $"No modes for {methodInfo.DeclaringType.Name}.${methodInfo.Name}"
+    let getCalledFunctionModeInfo (methodInfo: FSharpProcId) (modeInfo: ModeInfo) =
+        let modes = modeInfo.LookupFSharpFunctionModes (fst methodInfo)
+        let modes' =
+            if (modeInfo.MayChangeCalledProc) then
+                modes
+            else
+                List.filter (fun m -> m.ProcId = snd methodInfo) modes
 
-        ( modes, modeInfo )
+        if (modes' = []) then
+            failwith $"No modes for function {(fst methodInfo).Name}"
+        ( modes', modeInfo )
 
     let setInstMap instMap (modeInfo: ModeInfo) =
         ( (), { modeInfo with InstMap = instMap } )
@@ -326,7 +327,7 @@ module ModeInfo =
     let withNoDelayOrExtraGoals f modeInfo =
         let mayChangeCalledProc = modeInfo.MayChangeCalledProc
         let modeInfo' = { modeInfo with MayChangeCalledProc = false; CheckingExtraGoals = true }
-        let (res, modeInfo'') = f modeInfo
-        (res, { modeInfo with MayChangeCalledProc = mayChangeCalledProc; CheckingExtraGoals = false })
+        let (res, modeInfo'') = f modeInfo'
+        (res, { modeInfo'' with MayChangeCalledProc = mayChangeCalledProc; CheckingExtraGoals = false })
 
     let checkingExtraGoals modeInfo = (modeInfo.CheckingExtraGoals, modeInfo)
