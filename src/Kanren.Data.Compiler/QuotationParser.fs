@@ -103,7 +103,7 @@ module QuotationParser =
     let listToGoal (goals: Goal list) =
         match goals with
         | [ goal ] -> goal.Goal
-        | _ -> Conj(goals)
+        | _ -> Conjunction(goals)
 
     let addCtorSubContext unifyContext ctor index =
         { unifyContext with
@@ -275,10 +275,10 @@ module QuotationParser =
                     return listToGoal (List.rev (call :: extraGoals))
                 with _ ->
                     do! newError (Error.invalidCallee sourceInfo calleeModule)
-                    return Disj([])
+                    return Disjunction([])
             | None ->
                 do! newError (Error.invalidCallee sourceInfo calleeModule)
-                return Disj([])
+                return Disjunction([])
         }
 
     let rec translateUnify lhs rhs unifyType unifyContext =
@@ -322,14 +322,14 @@ module QuotationParser =
                             )
             | _ ->
                 // error.
-                return Conj(List.append extraGoals1 extraGoals2)
+                return Conjunction(List.append extraGoals1 extraGoals2)
         }
 
     let unsupportedExpression (expr: Expr) =
         parse {
             let! sourceInfo = currentSourceInfo
             do! newError (Error.unsupportedExpressionError sourceInfo expr)
-            return Disj([])
+            return Disjunction([])
         }
 
     // Some dumpster diving to convert if-then-elses corresponding to source-level pattern matches
@@ -523,7 +523,7 @@ module QuotationParser =
                     |> Simplify.flattenConjunction
             | UnionMatch (ExprShape.ShapeVar v, cases, canFail) ->
                 let! caseGoals = translateMatchExpr v cases
-                return Disj(caseGoals)
+                return Disjunction(caseGoals)
             | DerivedPatterns.AndAlso (condExpr, thenExpr) ->
                 let! condGoal = translateSubExprGoal condExpr
                 let! thenGoal = translateSubExprGoal thenExpr
@@ -553,8 +553,8 @@ module QuotationParser =
                 return
                     Simplify.flattenConjunction [ initGoal sourceInfo unifyGoalExpr
                                                   exprGoal ]
-            | True' _ -> return Conj([])
-            | False' _ -> return Disj([])
+            | True' _ -> return Conjunction([])
+            | False' _ -> return Disjunction([])
             | ExprShape.ShapeVar v ->
                 if (v.Type = typeof<bool>) then
                     let! lhsVar = newQVar v

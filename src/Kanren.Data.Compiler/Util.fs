@@ -9,6 +9,10 @@ module Util =
           StartCol: int
           EndLine: int
           EndCol: int }
+    with
+        static member empty = { File = ""; StartLine = 0; StartCol = 0; EndLine = 0; EndCol = 0 }
+
+        member this.isEmpty () = this.File = ""
 
     let notNull x =
         match x with

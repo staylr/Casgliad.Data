@@ -105,15 +105,59 @@ module Modecheck =
             | Unify (lhs, rhs, _, unifyContext) ->
                 // set context
                 return! modecheckUnify lhs rhs unifyContext goal.Info
-            | Conj (goals) ->
+            | Conjunction (goals) ->
                 let! goals' = modecheckConjList goals
-                return Conj (goals')
-            | Disj (goals) ->
+                return Conjunction (goals')
+            | Disjunction (goals) ->
                 return! modecheckDisjunction goals goal.Info
             | Call (relationId, args) ->
                 return! modecheckCall relationId args goal.Info
             | FSharpCall (callee, retVal, args) ->
                 return! modecheckFSharpCall callee retVal args goal.Info
+            | IfThenElse (condGoal, thenGoal, elseGoal) ->
+                return! modecheckIfThenElse condGoal thenGoal elseGoal goal.Info
+            | Not (negGoal) ->
+                return! modecheckNegation negGoal goal.Info
+            | Switch (_, _, _) ->
+                return goal.Goal
+        }
+
+    and modecheckNegation negGoal goalInfo =
+        state {
+            let! instMap0 = getInstMap
+            // TODO: disallow any non-locals with inst Any - further constraining
+            // variables within a negation is not allowed.
+            let! negGoal' = withLockedVars VarLockReason.VarLockNegation goalInfo.NonLocals
+                               (modecheckGoal negGoal)
+            do! setInstMap instMap0
+            return Not (negGoal')
+        }
+
+    and modecheckIfThenElse condGoal thenGoal elseGoal goalInfo =
+        state {
+            let! instMap0 = getInstMap
+            let! condGoal' = withLockedVars VarLockReason.VarLockIfThenElse goalInfo.NonLocals
+                                            (modecheckGoal condGoal)
+            let! condInstMap = getInstMap
+            let! (thenGoal', thenInstMap) =
+                if (condInstMap.isReachable()) then
+                    state {
+                        let! thenGoal'' = modecheckGoal thenGoal
+                        let! thenInstMap' = getInstMap
+                        return (thenGoal'', thenInstMap')
+                    }
+                else
+                    state {
+                        return (succeedGoal, condInstMap)
+                    }
+
+            do! setInstMap instMap0
+            let! elseGoal' = modecheckGoal elseGoal
+            let! elseInstMap = getInstMap
+
+            let armInstMaps = [ (thenGoal.Info.SourceInfo, thenInstMap); (elseGoal.Info.SourceInfo, elseInstMap) ]
+            do! instMapMerge goalInfo.NonLocals armInstMaps MergeContext.MergeIfThenElse
+            return IfThenElse (condGoal', thenGoal', elseGoal')
         }
 
     and modecheckCall callee args goalInfo =
@@ -294,7 +338,7 @@ module Modecheck =
                 do! setVarInst lhs unifiedInst None
                 do! bindArgs unifiedInst args initialArgInsts
 
-                return Disj([])
+                return Disjunction([])
         }
     and handleExtraGoals (oldArgs: VarId list) (newArgs: VarId list) (goalInfo0: GoalInfo) (goalExpr: GoalExpr)
                             (initialInstMap: InstMap) (extraGoals: ExtraGoals) : ModeStateFunc<GoalExpr> =
@@ -320,7 +364,7 @@ module Modecheck =
                                    ({ Goal = goalExpr; Info = goalInfo } :: List.ofSeq extraGoals.AfterGoals)
                 let goalArray = ResizeArray<Goal>()
                 let! _ = withNoDelayOrExtraGoals (modecheckConjListNoDelay goalList goalArray)
-                return Conj (List.ofSeq goalArray)
+                return Conjunction (List.ofSeq goalArray)
             else
                 return goalExpr
         }
@@ -369,7 +413,7 @@ module Modecheck =
                 return ()
             | goal :: goals' ->
                 match goal.Goal with
-                | Conj(subGoals) ->
+                | Conjunction(subGoals) ->
                     return! modecheckConjListFlattenAndSchedule
                             (List.append subGoals goals') scheduledGoals
                 | _ ->
@@ -381,7 +425,7 @@ module Modecheck =
                     match goalErrors with
                     | [] ->
                         match goal'.Goal with
-                        | Conj(subGoals) ->
+                        | Conjunction(subGoals) ->
                             do scheduledGoals.AddRange(subGoals)
                         | _ ->
                             do scheduledGoals.Add(goal')
@@ -423,7 +467,7 @@ module Modecheck =
             match goals with
             | [] ->
                 do! setInstMap InstMap.initUnreachable
-                return Disj([])
+                return Disjunction([])
             | _ :: _ ->
                 let! instMap0 = getInstMap
                 let! (goals', armInstMaps) = modecheckDisjuncts instMap0 goals

@@ -45,8 +45,8 @@ module Quantification =
         | Unify (lhs, rhs, _, _) -> unifyRhsVarsBoth rhs (TagSet.add lhs set) lambdaSet
         | Call (_, args) -> (TagSet.union set (TagSet.ofList args), lambdaSet)
         | FSharpCall (_, ret, args) -> (TagSet.union set (TagSet.ofList (consOption ret args)), lambdaSet)
-        | Conj (goals)
-        | Disj (goals) -> goalListVarsBoth goals set lambdaSet
+        | Conjunction (goals)
+        | Disjunction (goals) -> goalListVarsBoth goals set lambdaSet
         | Not (goal) -> goalExprVarsBoth goal.Goal set lambdaSet
         | Switch (var, _, cases) -> caseListVarsBoth cases (TagSet.add var set) lambdaSet
         | IfThenElse (condGoal, thenGoal, elseGoal) ->
@@ -123,8 +123,8 @@ module Quantification =
             | Unify (lhs, rhs, mode, context) -> return! quantifyUnify lhs rhs mode context goalInfo
             | Call (_, args) -> return! quantifyPrimitiveGoal goalExpr args
             | FSharpCall (_, returnArg, args) -> return! quantifyPrimitiveGoal goalExpr (consOption returnArg args)
-            | Conj (goals) -> return! quantifyConj goals
-            | Disj (goals) -> return! quantifyDisj goals
+            | Conjunction (goals) -> return! quantifyConj goals
+            | Disjunction (goals) -> return! quantifyDisj goals
             | Not (negGoal) -> return! quantifyNegation negGoal
             | IfThenElse (condGoal, thenGoal, elseGoal) -> return! quantifyIfThenElse condGoal thenGoal elseGoal
             | Switch (var, canFail, cases) -> return! quantifySwitch var canFail cases
@@ -213,7 +213,7 @@ module Quantification =
                 List.fold combineFollowingVars emptySetOfVar followingVars
 
             let! goals = quantifyConjWithFollowing (List.zip goals followingVars)
-            return (Conj(goals), possibleNonLocals)
+            return (Conjunction(goals), possibleNonLocals)
         }
 
     and quantifyConjWithFollowing followingVarPairs =
@@ -258,7 +258,7 @@ module Quantification =
                 nonLocalVars <- TagSet.union nonLocalVars goalNonlocals
                 goals' <- goal' :: goals'
 
-            return (Disj(List.rev goals'), (goalExprVars (Disj(goals')) emptySetOfVar))
+            return (Disjunction(List.rev goals'), (goalExprVars (Disjunction(goals')) emptySetOfVar))
         }
 
     and quantifyPrimitiveGoal goalExpr args =

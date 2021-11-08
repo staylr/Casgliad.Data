@@ -115,7 +115,7 @@ module QuotationTests =
                 @>
 
         match goal.Goal with
-        | Conj([{ Goal = Unify(var1, Constructor(Constant(IntValue(arg1), _), [], _, _, _), _, _) };
+        | Conjunction([{ Goal = Unify(var1, Constructor(Constant(IntValue(arg1), _), [], _, _, _), _, _) };
                 { Goal = Unify(var2, Constructor(Constant(IntValue(arg2), _), [], _, _, _), _, _) }]) ->
             test <@ testVarName info var1 "x" @>
             test <@ testVarName info var2 "y" @>
@@ -152,10 +152,10 @@ module QuotationTests =
         test <@ info.errors = [] @>
 
         match goal.Goal with
-        | Disj([disjunct1; disjunct2; disjunct3]) ->
+        | Disjunction([disjunct1; disjunct2; disjunct3]) ->
             let checkDisjunct disjunct =
                 match disjunct.Goal with
-                | Conj([
+                | Conjunction([
                         { Goal = Unify(lhs, Constructor(UnionCase(case), [_; _], _, _, _), _, _) };
                         { Goal = Unify(lhsd, Constructor( UnionCase(cased), [_; _], _, _, _), _, _) };
                         { Goal = Unify(lhst, Var(rhst, _), _, _) };
@@ -184,7 +184,7 @@ module QuotationTests =
                     false
             @>
         match goal.Goal with
-        | Conj([{ Goal = Unify(var1, Constructor(Constant(IntValue(arg1), _), [], _, _, _), _, _) };
+        | Conjunction([{ Goal = Unify(var1, Constructor(Constant(IntValue(arg1), _), [], _, _, _), _, _) };
                 { Goal = Unify(var2, Constructor(Tuple 2, [var3; var4], _, _, _), _, _) };
                 { Goal = Unify(var5, Var(var6, _), _, _) }]) ->
             test <@ testVarName info var1 "x" @>
@@ -209,7 +209,7 @@ module QuotationTests =
             let ((args, goal), info) = compileExpr expr (Some ([(Bound Ground, Ground); (Bound Ground, Ground)]))
             test <@ info.errors = [] @>
             match goal.Goal with
-            | Conj([{ Goal = Unify(arg1, Constructor(Tuple 3, [arga; argeModes1; argc], _, _, _), _, _) };
+            | Conjunction([{ Goal = Unify(arg1, Constructor(Tuple 3, [arga; argeModes1; argc], _, _, _), _, _) };
                     { Goal = Unify(argeModes2, Constructor(Tuple 2, [arge; argModes1], _, _, _), _, _) };
                     { Goal = Unify(argModes2, Constructor(Record(relationModeType), [argm; argd], _, _, _), _, _) };
                     { Goal = Unify(argx2, Var(arge2, _), _, _) };
@@ -241,7 +241,7 @@ module QuotationTests =
         let ((args, goal), info) = compileExpr expr None
         test <@ info.errors = [] @>
         match goal.Goal with
-        | Conj([{ Goal = Unify(var1, Constructor(Constant(IntValue(arg1), _), [], _, _, _), _, _) };
+        | Conjunction([{ Goal = Unify(var1, Constructor(Constant(IntValue(arg1), _), [], _, _, _), _, _) };
                 { Goal = Unify(var2, Constructor(Constant(IntValue(arg2), _), [], _, _, _), _, _) };
                 { Goal = Unify(var3, Constructor(Constant(IntValue(arg3), _), [], _, _, _), _, _) }]) ->
             test <@ testVarName info var1 "x" @>
@@ -258,7 +258,7 @@ module QuotationTests =
         let ((args, goal), info) = compileExpr expr None
         test <@ info.errors = [] @>
         match goal.Goal with
-        | Conj([{ Goal = Unify(var1, Constructor(Constant(IntValue(arg1), _), [], _, _, _), _, _) };
+        | Conjunction([{ Goal = Unify(var1, Constructor(Constant(IntValue(arg1), _), [], _, _, _), _, _) };
                 { Goal = Unify(var2, Constructor(Constant(IntValue(arg2), _), [], _, _, _), _, _) };
                 { Goal = Unify(var3, Constructor(Constant(IntValue(arg3), _), [], _, _, _), _, _) };
                 { Goal = Unify(var4, Constructor(Constant(IntValue(arg4), _), [], _, _, _), _, _) }]) ->

@@ -235,8 +235,8 @@ module Goal =
             returnValue: VarId option *
             // Function arguments.
             args: (VarId list)
-        | Conj of Goal list
-        | Disj of Goal list
+        | Conjunction of Goal list
+        | Disjunction of Goal list
         | Switch of var: VarId * canFail: bool * cases: Case list
         | IfThenElse of condGoal: Goal * thenGoal: Goal * elseGoal: Goal
         | Not of Goal
@@ -255,8 +255,8 @@ module Goal =
                     yield " = F#"
                     yield (fst method).Name
                     yield args
-                | Conj (goals) -> yield! indent (listToString goals (fun goal -> goal.Dump ()) ",\n")
-                | Disj (goals) ->
+                | Conjunction (goals) -> yield! indent (listToString goals (fun goal -> goal.Dump ()) ",\n")
+                | Disjunction (goals) ->
                     yield "("
                     yield! indent (listToString goals (fun goal -> goal.Dump ()) ";\n")
                 | Switch (var, canFail, cases) -> yield ""
@@ -301,21 +301,23 @@ module Goal =
 
     let (|Fail|_|) goalExpr =
         match goalExpr with
-        | Disj ([]) -> Some ()
+        | Disjunction ([]) -> Some ()
         | _ -> None
 
     let (|Succeed|_|) goalExpr =
         match goalExpr with
-        | Conj ([]) -> Some ()
+        | Conjunction ([]) -> Some ()
         | _ -> None
+
+    let succeedGoal = { Goal.Goal = Conjunction ([]); Info = GoalInfo.init SourceInfo.empty }
 
     let rec goalExprVars goal (vars: SetOfVar) =
         match goal with
         | Unify (lhs, rhs, _, _) -> unifyRhsVars rhs (TagSet.add lhs vars)
         | Call (_, args) -> List.fold (flip TagSet.add) vars args
         | FSharpCall (_, ret, args) -> List.fold (flip TagSet.add) vars (consOption ret args)
-        | Conj (goals)
-        | Disj (goals) -> List.fold (flip goalVars) vars goals
+        | Conjunction (goals)
+        | Disjunction (goals) -> List.fold (flip goalVars) vars goals
         | Switch (var, _, cases) ->
             let vars' = TagSet.add var vars
             List.fold (fun vars'' case -> goalVars case.CaseGoal vars'') vars' cases

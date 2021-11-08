@@ -3,7 +3,7 @@ namespace Kanren.Data.Compiler
 module Simplify =
     let rec internal flattenConjunction' flattenedGoals (goal: Goal) =
         match goal.Goal with
-        | Conj goals -> List.fold flattenConjunction' flattenedGoals goals
+        | Conjunction goals -> List.fold flattenConjunction' flattenedGoals goals
         | _ -> goal :: flattenedGoals
 
     let flattenConjunction (goals: Goal list) =
@@ -12,11 +12,11 @@ module Simplify =
 
         match flattenedGoals with
         | [ singleGoal ] -> singleGoal.Goal
-        | _ -> Conj(flattenedGoals)
+        | _ -> Conjunction(flattenedGoals)
 
     let rec internal flattenDisjunction' flattenedGoals (goal: Goal) =
         match goal.Goal with
-        | Disj goals -> List.fold flattenDisjunction' flattenedGoals goals
+        | Disjunction goals -> List.fold flattenDisjunction' flattenedGoals goals
         | _ -> goal :: flattenedGoals
 
     let flattenDisjunction (goals: Goal list) =
@@ -25,26 +25,26 @@ module Simplify =
 
         match flattenedGoals with
         | [ singleGoal ] -> singleGoal.Goal
-        | _ -> Disj(flattenedGoals)
+        | _ -> Disjunction(flattenedGoals)
 
     let rec internal simplifyGoal (goal: Goal) =
         match goal.Goal with
         | Unify _ | Call _ | FSharpCall _ -> goal
-        | Conj goals ->
+        | Conjunction goals ->
             let flattenedGoal = flattenConjunction goals
 
             match flattenedGoal with
-            | Conj (goals) ->
+            | Conjunction (goals) ->
                 { goal with
-                      Goal = Conj(goals |> List.map simplifyGoal) }
+                      Goal = Conjunction(goals |> List.map simplifyGoal) }
             | _ -> simplifyGoal { goal with Goal = flattenedGoal }
-        | Disj goals ->
+        | Disjunction goals ->
             let flattenedGoal = flattenDisjunction goals
 
             match flattenedGoal with
-            | Disj (goals) ->
+            | Disjunction (goals) ->
                 { goal with
-                      Goal = Disj(goals |> List.map simplifyGoal) }
+                      Goal = Disjunction(goals |> List.map simplifyGoal) }
             | _ -> simplifyGoal { goal with Goal = flattenedGoal }
         | Not negGoal ->
             { goal with
@@ -58,14 +58,14 @@ module Simplify =
             | Fail _ ->
                 // TODO - sequential conjunction.
                 { goal with
-                      Goal = Conj([ condGoal'; thenGoal' ]) }
+                      Goal = Conjunction([ condGoal'; thenGoal' ]) }
             | _ ->
                 match condGoal'.Goal with
                 | Fail _ ->
                     // TODO: fix determinism of Not goal.
                     { goal with
                           Goal =
-                              Conj(
+                              Conjunction(
                                   [ { Goal = Not(condGoal')
                                       Info = condGoal'.Info }
                                     elseGoal' ]

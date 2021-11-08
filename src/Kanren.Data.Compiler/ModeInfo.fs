@@ -23,6 +23,8 @@ module ModeInfo =
         }
     type LookupFSharpFunctionModes = System.Reflection.MethodInfo -> FunctionModeInfo list
 
+    type LockedVars = (VarLockReason * SetOfVar) list
+
     type ModeInfo =
         { PredId: string
           ProcId: int
@@ -42,7 +44,7 @@ module ModeInfo =
 
           // Locked variables, e.g. variables cannot be further instantiated
           // in a negated context.
-          LockedVars: SetOfVar
+          LockedVars: LockedVars
 
           Errors: ModeErrorInfo list
 
@@ -72,7 +74,7 @@ module ModeInfo =
                               InstTable = instTable
                               ModeContext = modeContext
                               CurrentSourceInfo = currentSourceInfo
-                              LockedVars = emptySetOfVar
+                              LockedVars = []
                               MayChangeCalledProc = mayChangeProc
                               CheckingExtraGoals = false
                               NeedToRequantify = false
@@ -178,7 +180,16 @@ module ModeInfo =
     let getInstTable (modeInfo: ModeInfo) =
         (modeInfo.InstTable, modeInfo)
 
-    let varIsLocked (modeInfo: ModeInfo) var = false
+    let varIsLocked (modeInfo: ModeInfo) var =
+        modeInfo.LockedVars
+        |> List.exists (fun l -> TagSet.contains var (snd l))
+
+    let withLockedVars reason vars f (modeInfo: ModeInfo) =
+        let lockedVars0 = modeInfo.LockedVars
+        let lockedVars = (reason, vars) :: lockedVars0
+        let modeInfo' = { modeInfo with LockedVars = lockedVars }
+        let (res, modeInfo'') = f modeInfo'
+        (res, { modeInfo'' with LockedVars = lockedVars0 })
 
     let modeError waitingVars error (modeInfo: ModeInfo) =
         let errorInfo = { ModeErrorInfo.Vars = waitingVars; Error = error; SourceInfo = modeInfo.CurrentSourceInfo; ModeContext = modeInfo.ModeContext  }
@@ -310,7 +321,7 @@ module ModeInfo =
 
         let (instMapDelta, modeInfo'') =
             match goal.Goal with
-            | Conj([]) ->
+            | Conjunction([]) ->
                 (InstMap.initReachable, { modeInfo' with InstMap = initialInstMap } )
             | _ ->
                 (InstMap.computeInstMapDelta initialInstMap modeInfo'.InstMap goal.Info.NonLocals, modeInfo')
