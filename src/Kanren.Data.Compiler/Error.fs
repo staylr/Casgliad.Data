@@ -2,24 +2,24 @@ namespace Kanren.Data.Compiler
 
 open FSharp.Quotations
 
-type ErrorContext =
+type internal ErrorContext =
     | Goal of Goal
     | Expr of Expr
     | String of string
 
-type ErrorSeverity =
+type internal ErrorSeverity =
     | None = 0
     | Info = 1
     | Warning = 2
     | Error = 3
 
-type Error =
+type internal Error =
     { Text: string
       Location: SourceInfo Option
       Context: ErrorContext
       Severity: ErrorSeverity }
 
-module Error =
+module internal Error =
     let maxSeverity (x: ErrorSeverity) (y: ErrorSeverity) = if (x > y) then x else y
 
     let maxSeverityOfList errors =

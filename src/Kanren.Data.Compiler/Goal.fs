@@ -2,7 +2,7 @@ namespace Kanren.Data.Compiler
 
 open Kanren.Data
 
-module GoalWriter =
+module internal GoalWriter =
 
     [<System.Flags>]
     type GoalToStringFlags =
@@ -94,7 +94,7 @@ module GoalWriter =
         }
 
 [<AutoOpen>]
-module Goal =
+module internal Goal =
 
     open GoalWriter
 

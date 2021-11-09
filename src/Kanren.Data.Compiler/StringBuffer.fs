@@ -1,7 +1,7 @@
 namespace Kanren.Data.Compiler
 
 [<AutoOpen>]
-module StringBuffer =
+module internal StringBuffer =
     open System.Text
 
     type StringBuffer = StringBuilder -> unit

@@ -3,7 +3,7 @@ namespace Kanren.Data.Compiler
 open Kanren.Data
 
 [<AutoOpen>]
-module ModuleInfoModule =
+module internal ModuleInfoModule =
 
     type ProcInfo =
         { ProcId: ProcId

@@ -4,7 +4,7 @@ open Kanren.Data.Compiler.ModeErrors
 open Kanren.Data.Compiler.Delay
 open Kanren.Data.Compiler.State
 
-module ModeInfo =
+module internal ModeInfo =
 
     type RelationModeInfo =
         { ProcId: ProcId

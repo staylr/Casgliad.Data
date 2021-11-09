@@ -2,7 +2,7 @@
 
 open Kanren.Data.Compiler.ModeInfo
 
-module Builtins =
+module internal Builtins =
     let lookupFSharpFunctionModes (methodInfo: System.Reflection.MethodInfo) : FunctionModeInfo list =
         let arity = methodInfo.GetParameters().Length
         let modes =

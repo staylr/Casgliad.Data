@@ -1,6 +1,6 @@
 namespace Kanren.Data.Compiler
 
-module Simplify =
+module internal Simplify =
     let rec internal flattenConjunction' flattenedGoals (goal: Goal) =
         match goal.Goal with
         | Conjunction goals -> List.fold flattenConjunction' flattenedGoals goals

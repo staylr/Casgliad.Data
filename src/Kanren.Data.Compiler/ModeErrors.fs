@@ -2,7 +2,7 @@ namespace Kanren.Data.Compiler
 
 open Kanren.Data
 
-module ModeErrors =
+module internal ModeErrors =
 
     type ModeContext =
     | ModeContextCall of Callee: Callee * ArgNumber: int

@@ -6,7 +6,7 @@ open FSharp.Reflection
 open Kanren.Data
 
 [<AutoOpen>]
-module Inst =
+module internal Inst =
     // Similar to Mercury insts, except unique and partially instantiated
     // insts are not supported.
     type BoundInstE =

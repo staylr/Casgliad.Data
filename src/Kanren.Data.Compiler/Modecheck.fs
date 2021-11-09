@@ -4,7 +4,7 @@ open Kanren.Data.Compiler.ModeErrors
 open Kanren.Data.Compiler.ModeInfo
 open Kanren.Data.Compiler.State
 
-module Modecheck =
+module internal Modecheck =
     let getModeOfArgs (argInitialInsts: InstE list) (finalInst: BoundInstE) =
         let pairWithFinalInst argInitialInsts finalInst =
             argInitialInsts

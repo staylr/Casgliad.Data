@@ -3,7 +3,7 @@
 open Kanren.Data
 
 [<AutoOpen>]
-module Determinism =
+module internal Determinism =
     let numSolutions =
         function
         | Determinism.Erroneous -> NoSolutions

@@ -1,19 +1,19 @@
 namespace Kanren.Data.Compiler
 
 [<Measure>]
-type varIdMeasure
+type internal varIdMeasure
 
-type VarId = int<varIdMeasure>
+type internal VarId = int<varIdMeasure>
 
 
-type SetOfVar = TagSet<varIdMeasure>
+type internal SetOfVar = TagSet<varIdMeasure>
 
-type ProgVar =
+type internal ProgVar =
     { Id: VarId
       Name: string
       VarType: System.Type }
 
-type VarSet =
+type internal VarSet =
     private
         { NextVar: VarId
           Vars: Map<VarId, ProgVar>

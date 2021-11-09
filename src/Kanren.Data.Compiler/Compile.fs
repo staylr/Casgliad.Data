@@ -45,7 +45,7 @@ module Compile =
                 (moduleInfo.addRelation (relation), parserInfo''.errors)
             | Error modeErrors -> (moduleInfo, List.concat (parserInfo''.errors :: modeErrors))
 
-    let compileRelationMethod (instance: kanrenModule) (moduleInfo, errors) (property: PropertyInfo) =
+    let internal compileRelationMethod (instance: kanrenModule) (moduleInfo, errors) (property: PropertyInfo) =
         let relationAttribute =
             property.GetCustomAttribute(typeof<RelationAttribute>) :?> RelationAttribute
 
@@ -59,7 +59,7 @@ module Compile =
 
         (moduleInfo', errors' :: errors)
 
-    let compileKanrenModule (moduleType: System.Type) =
+    let internal compileKanrenModule (moduleType: System.Type) =
         let moduleInfo = ModuleInfo.init
 
         let instance =

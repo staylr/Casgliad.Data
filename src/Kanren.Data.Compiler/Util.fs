@@ -1,18 +1,19 @@
 namespace Kanren.Data.Compiler
 
+type SourceInfo =
+    { File: string
+      StartLine: int
+      StartCol: int
+      EndLine: int
+      EndCol: int }
+with
+    static member empty = { File = ""; StartLine = 0; StartCol = 0; EndLine = 0; EndCol = 0 }
+
+    member this.isEmpty () = this.File = ""
+
+
 [<AutoOpen>]
-module Util =
-
-    type SourceInfo =
-        { File: string
-          StartLine: int
-          StartCol: int
-          EndLine: int
-          EndCol: int }
-    with
-        static member empty = { File = ""; StartLine = 0; StartCol = 0; EndLine = 0; EndCol = 0 }
-
-        member this.isEmpty () = this.File = ""
+module internal Util =
 
     let notNull x =
         match x with

@@ -7,7 +7,7 @@ open Kanren.Data.Compiler
 open NUnit.Framework
 
 module InstTests =
-    let instTable = InstTable ()
+    let internal instTable = InstTable ()
 
     [<Test>]
     let unifyGroundFree () : unit =

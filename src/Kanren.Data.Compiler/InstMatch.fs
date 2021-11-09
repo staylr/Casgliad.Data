@@ -2,7 +2,7 @@
 
 open System.Collections.Generic
 
-module InstMatch =
+module internal InstMatch =
 
     type AnyMatchesAny =
     | AnyMatchesAny

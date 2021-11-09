@@ -2,7 +2,7 @@ namespace Kanren.Data.Compiler
 
 open Kanren.Data.Compiler.State
 
-module Quantification =
+module internal Quantification =
 
     type QInfo =
         { VarSet: VarSet

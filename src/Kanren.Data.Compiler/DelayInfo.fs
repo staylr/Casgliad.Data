@@ -4,7 +4,7 @@ open System.Collections.Immutable
 
 open Kanren.Data.Compiler.ModeErrors
 
-module Delay =
+module internal Delay =
     [<Measure>]
     type private depthNumMeasure
 

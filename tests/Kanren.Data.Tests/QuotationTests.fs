@@ -72,7 +72,7 @@ module QuotationTests =
 
     let defaultSourceInfo = { SourceInfo.File = "..."; StartLine = 0; EndLine= 0; StartCol = 0; EndCol = 0 }
 
-    let newParserInfo (expr: Expr) =
+    let internal newParserInfo (expr: Expr) =
         let varset = QuotationParser.getVars VarSet.init expr
         let testSourceInfo =
                 match (QuotationParser.getSourceInfo expr) with
@@ -81,15 +81,15 @@ module QuotationTests =
         ParserInfo.init (kanrenTest()) varset testSourceInfo
 
     [<ReflectedDefinitionAttribute>]
-    let testVarName info var varName = info.varset.[var].Name = varName
+    let internal testVarName info var varName = info.varset.[var].Name = varName
 
-    let lookupRelationModes (relationId: RelationId): (ModeInfo.RelationModeInfo list) =
+    let internal lookupRelationModes (relationId: RelationId): (ModeInfo.RelationModeInfo list) =
         match relationId.RelationName with
         | "rel2" -> [ { Modes = { Modes = [ (Free, Ground); (Free, Ground) ]; Determinism = Nondet }
                         ProcId = 1<procIdMeasure>
                     } ]
 
-    let compileExpr expr maybeArgModes =
+    let internal compileExpr expr maybeArgModes =
         let ((args, goal), info) = State.run (QuotationParser.translateExpr expr) (newParserInfo expr)
         let (goal', varset) = Quantification.implicitlyQuantifyGoal args info.varset goal
         let argModes =

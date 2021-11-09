@@ -6,7 +6,7 @@ open FSharp.Reflection
 open FSharp.Quotations
 open FSharp.Collections
 
-type ParserInfo =
+type internal ParserInfo =
     { sourceModule: kanrenModule
       varset: VarSet
       errors: Error list
@@ -27,7 +27,7 @@ type ParserInfo =
           errors = []
           sourceInfo = sourceInfo }
 
-module QuotationParser =
+module internal QuotationParser =
 
     type ParserStateFunc<'T> = StateFunc<ParserInfo, 'T>
 

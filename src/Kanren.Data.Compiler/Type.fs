@@ -4,7 +4,7 @@ open FSharp.Reflection
 open Kanren.Data
 
 [<AutoOpen>]
-module Type =
+module internal Type =
     let tupleConstructor tupleType = Tuple (FSharpType.GetTupleElements(tupleType).Length)
 
     let caseArgTypes (case: UnionCaseInfo) =
