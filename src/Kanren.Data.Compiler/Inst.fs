@@ -280,6 +280,9 @@ module internal Inst =
             | ContainsAny ->
                 false
 
+        // TODO
+        member this.instContainsAny(inst: InstE) : bool = false
+
         member this.instIsGround(inst: BoundInstE) : bool =
             let rec instIsGround2 expanded inst =
                     match inst with

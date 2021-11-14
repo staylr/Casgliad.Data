@@ -48,6 +48,7 @@ module internal Quantification =
         | Conjunction (goals)
         | Disjunction (goals) -> goalListVarsBoth goals set lambdaSet
         | Not (goal) -> goalExprVarsBoth goal.Goal set lambdaSet
+        | Scope (_, goal) -> goalExprVarsBoth goal.Goal set lambdaSet
         | Switch (var, _, cases) -> caseListVarsBoth cases (TagSet.add var set) lambdaSet
         | IfThenElse (condGoal, thenGoal, elseGoal) ->
             let (condSet, condLambdaSet) = goalVarsBoth condGoal
@@ -116,9 +117,6 @@ module internal Quantification =
 
     and quantifyGoalExpr goalExpr goalInfo =
         state {
-            let! initialOutside = outside
-            let! initialLmabdaOutside = lambdaOutside
-
             match goalExpr with
             | Unify (lhs, rhs, mode, context) -> return! quantifyUnify lhs rhs mode context goalInfo
             | Call (_, args) -> return! quantifyPrimitiveGoal goalExpr args
@@ -126,8 +124,16 @@ module internal Quantification =
             | Conjunction (goals) -> return! quantifyConj goals
             | Disjunction (goals) -> return! quantifyDisj goals
             | Not (negGoal) -> return! quantifyNegation negGoal
+            | Scope (reason, scopeGoal) -> return! quantifyScope reason scopeGoal
             | IfThenElse (condGoal, thenGoal, elseGoal) -> return! quantifyIfThenElse condGoal thenGoal elseGoal
             | Switch (var, canFail, cases) -> return! quantifySwitch var canFail cases
+        }
+
+    and quantifyScope reason scopeGoal =
+        state {
+                let! scopeGoal' = quantifyGoal scopeGoal
+                let scope = Scope (reason, scopeGoal')
+                return (scope, (goalExprVars (Scope (reason, scopeGoal)) emptySetOfVar))
         }
 
     and quantifySwitch var canFail cases =
@@ -137,8 +143,8 @@ module internal Quantification =
 
             for case in cases do
                 let! goal' = quantifyGoal case.CaseGoal
-                let! goalNonlocals = nonLocals
-                nonLocalVars <- TagSet.union nonLocalVars goalNonlocals
+                let! goalNonLocals = nonLocals
+                nonLocalVars <- TagSet.union nonLocalVars goalNonLocals
                 cases' <- { case with CaseGoal = goal' } :: cases'
 
             do! setNonLocals (TagSet.add var nonLocalVars)

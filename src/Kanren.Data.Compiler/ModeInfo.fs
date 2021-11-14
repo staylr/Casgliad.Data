@@ -182,7 +182,7 @@ module internal ModeInfo =
 
     let varIsLocked (modeInfo: ModeInfo) var =
         modeInfo.LockedVars
-        |> List.exists (fun l -> TagSet.contains var (snd l))
+        |> List.tryFind (fun l -> TagSet.contains var (snd l))
 
     let withLockedVars reason vars f (modeInfo: ModeInfo) =
         let lockedVars0 = modeInfo.LockedVars
@@ -213,6 +213,10 @@ module internal ModeInfo =
         iterWithState2 varHasInstNoExactMatch vars insts modeInfo
 
     let setVarInst (var: VarId) (newInst0: InstE) (maybeUnifiedInst: InstE option) modeInfo =
+        let doSetVarInst newInst modeInfo =
+            let delayInfo = modeInfo.DelayInfo.bindVar(var)
+            ((), { modeInfo with InstMap = modeInfo.InstMap.setVar var newInst; DelayInfo = delayInfo })
+
         if not (modeInfo.InstMap.isReachable()) then
             ((), modeInfo)
         else
@@ -233,13 +237,16 @@ module internal ModeInfo =
                 // No added information or binding.
                 // TODO - can this actually happen? It can in Mercury when uniqueness is lost.
                 ((), { modeInfo with InstMap = modeInfo.InstMap.setVar var newInst })
-            elif (not (InstMatch.instMatchesBinding modeInfo.InstTable newInst oldInst (Some varDefn.VarType) InstMatch.AnyMatchesAny)
-                  && varIsLocked modeInfo var ) then
-                // TODO
-                ((), modeInfo)
+            elif (not (InstMatch.instMatchesBinding modeInfo.InstTable newInst oldInst (Some varDefn.VarType) InstMatch.AnyMatchesAny)) then
+                let varIsLockedEntry = varIsLocked modeInfo var
+                match varIsLockedEntry with
+                | Some (reason, _) ->
+                    let error = ModeErrorBindLockedVar (reason, var, oldInst, newInst)
+                    modeError (TagSet.ofList [var]) error modeInfo
+                | None ->
+                    doSetVarInst newInst modeInfo
             else
-                let delayInfo = modeInfo.DelayInfo.bindVar(var)
-                ((), { modeInfo with InstMap = modeInfo.InstMap.setVar var newInst; DelayInfo = delayInfo })
+                doSetVarInst newInst modeInfo
 
     let bindArgs inst argVars unifyArgInsts =
         state {

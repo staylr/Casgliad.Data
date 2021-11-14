@@ -21,6 +21,7 @@
     <Compile Include="Type.fs" />
     <Compile Include="Inst.fs" />
     <Compile Include="InstMatch.fs" />
+    <Compile Include="InstMap.fs" />
     <Compile Include="Goal.fs" />
     <Compile Include="Error.fs" />
     <Compile Include="ModuleInfo.fs" />
@@ -32,6 +33,7 @@
     <Compile Include="ModeInfo.fs" />
     <Compile Include="Builtins.fs" />
     <Compile Include="Modecheck.fs" />
+    <Compile Include="DeterminismAnalysis.fs" />
     <Compile Include="Compile.fs" />
     <Compile Include="AssemblyInfo.fs" />
   </ItemGroup>

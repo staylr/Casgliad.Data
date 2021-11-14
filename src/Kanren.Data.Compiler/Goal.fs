@@ -100,63 +100,6 @@ module internal Goal =
 
     let emptySetOfVar = TagSet.empty<varIdMeasure>
 
-    type InstMap =
-        private
-        | Reachable of Map<VarId, BoundInstE>
-        | Unreachable
-        static member initReachable = Reachable (Map.empty)
-        static member initUnreachable = Unreachable
-        member this.isReachable () = this <> Unreachable
-
-        member this.lookupVar v =
-            match this with
-            | Reachable m ->
-                match m.TryGetValue (v) with
-                | true, inst -> InstE.Bound inst
-                | _ -> InstE.Free
-            | Unreachable -> InstE.Bound BoundInstE.NotReached
-
-        member this.setVarBound v inst =
-            match this with
-            | Reachable m -> m.Add (v, inst) |> Reachable
-            | Unreachable -> this
-
-        member this.setVar v inst =
-            match inst with
-            | InstE.Free -> this
-            | InstE.Bound boundInst -> this.setVarBound v boundInst
-
-        member this.restrict vars =
-            match this with
-            | Reachable m ->
-                Map.filter (fun v _ -> TagSet.contains v vars) m
-                |> Reachable
-            | Unreachable -> Unreachable
-
-        static member computeInstMapDelta instMapA instMapB nonLocals =
-            match instMapA with
-            | Unreachable -> Unreachable
-            | Reachable mA ->
-                match instMapB with
-                | Unreachable -> Unreachable
-                | Reachable mB ->
-                    let addVarToInstMapDelta instMapDelta v =
-                        let instA = instMapA.lookupVar v
-                        let instB = instMapB.lookupVar v
-
-                        if (instA = instB) then
-                            instMapDelta
-                        else
-                            match instB with
-                            | InstE.Bound boundInstB -> Map.add v boundInstB instMapDelta
-                            | InstE.Free -> instMapDelta
-
-                    nonLocals
-                    |> TagSet.fold addVarToInstMapDelta Map.empty
-                    |> Reachable
-
-    type InstMapDelta = InstMap
-
     type RelationId = { ModuleName: string; RelationName: string }
         with
         override this.ToString() = $"{this.ModuleName}.{this.RelationName}"
@@ -180,7 +123,7 @@ module internal Goal =
           SourceInfo: SourceInfo }
         static member init sourceInfo =
             { NonLocals = TagSet.empty<varIdMeasure>
-              InstMapDelta = Unreachable
+              InstMapDelta = InstMap.initUnreachable
               Determinism = Determinism.Det
               SourceInfo = sourceInfo }
 
@@ -221,6 +164,35 @@ module internal Goal =
         { MainContext = mainContext
           SubContext = [] }
 
+    type ScopeReason =
+        // Require the wrapped sub-goal to have the specified determinism.
+        // If it does not, report an error.
+        | RequireDeterminism of Determinism
+
+        // This scope exists to delimit a piece of code
+        // with at_most_many solutions but with no outputs,
+        // whose overall determinism is thus at_most_one,
+        // or a piece of code that cannot succeed but some of whose
+        // components are at_most_many (regardless of the number of
+        // outputs).
+        | Commit
+
+        // The scope exists to prevent other compiler passes from
+        // arbitrarily moving computations in or out of the scope.
+        // This kind of scope can only be introduced by program
+        // transformations.
+        //
+        // The argument says whether other compiler passes are allowed
+        // to delete the scope.
+        //
+        // A non-removable explicit quantification may be introduced
+        // to keep related goals together where optimizations that
+        // separate the goals can only result in worse behaviour.
+        //
+        // A barrier says nothing about the determinism of either
+        // the inner or the outer goal, or about pruning.
+        | Barrier of removable: bool
+
     type GoalExpr =
         | Unify of lhs: VarId * rhs: UnifyRhs * mode: UnifyMode * context: UnifyContext
 
@@ -240,6 +212,7 @@ module internal Goal =
         | Switch of var: VarId * canFail: bool * cases: Case list
         | IfThenElse of condGoal: Goal * thenGoal: Goal * elseGoal: Goal
         | Not of Goal
+        | Scope of ScopeReason * Goal
         member x.Dump() : GoalToStringFunc =
             gts {
                 match x with
@@ -265,6 +238,7 @@ module internal Goal =
                     yield " not ("
                     yield! indent (negGoal.Dump ())
                     yield ")"
+                | Scope _ -> yield ""
             }
 
     and Goal =
@@ -323,6 +297,7 @@ module internal Goal =
             List.fold (fun vars'' case -> goalVars case.CaseGoal vars'') vars' cases
         | IfThenElse (condGoal, thenGoal, elseGoal) -> List.fold (flip goalVars) vars [ condGoal; thenGoal; elseGoal ]
         | Not (negGoal) -> goalVars negGoal vars
+        | Scope (_, subGoal) -> goalVars subGoal vars
 
     and goalVars (goal: Goal) vars = goalExprVars goal.Goal vars
 

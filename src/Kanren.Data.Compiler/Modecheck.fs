@@ -118,6 +118,9 @@ module internal Modecheck =
                 return! modecheckIfThenElse condGoal thenGoal elseGoal goal.Info
             | Not (negGoal) ->
                 return! modecheckNegation negGoal goal.Info
+            | Scope (reason, scopeGoal) ->
+                let! scopeGoal' = modecheckGoal scopeGoal
+                return Scope (reason, scopeGoal')
             | Switch (_, _, _) ->
                 return goal.Goal
         }

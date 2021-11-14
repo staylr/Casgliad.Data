@@ -48,7 +48,10 @@ module internal Simplify =
             | _ -> simplifyGoal { goal with Goal = flattenedGoal }
         | Not negGoal ->
             { goal with
-                  Goal = Not(simplifyGoal negGoal) }
+                Goal = Not(simplifyGoal negGoal) }
+        | Scope (reason, scopeGoal) ->
+            { goal with
+                Goal = Scope (reason, simplifyGoal scopeGoal) }
         | IfThenElse (condGoal, thenGoal, elseGoal) ->
             let condGoal' = simplifyGoal condGoal
             let thenGoal' = simplifyGoal thenGoal
