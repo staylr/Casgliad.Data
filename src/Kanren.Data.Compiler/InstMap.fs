@@ -3,9 +3,11 @@ module internal Kanren.Data.Compiler.InstMap
 
     open Kanren.Data.Compiler.InstMatch
 
+    type private InstMapping = Map<VarId, BoundInstE>
+
     type InstMap =
         private
-        | Reachable of Map<VarId, BoundInstE>
+        | Reachable of InstMapping
         | Unreachable
         static member initReachable = Reachable (Map.empty)
         static member initUnreachable = Unreachable
@@ -54,6 +56,19 @@ module internal Kanren.Data.Compiler.InstMap
                         false
                 nonLocals
                 |> TagSet.exists varIsOutput
+
+        member this.applyInstMapDelta (delta: InstMap) : InstMap =
+            match this with
+            | Reachable m ->
+                match delta with
+                | Reachable deltaM ->
+                    deltaM
+                    |> Map.fold (fun (m': InstMapping) k v -> m'.Add(k, v)) m
+                    |> Reachable
+                | Unreachable ->
+                    Unreachable
+            | Unreachable ->
+                Unreachable
 
         static member computeInstMapDelta instMapA instMapB nonLocals =
             match instMapA with
