@@ -493,9 +493,7 @@ module internal Modecheck =
         }
 
     let modecheckBodyGoal predId procId varset args argModes instTable lookupRelationModes lookupFunctionModes (goal: Goal) =
-        let instMap = List.fold2 (fun (instMap': InstMap) arg (initialInst, _) -> instMap'.setVar arg initialInst)
-                            InstMap.initReachable args argModes
-
+        let instMap = InstMap.ofInitialArgModes args argModes
         let modeInfo = ModeInfo.init predId procId ModeContext.ModeContextUninitialized
                             goal.Info.SourceInfo varset instTable instMap true
                             lookupRelationModes lookupFunctionModes

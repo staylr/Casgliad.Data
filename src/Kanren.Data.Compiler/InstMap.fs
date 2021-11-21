@@ -92,4 +92,9 @@ module internal Kanren.Data.Compiler.InstMap
                     |> TagSet.fold addVarToInstMapDelta Map.empty
                     |> Reachable
 
+        static member ofInitialArgModes args argModes =
+            List.fold2
+                (fun (instMap': InstMap) arg (initialInst, _) -> instMap'.setVar arg initialInst)
+                InstMap.initReachable args argModes
+
     type InstMapDelta = InstMap

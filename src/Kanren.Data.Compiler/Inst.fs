@@ -657,12 +657,12 @@ module internal Inst =
                     (fun (insts, det) i ->
                         match i with
                         | Free ->
-                            Some (Any :: insts, det)
+                            Some (Ground :: insts, det)
                         | Bound bi ->
                             this.makeGroundInst(bi)
                             |> Option.map
-                                (fun (anyInst, det1) ->
-                                    (anyInst :: insts, parallelConjunctionDeterminism det det1)
+                                (fun (groundInst, det1) ->
+                                    (groundInst :: insts, parallelConjunctionDeterminism det det1)
                                 )
                     )
                     ([], Det)

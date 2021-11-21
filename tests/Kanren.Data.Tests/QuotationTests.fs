@@ -92,13 +92,16 @@ module QuotationTests =
     let internal compileExpr expr maybeArgModes =
         let ((args, goal), info) = State.run (QuotationParser.translateExpr expr) (newParserInfo expr)
         let (goal', varset) = Quantification.implicitlyQuantifyGoal args info.varset goal
-        let argModes =
+        let (argModes, det) =
             match maybeArgModes with
-            | Some argModes -> argModes
-            | None -> args |> List.map (fun _ -> (InstE.Free, BoundInstE.Ground))
-        let (goal'', errors, _, varset') = Modecheck.modecheckBodyGoal "pred" 0 varset args argModes (InstTable())
+            | Some (argModes, det) -> (argModes, det)
+            | None -> (args |> List.map (fun _ -> (InstE.Free, BoundInstE.Ground)), Nondet)
+        let instTable = InstTable()
+        let (goal'', errors, _, varset') = Modecheck.modecheckBodyGoal "pred" 0 varset args argModes instTable
                                                             lookupRelationModes Builtins.lookupFSharpFunctionModes goal'
-        ((args, goal''), { info with varset = varset' })
+        let (goal''', inferredDet) = DeterminismAnalysis.determinismInferProcedureBody instTable args argModes det
+                                                            varset goal'' lookupRelationModes Builtins.lookupFSharpFunctionModes
+        ((args, goal'''), { info with varset = varset' })
 
     [<Test>]
     let simple () : unit =
@@ -148,7 +151,7 @@ module QuotationTests =
                                     | Case1(a, b) -> a = b && y = "Case1"
                                     | Case2(c, d) -> c = d && y = "Case2"
                                     | Case3(e, f) -> e = f && y = "Case3" @>
-        let ((args, goal), info) = compileExpr expr (Some [(Bound Ground, Ground); (Free, Ground)])
+        let ((args, goal), info) = compileExpr expr (Some ([(Bound Ground, Ground); (Free, Ground)], Det))
         test <@ info.errors = [] @>
 
         match goal.Goal with
@@ -174,7 +177,7 @@ module QuotationTests =
                             x = 1
                             && let (a, b) = y in a = b
                         @>
-        let ((args, goal), info) = compileExpr expr (Some [(Bound Ground, Ground); (Bound Ground, Ground)])
+        let ((args, goal), info) = compileExpr expr (Some ([(Bound Ground, Ground); (Bound Ground, Ground)], Det))
         test <@ info.errors = [] @>
         test <@
                 match args with
@@ -206,7 +209,7 @@ module QuotationTests =
                                                 && m = []
                                                 && d = Determinism.Det
                             @>
-            let ((args, goal), info) = compileExpr expr (Some ([(Bound Ground, Ground); (Bound Ground, Ground)]))
+            let ((args, goal), info) = compileExpr expr (Some ([(Bound Ground, Ground); (Bound Ground, Ground)], Det))
             test <@ info.errors = [] @>
             match goal.Goal with
             | Conjunction([{ Goal = Unify(arg1, Constructor(Tuple 3, [arga; argeModes1; argc], _, _, _), _, _) };

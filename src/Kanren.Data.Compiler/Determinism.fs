@@ -43,16 +43,12 @@ module internal Determinism =
         match (s1, s2) with
         | (NumSolutions.NoSolutions, _)
         | (NumSolutions.OneSolution, NumSolutions.NoSolutions)
-        | (NumSolutions.MoreThanOneSolution, NumSolutions.NoSolutions) ->
-            NumSolutions.NoSolutions
-        | (NumSolutions.OneSolution, s2) ->
-            s2
+        | (NumSolutions.MoreThanOneSolution, NumSolutions.NoSolutions) -> NumSolutions.NoSolutions
+        | (NumSolutions.OneSolution, s2) -> s2
         | (NumSolutions.CommittedChoice, NumSolutions.MoreThanOneSolution) ->
-            raise (System.Exception("committed choice followed by nondet"))
-        | (NumSolutions.CommittedChoice, _) ->
-            NumSolutions.CommittedChoice
-        | (NumSolutions.MoreThanOneSolution, _) ->
-            NumSolutions.MoreThanOneSolution
+            raise (System.Exception ("committed choice followed by nondet"))
+        | (NumSolutions.CommittedChoice, _) -> NumSolutions.CommittedChoice
+        | (NumSolutions.MoreThanOneSolution, _) -> NumSolutions.MoreThanOneSolution
 
     let detConjunctionCanFail f1 f2 =
         match (f1, f2) with
@@ -64,8 +60,7 @@ module internal Determinism =
         let (maxSoln1, canFail1) = determinismComponents det1
 
         match maxSoln1 with
-        | NumSolutions.NoSolutions ->
-            det1
+        | NumSolutions.NoSolutions -> det1
         | NumSolutions.OneSolution
         | NumSolutions.MoreThanOneSolution
         | NumSolutions.CommittedChoice ->
@@ -142,3 +137,13 @@ module internal Determinism =
         | CommittedChoiceNondet -> None
         | Erroneous -> Some Erroneous
         | Fail -> Some Det
+
+   type SolutionContext =
+        | FirstSolution
+        | AllSolutions
+    with
+    static member ofDeterminism det =
+        let (maxSoln, _) = determinismComponents det
+        if (maxSoln = CommittedChoice) then FirstSolution else AllSolutions
+
+
