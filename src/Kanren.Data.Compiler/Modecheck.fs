@@ -492,10 +492,10 @@ module internal Modecheck =
                 return (goal' :: goals'', (goal'.Info.SourceInfo, armInstMap) :: armInstMaps)
         }
 
-    let modecheckBodyGoal predId procId varset args argModes instTable lookupRelationModes lookupFunctionModes (goal: Goal) =
+    let modecheckBodyGoal relationProcId varset args argModes instTable lookupRelationModes lookupFunctionModes (goal: Goal) =
         let instMap = InstMap.ofInitialArgModes args argModes
-        let modeInfo = ModeInfo.init predId procId ModeContext.ModeContextUninitialized
+        let modeInfo = ModeInfo.init relationProcId ModeContext.ModeContextUninitialized
                             goal.Info.SourceInfo varset instTable instMap true
                             lookupRelationModes lookupFunctionModes
         let (goal', modeInfo') = run (modecheckGoal goal) modeInfo
-        (goal', modeInfo'.Errors, modeInfo'.InstMap, modeInfo'.VarSet)
+        (goal', modeInfo'.Errors, modeInfo'.Warnings, modeInfo'.InstMap, modeInfo'.VarSet)

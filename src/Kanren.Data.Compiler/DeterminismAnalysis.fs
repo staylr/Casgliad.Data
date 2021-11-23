@@ -1,6 +1,7 @@
 ﻿module internal Kanren.Data.Compiler.DeterminismAnalysis
 
 open Kanren.Data
+open Kanren.Data.Compiler.DeterminismErrors
 
 type FailingGoal =
     | IncompleteSwitch of VarId
@@ -18,15 +19,18 @@ type FailingContext =
 type DeterminismInfo =
     { LookupRelationModes: ModeInfo.LookupRelationModes
       LookupFSharpFunctionModes: ModeInfo.LookupFSharpFunctionModes
+      CurrentRelation: RelationProcId
       VarSet: VarSet
-      InstTable: InstTable }
+      InstTable: InstTable
+      Errors: ResizeArray<DeterminismErrorInfo>
+      Warnings: ResizeArray<DeterminismWarningInfo> }
 
 let rec determinismInferGoal detInfo (goal: Goal) (instMap0: InstMap) solutionContext rightFailingContexts =
     let (solutionContext', addPruning) =
         if (instMap0.hasOutputVars detInfo.InstTable detInfo.VarSet instMap0 goal.Info.NonLocals) then
-            (FirstSolution, true)
-        else
             (solutionContext, false)
+        else
+            (FirstSolution, true)
 
     let addPruning' =
         match goal.Goal with
@@ -254,8 +258,7 @@ and determinismInferCall detInfo callee args goalInfo solutionContext rightFaili
 
     if (numSolutions = CommittedChoice
         && solutionContext = AllSolutions) then
-        failwith
-            $"Error: call to {callee} with determinism {modes.Modes.Determinism} occurs in a context which requires all solutions"
+        detInfo.Errors.Add({SourceInfo = goalInfo.SourceInfo; Relation = detInfo.CurrentRelation; Error = CallMustBeInSingleSolutionContext callee })
 
     let goalFailingContexts =
         match canFail with
@@ -309,17 +312,28 @@ and determinismInferConjunction detInfo conjGoals instMap0 solutionContext right
         (headGoal' :: tailGoals', determinism, conjFailingContexts'')
     | [] -> ([], Det, conjFailingContexts)
 
-let determinismInferProcedureBody instTable args argModes declaredDet varSet goal lookupRelationModes lookupFSharpModes =
+let determinismInferProcedureBody instTable relationProcId args argModes declaredDet varSet goal lookupRelationModes lookupFSharpModes =
     let detInfo =
         { InstTable = instTable
           VarSet = varSet
           LookupRelationModes = lookupRelationModes
-          LookupFSharpFunctionModes = lookupFSharpModes }
+          LookupFSharpFunctionModes = lookupFSharpModes
+          CurrentRelation = relationProcId
+          Errors = ResizeArray()
+          Warnings = ResizeArray() }
 
     let instMap = InstMap.ofInitialArgModes args argModes
 
     let solutionContext = SolutionContext.ofDeterminism declaredDet
     let (goal', inferredDet, _) = determinismInferGoal detInfo goal instMap solutionContext []
 
-    // TODO check inferred determinism
-    (goal', inferredDet)
+    let compareDeterminism = compareDeterminisms declaredDet inferredDet
+    match compareDeterminism with
+    | DeterminismComparison.FirstSameAs -> ()
+    | DeterminismComparison.FirstTighterThan ->
+        detInfo.Warnings.Add({Relation = relationProcId; SourceInfo = goal.Info.SourceInfo; Warning = DeterminismWarning.DeclarationTooLax (declaredDet, inferredDet) })
+    | DeterminismComparison.FirstLooserThan | DeterminismComparison.Incomparable ->
+        // TODO: diagnose error.
+        detInfo.Errors.Add({ Relation = relationProcId; SourceInfo = goal.Info.SourceInfo; Error = DeterminismError.DeclarationNotSatisfied (declaredDet, inferredDet, []) })
+
+    (goal', detInfo.Errors, detInfo.Warnings, inferredDet)

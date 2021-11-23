@@ -26,8 +26,7 @@ module internal ModeInfo =
     type LockedVars = (VarLockReason * SetOfVar) list
 
     type ModeInfo =
-        { PredId: string
-          ProcId: int
+        { RelationProcId: RelationProcId
 
           VarSet: VarSet
           InstTable: InstTable
@@ -62,10 +61,9 @@ module internal ModeInfo =
           NeedToRequantify: bool
         }
         with
-        static member init predId procId modeContext currentSourceInfo varset instTable instmap mayChangeProc
+        static member init relationProcId modeContext currentSourceInfo varset instTable instmap mayChangeProc
                                 lookupRelationModes lookupFunctionModes =
-                            { PredId = predId
-                              ProcId = procId
+                            { RelationProcId = relationProcId
                               InstMap = instmap
                               VarSet = varset
                               DelayInfo = DelayInfo.init ()

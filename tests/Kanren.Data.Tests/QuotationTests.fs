@@ -97,9 +97,10 @@ module QuotationTests =
             | Some (argModes, det) -> (argModes, det)
             | None -> (args |> List.map (fun _ -> (InstE.Free, BoundInstE.Ground)), Nondet)
         let instTable = InstTable()
-        let (goal'', errors, _, varset') = Modecheck.modecheckBodyGoal "pred" 0 varset args argModes instTable
+        let relationProcId = ({RelationId.ModuleName = "mod"; RelationId.RelationName = "pred"}, 0<procIdMeasure>)
+        let (goal'', errors, _, _, varset') = Modecheck.modecheckBodyGoal relationProcId varset args argModes instTable
                                                             lookupRelationModes Builtins.lookupFSharpFunctionModes goal'
-        let (goal''', inferredDet) = DeterminismAnalysis.determinismInferProcedureBody instTable args argModes det
+        let (goal''', _, _, inferredDet) = DeterminismAnalysis.determinismInferProcedureBody instTable relationProcId args argModes det
                                                             varset goal'' lookupRelationModes Builtins.lookupFSharpFunctionModes
         ((args, goal'''), { info with varset = varset' })
 

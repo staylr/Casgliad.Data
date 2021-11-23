@@ -138,12 +138,73 @@ module internal Determinism =
         | Erroneous -> Some Erroneous
         | Fail -> Some Det
 
-   type SolutionContext =
+    type SolutionContext =
         | FirstSolution
         | AllSolutions
-    with
-    static member ofDeterminism det =
-        let (maxSoln, _) = determinismComponents det
-        if (maxSoln = CommittedChoice) then FirstSolution else AllSolutions
+        with
+        static member ofDeterminism det =
+            let (maxSoln, _) = determinismComponents det
+            if (maxSoln = CommittedChoice) then FirstSolution else AllSolutions
+
+    type DeterminismComparison =
+        | FirstTighterThan
+        | FirstSameAs
+        | FirstLooserThan
+        | Incomparable
+
+    type DeterminismComponentComparison =
+        | FirstTighterThan
+        | FirstSameAs
+        | FirstLooserThan
+
+    let compareCanFails canFailA canFailB =
+        match (canFailA, canFailB) with
+        | (CannotFail, CannotFail) -> FirstSameAs
+        | (CannotFail, CanFail) -> FirstTighterThan
+        | (CanFail, CannotFail) -> FirstLooserThan
+        | (CanFail, CanFail) -> FirstSameAs
+
+    let compareSolutionCount solutionsA solutionsB =
+        match (solutionsA, solutionsB) with
+        | (NoSolutions, NoSolutions) -> FirstSameAs
+        | (NoSolutions, OneSolution) -> FirstTighterThan
+        | (NoSolutions, MoreThanOneSolution) -> FirstTighterThan
+        | (NoSolutions, CommittedChoice) -> FirstTighterThan
+
+        | (OneSolution, NoSolutions) -> FirstLooserThan
+        | (OneSolution, OneSolution) -> FirstSameAs
+        | (OneSolution, MoreThanOneSolution) -> FirstTighterThan
+        | (OneSolution, CommittedChoice) -> FirstTighterThan
+
+        | (CommittedChoice, NoSolutions) -> FirstLooserThan
+        | (CommittedChoice, OneSolution) -> FirstLooserThan
+        | (CommittedChoice, MoreThanOneSolution) -> FirstTighterThan
+        | (CommittedChoice, CommittedChoice) -> FirstSameAs
+
+        | (MoreThanOneSolution, NoSolutions) -> FirstLooserThan
+        | (MoreThanOneSolution, OneSolution) -> FirstLooserThan
+        | (MoreThanOneSolution, MoreThanOneSolution) -> FirstSameAs
+        | (MoreThanOneSolution, CommittedChoice) -> FirstLooserThan
+
+    let compareDeterminisms detA detB =
+        let (solutionsA, canFailA) = determinismComponents detA
+        let (solutionsB, canFailB) = determinismComponents detB
+        let compareCanFail = compareCanFails canFailA canFailB
+        let compareSolutions = compareSolutionCount solutionsA solutionsB
+
+        match compareCanFail with
+        | FirstTighterThan ->
+            match compareSolutions with
+            | FirstTighterThan | FirstSameAs -> DeterminismComparison.FirstTighterThan
+            | FirstLooserThan -> DeterminismComparison.Incomparable
+        | FirstSameAs ->
+            match compareSolutions with
+            | FirstTighterThan -> DeterminismComparison.FirstTighterThan
+            | FirstSameAs -> DeterminismComparison.FirstSameAs
+            | FirstLooserThan -> DeterminismComparison.FirstLooserThan
+        | FirstLooserThan ->
+            match compareSolutions with
+            | FirstTighterThan -> DeterminismComparison.Incomparable
+            | FirstSameAs | FirstLooserThan -> DeterminismComparison.FirstLooserThan
 
 
