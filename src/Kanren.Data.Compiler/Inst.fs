@@ -17,25 +17,26 @@ module internal Inst =
         | BoundCtor of BoundCtorDetailsE
         | DefinedInst of InstName: InstName
         | NotReached
-    and [<Struct>]InstE =
+
+    and [<Struct>] InstE =
         | Free
         | Bound of BoundInstE
+
     and ModeE = (InstE * BoundInstE)
 
     and RelationModeE =
         { Modes: ModeE list
           Determinism: Determinism }
 
-    and [<CustomEquality; NoComparison>]BoundCtorDetailsE =
+    and [<CustomEquality; NoComparison>] BoundCtorDetailsE =
         { BoundInsts: BoundCtorInstE list
           TestResults: InstTestResults }
-        with
         override this.Equals(other: obj) =
             match other with
             | :? BoundCtorDetailsE as otherInst -> otherInst.BoundInsts = this.BoundInsts
             | _ -> false
 
-        override this.GetHashCode() = this.BoundInsts.GetHashCode()
+        override this.GetHashCode() = this.BoundInsts.GetHashCode ()
 
     and BoundCtorInstE =
         { Constructor: Constructor
@@ -60,14 +61,16 @@ module internal Inst =
         | ContainsInstNames of HashSet<InstName>
         | ContainsInstNamesUnknown
 
-    and [<CustomEquality; NoComparison>]InstTestResults =
+    and [<CustomEquality; NoComparison>] InstTestResults =
         { Groundness: InstIsGround
           ContainsInstNames: InstContainsInstNames }
         static member noResults =
             { Groundness = GroundnessUnknown
               ContainsInstNames = ContainsInstNamesUnknown }
+
         static member groundTestResults =
-            { Groundness = IsGround; ContainsInstNames = ContainsInstNames (HashSet<InstName>()) }
+            { Groundness = IsGround
+              ContainsInstNames = ContainsInstNames (HashSet<InstName> ()) }
 
         // TODO: avoiding testing the set for equality should be further up the hierarchy.
         override this.Equals(other: obj) =
@@ -75,11 +78,14 @@ module internal Inst =
             | :? InstTestResults as otherResults -> otherResults.Groundness = this.Groundness
             | _ -> false
 
-        override this.GetHashCode() = this.Groundness.GetHashCode()
+        override this.GetHashCode() = this.Groundness.GetHashCode ()
 
     type InstDet = BoundInstE * Determinism
 
-    type InstMatchInputs = { Inst1: BoundInstE; Inst2: BoundInstE; Type: System.Type option }
+    type InstMatchInputs =
+        { Inst1: BoundInstE
+          Inst2: BoundInstE
+          Type: System.Type option }
 
     let initialFinalInstsIsOutput inst1 inst2 =
         match (inst1, inst2) with
@@ -88,7 +94,10 @@ module internal Inst =
 
     type InstTable() =
         member this.unifyInsts = Dictionary<InstPair, InstDet option> ()
-        member this.mergeInsts = Dictionary<InstPair, BoundInstE option> ()
+
+        member this.mergeInsts =
+            Dictionary<InstPair, BoundInstE option> ()
+
         member this.groundInsts = Dictionary<InstName, InstDet option> ()
         member this.anyInsts = Dictionary<InstName, InstDet option> ()
 
@@ -113,10 +122,10 @@ module internal Inst =
             | DefinedInst name -> this.lookup name |> this.expand
             | _ -> inst
 
-        member this.expand(inst: InstE): InstE =
+        member this.expand(inst: InstE) : InstE =
             match inst with
             | Free -> Free
-            | Bound inst -> this.expand(inst) |> Bound
+            | Bound inst -> this.expand (inst) |> Bound
 
         member this.lookup(instName: InstName) : BoundInstE =
             let handleInstDet instName instDet : BoundInstE =
@@ -143,48 +152,47 @@ module internal Inst =
                 |> handleInstDet instName
 
         member private this.expandAndProcess
-                                (f: HashSet<InstName> -> BoundInstE -> 'A)
-                                (expanded: HashSet<InstName>)
-                                (instName: InstName)
-                                (resultIfRecursive: 'A) =
-            if (expanded.Add(instName)) then
-                this.lookup (instName)
-                |> f expanded
+            (f: HashSet<InstName> -> BoundInstE -> 'A)
+            (expanded: HashSet<InstName>)
+            (instName: InstName)
+            (resultIfRecursive: 'A)
+            =
+            if (expanded.Add (instName)) then
+                this.lookup (instName) |> f expanded
             else
                 resultIfRecursive
 
         static member maybeGetConsIdArgTypes(maybeType: System.Type option, ctor: Constructor) =
             match ctor with
-            | Constant _ ->
-                []
-            | Tuple _ | Record _ | UnionCase _ ->
-               match maybeType with
-               | Some varType ->
-                   constructorArgTypes ctor varType
-                   |> List.map Some
-               | None ->
-                   [ 1 .. (constructorArity ctor) ]
-                   |> Seq.map (fun _ -> None)
-                   |> List.ofSeq
+            | Constant _ -> []
+            | Tuple _
+            | Record _
+            | UnionCase _ ->
+                match maybeType with
+                | Some varType -> constructorArgTypes ctor varType |> List.map Some
+                | None ->
+                    [ 1 .. (constructorArity ctor) ]
+                    |> Seq.map (fun _ -> None)
+                    |> List.ofSeq
 
         static member maybeGetHigherOrderArgTypes(maybeType: System.Type option, arity: int) =
             match maybeType with
-            | Some relationType when relationType.IsInstanceOfType(typeof<Relation<_>>) ->
-                let argTypes = relationType.GetGenericArguments()
+            | Some relationType when relationType.IsInstanceOfType (typeof<Relation<_>>) ->
+                let argTypes = relationType.GetGenericArguments ()
+
                 match argTypes with
                 | [| argType |] ->
-                    if (FSharpType.IsTuple(argType)) then
+                    if (FSharpType.IsTuple (argType)) then
                         Type.constructorArgTypes (Type.tupleConstructor argType) argType
                         |> List.map Some
-                    elif (FSharpType.IsRecord(argType)) then
+                    elif (FSharpType.IsRecord (argType)) then
                         Type.constructorArgTypes (Record argType) argType
                         |> List.map Some
                     else
                         [ Some argType ]
-                | _ ->
-                    failwith "Expected one type argument for Relation<_>"
+                | _ -> failwith "Expected one type argument for Relation<_>"
             | _ ->
-                [1 .. arity]
+                [ 1 .. arity ]
                 |> Seq.map (fun _ -> None)
                 |> List.ofSeq
 
@@ -193,114 +201,140 @@ module internal Inst =
         // ``complete'' for its type.
         member this.boundInstListIsCompleteForType(expansions, (boundInsts: BoundCtorInstE list), instType) =
             let ctors = allConstructorArgTypesForType instType
+
             if (ctors = []) then
                 false
             else
                 ctors
                 |> List.forall
-                        (fun (ctor, argTypes) ->
-                            let matchingInst =
-                                boundInsts
-                                |> List.tryFind (fun boundInst -> boundInst.Constructor = ctor)
-                            match matchingInst with
-                            | Some matchedInst ->
-                                List.forall2 (fun i t -> this.instIsCompleteForType(expansions, i, t)) matchedInst.ArgInsts argTypes
-                            | None ->
-                                false
-                        )
+                    (fun (ctor, argTypes) ->
+                        let matchingInst =
+                            boundInsts
+                            |> List.tryFind (fun boundInst -> boundInst.Constructor = ctor)
 
-        member this.instIsCompleteForType(expansions: HashSet<InstName>, inst: BoundInstE, instType: System.Type) : bool =
+                        match matchingInst with
+                        | Some matchedInst ->
+                            List.forall2
+                                (fun i t -> this.instIsCompleteForType (expansions, i, t))
+                                matchedInst.ArgInsts
+                                argTypes
+                        | None -> false)
+
+        member this.instIsCompleteForType
+            (
+                expansions: HashSet<InstName>,
+                inst: BoundInstE,
+                instType: System.Type
+            ) : bool =
             match inst with
             | DefinedInst (instName) ->
-                if (expansions.Contains(instName)) then
+                if (expansions.Contains (instName)) then
                     true
                 else
-                    let inst' = this.lookup(instName)
-                    let expansions' = HashSet<InstName>(expansions)
-                    do expansions'.Add(instName) |> ignore
-                    this.instIsCompleteForType(expansions', inst', instType)
+                    let inst' = this.lookup (instName)
+                    let expansions' = HashSet<InstName> (expansions)
+                    do expansions'.Add (instName) |> ignore
+                    this.instIsCompleteForType (expansions', inst', instType)
             | BoundCtor (boundInsts) ->
-                this.boundInstListIsCompleteForType(expansions, boundInsts.BoundInsts, instType)
-            | Any | Ground | HigherOrder _ | HigherOrderAny _ ->
-                true
-            | NotReached ->
-                false
+                this.boundInstListIsCompleteForType (expansions, boundInsts.BoundInsts, instType)
+            | Any
+            | Ground
+            | HigherOrder _
+            | HigherOrderAny _ -> true
+            | NotReached -> false
 
-        member this.boundInstListContainedInstNames(expansions: HashSet<InstName>, instNames: HashSet<InstName>, boundInsts: BoundCtorDetailsE) : unit =
-                match boundInsts.TestResults.ContainsInstNames with
-                | ContainsInstNames set ->
-                    set |> Seq.iter (fun i -> instNames.Add i |> ignore)
-                | ContainsInstNamesUnknown ->
-                    boundInsts.BoundInsts
-                    |> List.iter (
-                        fun b -> b.ArgInsts |> List.iter (fun i -> this.containedInstNames(expansions, instNames, i))
-                    )
+        member this.boundInstListContainedInstNames
+            (
+                expansions: HashSet<InstName>,
+                instNames: HashSet<InstName>,
+                boundInsts: BoundCtorDetailsE
+            ) : unit =
+            match boundInsts.TestResults.ContainsInstNames with
+            | ContainsInstNames set ->
+                set
+                |> Seq.iter (fun i -> instNames.Add i |> ignore)
+            | ContainsInstNamesUnknown ->
+                boundInsts.BoundInsts
+                |> List.iter
+                    (fun b ->
+                        b.ArgInsts
+                        |> List.iter (fun i -> this.containedInstNames (expansions, instNames, i)))
 
-        member this.containedInstNames(expansions: HashSet<InstName>, instNames: HashSet<InstName>, inst: BoundInstE) : unit =
+        member this.containedInstNames
+            (
+                expansions: HashSet<InstName>,
+                instNames: HashSet<InstName>,
+                inst: BoundInstE
+            ) : unit =
             match inst with
-            | Ground | Any | NotReached | HigherOrder _ | HigherOrderAny _ ->
-                ()
-            | BoundCtor (boundInsts) ->
-                this.boundInstListContainedInstNames(expansions, instNames, boundInsts)
+            | Ground
+            | Any
+            | NotReached
+            | HigherOrder _
+            | HigherOrderAny _ -> ()
+            | BoundCtor (boundInsts) -> this.boundInstListContainedInstNames (expansions, instNames, boundInsts)
             | DefinedInst instName ->
-                if (expansions.Add(instName)) then
+                if (expansions.Add (instName)) then
                     let expandedInst = this.lookup (instName)
-                    this.containedInstNames(expansions, instNames, expandedInst)
+                    this.containedInstNames (expansions, instNames, expandedInst)
                 else
                     ()
 
         member this.instContainsInstName(inst: BoundInstE, instName: InstName) : bool =
             let rec instContainsInstName2 (expanded: HashSet<InstName>) inst =
-                    match inst with
-                    | Ground | Any | NotReached | HigherOrder _ | HigherOrderAny _ ->
+                match inst with
+                | Ground
+                | Any
+                | NotReached
+                | HigherOrder _
+                | HigherOrderAny _ -> false
+                | BoundCtor (boundInsts) ->
+                    boundInstListContainsInstName expanded boundInsts.TestResults boundInsts.BoundInsts
+                | DefinedInst thisInstName ->
+                    if (thisInstName = instName) then
+                        true
+                    elif (expanded.Add (instName)) then
+                        let expandedInst = this.lookup (instName)
+                        instContainsInstName2 expanded expandedInst
+                    else
                         false
-                    | BoundCtor (boundInsts) ->
-                        boundInstListContainsInstName expanded boundInsts.TestResults boundInsts.BoundInsts
-                    | DefinedInst thisInstName ->
-                        if (thisInstName = instName) then
-                            true
-                        elif (expanded.Add(instName)) then
-                            let expandedInst = this.lookup (instName)
-                            instContainsInstName2 expanded expandedInst
-                        else
-                            false
 
             and boundInstListContainsInstName expanded testResults boundInsts =
-                boundInsts |>
-                List.exists (fun boundInst -> List.exists (instContainsInstName2 expanded) boundInst.ArgInsts)
+                boundInsts
+                |> List.exists (fun boundInst -> List.exists (instContainsInstName2 expanded) boundInst.ArgInsts)
 
-            instContainsInstName2 (HashSet<InstName>()) inst
+            instContainsInstName2 (HashSet<InstName> ()) inst
 
         member this.testInstIsGround testResults f =
             match testResults.Groundness with
-            | GroundnessUnknown ->
-                f ()
-            | IsGround ->
-                true
-            | ContainsAny ->
-                false
+            | GroundnessUnknown -> f ()
+            | IsGround -> true
+            | ContainsAny -> false
 
         // TODO
         member this.instContainsAny(inst: InstE) : bool = false
 
         member this.instIsGround(inst: BoundInstE) : bool =
             let rec instIsGround2 expanded inst =
-                    match inst with
-                    | Ground | NotReached | HigherOrder _ ->
-                        true
-                    | BoundCtor (boundInsts) ->
-                        this.boundInstListIsGround (boundInsts)
-                    | Any | HigherOrderAny _ ->
-                        // TODO maybe_any_to_bound in inst_test.m
-                        false
-                    | DefinedInst instName ->
-                        this.expandAndProcess instIsGround2 expanded instName true
+                match inst with
+                | Ground
+                | NotReached
+                | HigherOrder _ -> true
+                | BoundCtor (boundInsts) -> this.boundInstListIsGround (boundInsts)
+                | Any
+                | HigherOrderAny _ ->
+                    // TODO maybe_any_to_bound in inst_test.m
+                    false
+                | DefinedInst instName -> this.expandAndProcess instIsGround2 expanded instName true
 
-            instIsGround2 (HashSet<InstName>()) inst
+            instIsGround2 (HashSet<InstName> ()) inst
 
         member this.boundInstListIsGround(boundInsts: BoundCtorDetailsE) : bool =
-            this.testInstIsGround boundInsts.TestResults
-                (fun () -> boundInsts.BoundInsts |> List.forall (fun b -> List.forall this.instIsGround b.ArgInsts))
+            this.testInstIsGround
+                boundInsts.TestResults
+                (fun () ->
+                    boundInsts.BoundInsts
+                    |> List.forall (fun b -> List.forall this.instIsGround b.ArgInsts))
 
         member this.makeGroundInst(inst: BoundInstE) : (BoundInstE * Determinism) option =
             match inst with
@@ -308,9 +342,11 @@ module internal Inst =
             | Any -> Some (Ground, Semidet)
             | BoundCtor (boundInsts) ->
                 this.makeGroundBoundInstList boundInsts.BoundInsts
-                |> Option.map (fun res -> (this.makeBoundInst(fst res), parallelConjunctionDeterminism Semidet (snd res) ))
+                |> Option.map
+                    (fun res -> (this.makeBoundInst (fst res), parallelConjunctionDeterminism Semidet (snd res)))
             | Ground -> Some (Ground, Semidet)
-            | HigherOrder _ | HigherOrderAny _ -> Some (inst, Semidet)
+            | HigherOrder _
+            | HigherOrderAny _ -> Some (inst, Semidet)
             | DefinedInst instName ->
                 let groundInstName = GroundInst (instName)
 
@@ -364,9 +400,11 @@ module internal Inst =
             | Any -> Some (Any, Semidet)
             | BoundCtor (boundInsts) ->
                 this.makeAnyBoundInstList boundInsts.BoundInsts
-                |> Option.map (fun res -> (this.makeBoundInst(fst res), parallelConjunctionDeterminism Semidet (snd res)))
+                |> Option.map
+                    (fun res -> (this.makeBoundInst (fst res), parallelConjunctionDeterminism Semidet (snd res)))
             | Ground -> Some (Ground, Semidet)
-            | HigherOrder _ | HigherOrderAny _ -> Some (inst, Semidet)
+            | HigherOrder _
+            | HigherOrderAny _ -> Some (inst, Semidet)
             | DefinedInst (instName) ->
                 let anyInstName = AnyInst (instName)
 
@@ -414,7 +452,11 @@ module internal Inst =
 
             mapFoldOption makeAnyBoundInst Det insts
 
-        member this.unifyInstList(insts1: BoundInstE list, insts2: BoundInstE list) : (BoundInstE list * Determinism) option =
+        member this.unifyInstList
+            (
+                insts1: BoundInstE list,
+                insts2: BoundInstE list
+            ) : (BoundInstE list * Determinism) option =
             let unifyInstPair det (inst1, inst2) =
                 this.unifyBoundInst (inst1, inst2)
                 |> Option.map (fun res -> (fst res, parallelConjunctionDeterminism det (snd res)))
@@ -429,8 +471,8 @@ module internal Inst =
                 | BoundCtor (boundInsts1) ->
                     match inst2 with
                     | NotReached -> Some (NotReached, Det)
-                    | HigherOrder _ | HigherOrderAny _ ->
-                        None
+                    | HigherOrder _
+                    | HigherOrderAny _ -> None
                     | Ground ->
                         match boundInsts1.TestResults.Groundness with
                         | InstIsGround.IsGround -> Some (inst1, Semidet)
@@ -442,19 +484,19 @@ module internal Inst =
                                     { Groundness = InstIsGround.IsGround
                                       ContainsInstNames = InstContainsInstNames.ContainsInstNamesUnknown }
 
-                                Some (this.makeBoundInst(boundInsts), det)
+                                Some (this.makeBoundInst (boundInsts), det)
                             | None -> None
                     | Any ->
                         match this.makeAnyBoundInstList (boundInsts1.BoundInsts) with
-                        | Some (boundInsts, det) -> Some (this.makeBoundInst(boundInsts), det)
+                        | Some (boundInsts, det) -> Some (this.makeBoundInst (boundInsts), det)
                         | None -> None
                     | BoundCtor (boundInsts2) ->
                         this.unifyBoundInstList (boundInsts1.BoundInsts, boundInsts2.BoundInsts)
-                        |> Option.map (fun (boundInsts, det) -> (this.makeBoundInst(boundInsts), det))
+                        |> Option.map (fun (boundInsts, det) -> (this.makeBoundInst (boundInsts), det))
                     | DefinedInst _ -> None
-                | Ground ->
-                    this.makeGroundInst (inst2)
-                | HigherOrder _ | HigherOrderAny _ ->
+                | Ground -> this.makeGroundInst (inst2)
+                | HigherOrder _
+                | HigherOrderAny _ ->
                     match inst2 with
                     | NotReached -> Some (NotReached, Determinism.Det)
 
@@ -464,10 +506,8 @@ module internal Inst =
                     | HigherOrder _
                     | HigherOrderAny _
                     | Any
-                    | DefinedInst _ ->
-                        None
-                | Any ->
-                    this.makeAnyInst (inst2)
+                    | DefinedInst _ -> None
+                | Any -> this.makeAnyInst (inst2)
                 | DefinedInst _ ->
                     // Should have been expanded before we got here.
                     None
@@ -493,12 +533,9 @@ module internal Inst =
         // Compute the inst that results from abstractly unifying two variables.
         member this.unifyInst(inst1: InstE, inst2: InstE) : InstDet option =
             match (inst1, inst2) with
-            | (Free, Bound boundInst2) ->
-                Some (boundInst2, Det)
-            | (Bound boundInst1, Free) ->
-                Some (boundInst1, Det)
-            | (Free, Free) ->
-                None
+            | (Free, Bound boundInst2) -> Some (boundInst2, Det)
+            | (Bound boundInst1, Free) -> Some (boundInst1, Det)
+            | (Free, Free) -> None
             | (Bound boundInst1, Bound boundInst2) ->
                 let instPair = (boundInst1, boundInst2)
                 let instName = UnifyInst (instPair)
@@ -513,7 +550,8 @@ module internal Inst =
                         | Some (instDet) -> Some (instDet)
                         | None -> Some (DefinedInst instName, Determinism.Det)
                     | None ->
-                        let result = this.unifyBoundInst(boundInst1, boundInst2)
+                        let result =
+                            this.unifyBoundInst (boundInst1, boundInst2)
 
                         match result with
                         | Some (inst, det) ->
@@ -538,7 +576,8 @@ module internal Inst =
                 boundInsts2: BoundCtorInstE list
             ) : (BoundCtorInstE list * Determinism) option =
 
-            let resultSetMatchCanFail (res, det) = (res, switchDeterminism det Determinism.Fail)
+            let resultSetMatchCanFail (res, det) =
+                (res, switchDeterminism det Determinism.Fail)
 
             let rec unifyBoundInstList2 (boundInsts1: BoundCtorInstE list) (boundInsts2: BoundCtorInstE list) =
                 match (boundInsts1, boundInsts2) with
@@ -581,22 +620,33 @@ module internal Inst =
         // The unification must succeed, or an exception will be thrown.
         member this.getArgInsts(inst: InstE, ctor: Constructor, arity: int) =
             match inst with
-            | Free | Bound NotReached | Bound Ground | Bound Any ->
-                List.replicate arity inst
+            | Free
+            | Bound NotReached
+            | Bound Ground
+            | Bound Any -> List.replicate arity inst
             | Bound (BoundCtor details) ->
-                match details.BoundInsts |> List.tryFind (fun b -> b.Constructor = ctor) with
-                | Some boundInst ->
-                    boundInst.ArgInsts |> List.map Bound
-                | None ->
-                    failwith "InstTable.getArgInsts: could not find bound inst"
-            | _ ->
-                failwith $"InstTable.getARgInsts: unexpected inst {inst}"
+                match details.BoundInsts
+                      |> List.tryFind (fun b -> b.Constructor = ctor) with
+                | Some boundInst -> boundInst.ArgInsts |> List.map Bound
+                | None -> failwith "InstTable.getArgInsts: could not find bound inst"
+            | _ -> failwith $"InstTable.getARgInsts: unexpected inst {inst}"
 
-        member this.unifyInstFunctor(inst: InstE, ctor: Constructor, argInsts: InstE list, varType: System.Type): InstDet option =
+        member this.unifyInstFunctor
+            (
+                inst: InstE,
+                ctor: Constructor,
+                argInsts: InstE list,
+                varType: System.Type
+            ) : InstDet option =
 
             let argBoundInsts =
                 if (List.forall (fun i -> i <> Free) argInsts) then
-                    Some (List.map (function | Bound i -> i) argInsts)
+                    Some (
+                        List.map
+                            (function
+                            | Bound i -> i)
+                            argInsts
+                    )
                 else
                     None
 
@@ -604,8 +654,7 @@ module internal Inst =
             | Bound NotReached -> Some (NotReached, Erroneous)
             | Free ->
                 match argBoundInsts with
-                | Some boundInsts ->
-                    Some (this.makeBoundInst(ctor, boundInsts), Det)
+                | Some boundInsts -> Some (this.makeBoundInst (ctor, boundInsts), Det)
                 | None ->
                     // Don't allow partially instantiated terms.
                     None
@@ -619,17 +668,13 @@ module internal Inst =
                     |> Util.foldOption
                         (fun (insts, det) i ->
                             match i with
-                            | Free ->
-                                Some (Any :: insts, det)
+                            | Free -> Some (Any :: insts, det)
                             | Bound bi ->
-                                this.makeAnyInst(bi)
+                                this.makeAnyInst (bi)
                                 |> Option.map
-                                    (fun (anyInst, det1) ->
-                                        (anyInst :: insts, parallelConjunctionDeterminism det det1)
-                                    )
-                        )
+                                    (fun (anyInst, det1) -> (anyInst :: insts, parallelConjunctionDeterminism det det1)))
                         ([], Det)
-                    |> Option.map (fun (insts, det) -> (this.makeBoundInst(ctor, List.rev insts), det))
+                    |> Option.map (fun (insts, det) -> (this.makeBoundInst (ctor, List.rev insts), det))
 
             | Bound (BoundCtor boundInstList1) ->
                 match List.tryFind (fun i -> i.Constructor = ctor) boundInstList1.BoundInsts with
@@ -637,38 +682,31 @@ module internal Inst =
                     Util.foldOption2
                         (fun (insts, det) i1 i2 ->
                             match i1 with
-                            | Free ->
-                                Some (i2 :: insts, det)
+                            | Free -> Some (i2 :: insts, det)
                             | Bound _ ->
-                                this.unifyInst(i1, Bound i2)
-                                |> Option.map (
-                                    fun (unifyInst, det1) ->
-                                        (unifyInst :: insts, parallelConjunctionDeterminism det det1))
-                        )
+                                this.unifyInst (i1, Bound i2)
+                                |> Option.map
+                                    (fun (unifyInst, det1) ->
+                                        (unifyInst :: insts, parallelConjunctionDeterminism det det1)))
                         ([], Det)
                         argInsts
                         boundInst1.ArgInsts
-                   |> Option.map (fun (insts, det) -> (this.makeBoundInst(ctor, List.rev insts), det))
-                | None ->
-                    None
+                    |> Option.map (fun (insts, det) -> (this.makeBoundInst (ctor, List.rev insts), det))
+                | None -> None
             | Bound Ground ->
                 argInsts
                 |> Util.foldOption
                     (fun (insts, det) i ->
                         match i with
-                        | Free ->
-                            Some (Ground :: insts, det)
+                        | Free -> Some (Ground :: insts, det)
                         | Bound bi ->
-                            this.makeGroundInst(bi)
+                            this.makeGroundInst (bi)
                             |> Option.map
                                 (fun (groundInst, det1) ->
-                                    (groundInst :: insts, parallelConjunctionDeterminism det det1)
-                                )
-                    )
+                                    (groundInst :: insts, parallelConjunctionDeterminism det det1)))
                     ([], Det)
-                |> Option.map (fun (insts, det) -> (this.makeBoundInst(ctor, List.rev insts), det))
-            | _ ->
-                None
+                |> Option.map (fun (insts, det) -> (this.makeBoundInst (ctor, List.rev insts), det))
+            | _ -> None
 
         // Combine the insts found in different arms of a disjunction, switch, or
         // if-then-else. The information in InstC ifs the minimum of the information
@@ -689,29 +727,32 @@ module internal Inst =
             // so that the functors of the output list BoundInsts are the union
             // of the functors of the input lists BoundInstsA and BoundInstsB.
             and mergeBoundCtorInstList
-                        (boundInsts1: BoundCtorInstE list)
-                        (boundInsts2: BoundCtorInstE list)
-                        (maybeType: System.Type option) =
+                (boundInsts1: BoundCtorInstE list)
+                (boundInsts2: BoundCtorInstE list)
+                (maybeType: System.Type option)
+                =
                 match boundInsts1 with
-                | [] ->
-                    Some boundInsts2
+                | [] -> Some boundInsts2
                 | boundInst1 :: boundInsts1' ->
                     match boundInsts2 with
-                    | [] ->
-                        Some boundInsts1
+                    | [] -> Some boundInsts1
                     | boundInst2 :: boundInsts2' ->
                         if (boundInst1.Constructor = boundInst2.Constructor) then
 
-                            let argTypes = InstTable.maybeGetConsIdArgTypes(maybeType, boundInst1.Constructor)
+                            let argTypes =
+                                InstTable.maybeGetConsIdArgTypes (maybeType, boundInst1.Constructor)
+
                             mergeInstList boundInst1.ArgInsts boundInst2.ArgInsts argTypes
                             |> Option.bind
                                 (fun argInsts ->
                                     mergeBoundCtorInstList boundInsts1' boundInsts2' maybeType
                                     |> Option.bind
                                         (fun tail ->
-                                            let boundInst = { Constructor = boundInst1.Constructor; ArgInsts = argInsts }
-                                            Some (boundInst :: tail)
-                                        ))
+                                            let boundInst =
+                                                { Constructor = boundInst1.Constructor
+                                                  ArgInsts = argInsts }
+
+                                            Some (boundInst :: tail)))
                         elif (boundInst1.Constructor < boundInst2.Constructor) then
                             mergeBoundCtorInstList boundInsts1' boundInsts2 maybeType
                             |> Option.map (fun tail -> boundInst1 :: tail)
@@ -720,7 +761,7 @@ module internal Inst =
                             |> Option.map (fun tail -> boundInst2 :: tail)
 
             and mergeBoundInstListWithGround boundInsts1 maybeType =
-                if (this.boundInstListIsGround(boundInsts1)) then
+                if (this.boundInstListIsGround (boundInsts1)) then
                     Some Ground
                 else
                     // TODO Can do better if we know the type.
@@ -728,32 +769,27 @@ module internal Inst =
 
             and mergeInst3 inst1 inst2 maybeType =
                 match inst1, inst2 with
-                | Any, Any ->
-                    Some Any
+                | Any, Any -> Some Any
                 | BoundCtor (boundInsts), Any
                 | Any, BoundCtor (boundInsts) ->
                     // TODO We will lose any higher-order info in boundInsts.
                     // We should at least check that there isn't any such info.
                     Some Any
                 | Any, Ground
-                | Ground, Any ->
-                    Some Any
-                | Ground, Ground ->
-                    Some Ground
-                | HigherOrder info1, HigherOrder info2 ->
-                    Some (HigherOrder (mergeHigherOrderInfo info1 info2))
+                | Ground, Any -> Some Any
+                | Ground, Ground -> Some Ground
+                | HigherOrder info1, HigherOrder info2 -> Some (HigherOrder (mergeHigherOrderInfo info1 info2))
                 | BoundCtor (boundInsts1), BoundCtor (boundInsts2) ->
                     mergeBoundCtorInstList boundInsts1.BoundInsts boundInsts2.BoundInsts maybeType
-                    |> Option.map (fun boundInsts -> this.makeBoundInst(boundInsts))
+                    |> Option.map (fun boundInsts -> this.makeBoundInst (boundInsts))
                 | BoundCtor (boundInsts), Ground
-                | Ground, BoundCtor (boundInsts) ->
-                    mergeBoundInstListWithGround boundInsts maybeType
-                | _ ->
-                    None
+                | Ground, BoundCtor (boundInsts) -> mergeBoundInstListWithGround boundInsts maybeType
+                | _ -> None
 
             and mergeInst2 (inst1: BoundInstE) (inst2: BoundInstE) maybeType =
-                let inst1' = this.expand(inst1)
-                let inst2' = this.expand(inst2)
+                let inst1' = this.expand (inst1)
+                let inst2' = this.expand (inst2)
+
                 if (inst2' = NotReached) then
                     Some inst1'
                 else if (inst1' = NotReached) then
@@ -770,8 +806,7 @@ module internal Inst =
                 // does not contain any inst_names, any recursion has to be in the list
                 // elements, and will be caught and handled there.
                 match (inst1, inst2) with
-                | (BoundCtor _, BoundCtor _) ->
-                    mergeInst2 inst1 inst2 maybeType
+                | (BoundCtor _, BoundCtor _) -> mergeInst2 inst1 inst2 maybeType
                 | _ ->
                     let instPair = (inst1, inst2)
                     let instName = MergeInst (instPair)
@@ -810,32 +845,45 @@ module internal Inst =
             // computing it. The other is to ensure termination for situations
             // in which one or both of InstA and InstB are recursive.
             match inst1, inst2 with
-            | (Bound _, Free) | (Free, Bound _) | (Free, Free) ->
-                None
+            | (Bound _, Free)
+            | (Free, Bound _)
+            | (Free, Free) -> None
             | Bound boundInst1, Bound boundInst2 ->
                 mergeInst1 (boundInst1, boundInst2, maybeType)
                 |> Option.map Bound
 
-        member this.maybeAnyToBound (maybeType: System.Type option) : (BoundInstE option) = None
+        member this.maybeAnyToBound(maybeType: System.Type option) : (BoundInstE option) = None
 
-        member this.makeBoundInst (boundInsts: BoundCtorInstE list) : BoundInstE =
-            let defaultDetails = { BoundInsts = boundInsts; TestResults = InstTestResults.noResults }
+        member this.makeBoundInst(boundInsts: BoundCtorInstE list) : BoundInstE =
+            let defaultDetails =
+                { BoundInsts = boundInsts
+                  TestResults = InstTestResults.noResults }
+
             let groundness =
-                if (this.boundInstListIsGround(defaultDetails)) then
+                if (this.boundInstListIsGround (defaultDetails)) then
                     InstIsGround.IsGround
                 else
                     InstIsGround.ContainsAny
 
-            let instNames = HashSet<InstName>()
-            this.boundInstListContainedInstNames(HashSet<InstName>(), instNames, defaultDetails)
+            let instNames = HashSet<InstName> ()
+            this.boundInstListContainedInstNames (HashSet<InstName> (), instNames, defaultDetails)
 
-            let testResults = { Groundness = groundness; ContainsInstNames =  ContainsInstNames instNames }
+            let testResults =
+                { Groundness = groundness
+                  ContainsInstNames = ContainsInstNames instNames }
 
-            let orderedInsts = boundInsts |> List.sortBy (fun b -> b.Constructor)
-            BoundCtor { BoundInsts = orderedInsts; TestResults = testResults }
+            let orderedInsts =
+                boundInsts |> List.sortBy (fun b -> b.Constructor)
 
-        member this.makeBoundInst (ctor: Constructor, argInsts: BoundInstE list) : BoundInstE =
-            this.makeBoundInst([{ Constructor = ctor; ArgInsts = argInsts }])
+            BoundCtor
+                { BoundInsts = orderedInsts
+                  TestResults = testResults }
+
+        member this.makeBoundInst(ctor: Constructor, argInsts: BoundInstE list) : BoundInstE =
+            this.makeBoundInst (
+                [ { Constructor = ctor
+                    ArgInsts = argInsts } ]
+            )
 
     let rec ofInst instTable (inst: Inst) : InstE =
         match inst with
@@ -848,10 +896,14 @@ module internal Inst =
         | BoundInst.Any -> BoundInstE.Any
         | BoundInst.NotReached -> BoundInstE.NotReached
         | BoundInst.HigherOrder (mode) ->
-            let modes = List.map (fun (inst1, inst2) -> (ofInst instTable inst1, ofBoundInst instTable inst2)) mode.Modes
-            BoundInstE.HigherOrder { Modes = modes; Determinism = mode.Determinism }
-        | BoundInst.BoundCtor (boundInsts) ->
-            instTable.makeBoundInst(List.map (ofBoundCtorInst instTable) boundInsts)
+            let modes =
+                List.map (fun (inst1, inst2) -> (ofInst instTable inst1, ofBoundInst instTable inst2)) mode.Modes
+
+            BoundInstE.HigherOrder
+                { Modes = modes
+                  Determinism = mode.Determinism }
+        | BoundInst.BoundCtor (boundInsts) -> instTable.makeBoundInst (List.map (ofBoundCtorInst instTable) boundInsts)
 
     and ofBoundCtorInst instTable (boundInst: BoundCtorInst) : BoundCtorInstE =
-            { Constructor = boundInst.Constructor; ArgInsts = (List.map (ofBoundInst instTable) boundInst.ArgInsts) }
+        { Constructor = boundInst.Constructor
+          ArgInsts = (List.map (ofBoundInst instTable) boundInst.ArgInsts) }

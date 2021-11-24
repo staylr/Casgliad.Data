@@ -26,25 +26,23 @@ open System.Collections
 open System.Collections.Generic
 open NUnit.Framework
 
-let inline raToArray (resizeArray : ResizeArray<'T>) : 'T[] =
-    resizeArray.ToArray ()
+let inline raToArray (resizeArray: ResizeArray<'T>) : 'T [] = resizeArray.ToArray ()
 
-let inline raIsEmpty (resizeArray : ResizeArray<'T>) : bool =
-    resizeArray.Count = 0
-    
-let mapSetToArray (mapping : 'T -> 'U) (set : Set<'T>) : 'U[] =
+let inline raIsEmpty (resizeArray: ResizeArray<'T>) : bool = resizeArray.Count = 0
+
+let mapSetToArray (mapping: 'T -> 'U) (set: Set<'T>) : 'U [] =
     let results = Array.zeroCreate <| Set.count set
     let mutable idx = 0
+
     for el in set do
         results.[idx] <- mapping el
         idx <- idx + 1
+
     results
 
 [<Test>]
 let isEmpty () : unit =
-    IntSet.empty
-    |> IntSet.isEmpty
-    |> assertTrue
+    IntSet.empty |> IntSet.isEmpty |> assertTrue
 
     IntSet.singleton 5
     |> IntSet.isEmpty
@@ -52,9 +50,7 @@ let isEmpty () : unit =
 
 [<Test>]
 let count () : unit =
-    IntSet.empty
-    |> IntSet.count
-    |> assertEqual 0
+    IntSet.empty |> IntSet.count |> assertEqual 0
 
     IntSet.singleton 4
     |> IntSet.count
@@ -68,9 +64,7 @@ let count () : unit =
 [<Test>]
 let singleton () : unit =
     IntSet.singleton 6
-    |> assertEqual (
-        IntSet.empty
-        |> IntSet.add 6)
+    |> assertEqual (IntSet.empty |> IntSet.add 6)
 
 [<Test>]
 let contains () : unit =
@@ -106,7 +100,8 @@ let minElement () : unit =
 
 [<Test>]
 let ``minElement raises exn for empty set`` () : unit =
-    Assert.Throws<ArgumentException>(fun () -> IntSet.minElement IntSet.empty |> ignore) |> ignore
+    Assert.Throws<ArgumentException> (fun () -> IntSet.minElement IntSet.empty |> ignore)
+    |> ignore
 
 [<Test>]
 let minElementSigned () : unit =
@@ -130,7 +125,8 @@ let minElementSigned () : unit =
 
 [<Test>]
 let ``minElementSigned raises exn for empty set`` () : unit =
-    Assert.Throws<ArgumentException>(fun () -> IntSet.minElementSigned IntSet.empty |> ignore) |> ignore
+    Assert.Throws<ArgumentException> (fun () -> IntSet.minElementSigned IntSet.empty |> ignore)
+    |> ignore
 
 [<Test>]
 let maxElement () : unit =
@@ -154,7 +150,8 @@ let maxElement () : unit =
 
 [<Test>]
 let ``maxElement raises exn for empty set`` () : unit =
-    Assert.Throws<ArgumentException>(fun () -> IntSet.maxElement IntSet.empty |> ignore) |> ignore
+    Assert.Throws<ArgumentException> (fun () -> IntSet.maxElement IntSet.empty |> ignore)
+    |> ignore
 
 [<Test>]
 let maxElementSigned () : unit =
@@ -178,26 +175,43 @@ let maxElementSigned () : unit =
 
 [<Test>]
 let ``maxElementSigned raises exn for empty set`` () : unit =
-    Assert.Throws<ArgumentException>(fun () -> IntSet.maxElementSigned IntSet.empty |> ignore) |> ignore
+    Assert.Throws<ArgumentException> (fun () -> IntSet.maxElementSigned IntSet.empty |> ignore)
+    |> ignore
 
 [<Test>]
 let add () : unit =
     IntSet.empty
     |> IntSet.add 5
-    |> assertEqual (
-        IntSet.singleton 5)
+    |> assertEqual (IntSet.singleton 5)
 
     [| 5; 3; 11; 2; 17; 4; 12; 14 |]
     |> IntSet.ofArray
     |> IntSet.add 5
-    |> assertEqual (IntSet.ofArray
-        [| 5; 3; 11; 2; 17; 4; 12; 14 |])
+    |> assertEqual (
+        IntSet.ofArray [| 5
+                          3
+                          11
+                          2
+                          17
+                          4
+                          12
+                          14 |]
+    )
 
     [| 5; 3; 11; 2; 17; 4; 12; 14 |]
     |> IntSet.ofArray
     |> IntSet.add 8
-    |> assertEqual (IntSet.ofArray
-        [| 5; 3; 11; 2; 17; 4; 12; 14; 8 |])
+    |> assertEqual (
+        IntSet.ofArray [| 5
+                          3
+                          11
+                          2
+                          17
+                          4
+                          12
+                          14
+                          8 |]
+    )
 
 [<Test>]
 let remove () : unit =
@@ -208,22 +222,43 @@ let remove () : unit =
     [| 5; 3; 11; 2; 17; 4; 12; 14 |]
     |> IntSet.ofArray
     |> IntSet.remove 5
-    |> assertEqual (IntSet.ofArray
-        [| 3; 11; 2; 17; 4; 12; 14 |])
+    |> assertEqual (
+        IntSet.ofArray [| 3
+                          11
+                          2
+                          17
+                          4
+                          12
+                          14 |]
+    )
 
     [| 5; 3; 11; 2; 17; 4; 12; 14 |]
     |> IntSet.ofArray
     |> IntSet.remove 8
-    |> assertEqual (IntSet.ofArray
-        [| 5; 3; 11; 2; 17; 4; 12; 14 |])
+    |> assertEqual (
+        IntSet.ofArray [| 5
+                          3
+                          11
+                          2
+                          17
+                          4
+                          12
+                          14 |]
+    )
 
 [<Test>]
 let union () : unit =
-    IntSet.union
-        (IntSet.ofArray [| 3; 11; 2; 4; 12 |])
-        (IntSet.ofArray [| 5; 11; 17; 4; 14 |])
-    |> assertEqual
-        (IntSet.ofArray [| 5; 3; 11; 2; 17; 4; 12; 14 |])
+    IntSet.union (IntSet.ofArray [| 3; 11; 2; 4; 12 |]) (IntSet.ofArray [| 5; 11; 17; 4; 14 |])
+    |> assertEqual (
+        IntSet.ofArray [| 5
+                          3
+                          11
+                          2
+                          17
+                          4
+                          12
+                          14 |]
+    )
 
 [<Test>]
 let unionMany () : unit =
@@ -231,16 +266,20 @@ let unionMany () : unit =
 
 [<Test>]
 let intersect () : unit =
-    IntSet.intersect
-        (IntSet.ofArray [| 5; 11; 17; 4; 14 |])
-        IntSet.empty
+    IntSet.intersect (IntSet.ofArray [| 5; 11; 17; 4; 14 |]) IntSet.empty
     |> assertEqual IntSet.empty
 
     IntSet.intersect
-        (IntSet.ofArray [| 5; 3; 11; 2; 17; 4; 12; 14 |])
+        (IntSet.ofArray [| 5
+                           3
+                           11
+                           2
+                           17
+                           4
+                           12
+                           14 |])
         (IntSet.ofArray [| 5; 11; 17; 4; 14 |])
-    |> assertEqual
-        (IntSet.ofArray [| 5; 11; 17; 4; 14 |])
+    |> assertEqual (IntSet.ofArray [| 5; 11; 17; 4; 14 |])
 
 [<Test>]
 let intersectMany () : unit =
@@ -249,56 +288,123 @@ let intersectMany () : unit =
 [<Test>]
 let difference () : unit =
     IntSet.difference
-        (IntSet.ofArray [| 5; 3; 11; 2; 17; 4; 12; 14 |])
+        (IntSet.ofArray [| 5
+                           3
+                           11
+                           2
+                           17
+                           4
+                           12
+                           14 |])
         IntSet.empty
-    |> assertEqual
-        (IntSet.ofArray [| 5; 3; 11; 2; 17; 4; 12; 14 |])
+    |> assertEqual (
+        IntSet.ofArray [| 5
+                          3
+                          11
+                          2
+                          17
+                          4
+                          12
+                          14 |]
+    )
 
     IntSet.difference
-        (IntSet.ofArray [| 5; 3; 11; 2; 17; 4; 12; 14 |])
+        (IntSet.ofArray [| 5
+                           3
+                           11
+                           2
+                           17
+                           4
+                           12
+                           14 |])
         (IntSet.ofArray [| 5; 11; 17; 4; 14 |])
-    |> assertEqual
-        (IntSet.ofArray [| 3; 2; 12 |])
+    |> assertEqual (IntSet.ofArray [| 3; 2; 12 |])
 
 [<Test>]
 let isSubset () : unit =
     // The empty set is always a subset of any other set.
     IntSet.isSubset
         IntSet.empty
-        (IntSet.ofArray [| 5; 3; 11; 2; 17; 4; 12; 14 |])
+        (IntSet.ofArray [| 5
+                           3
+                           11
+                           2
+                           17
+                           4
+                           12
+                           14 |])
     |> assertTrue
 
-    IntSet.isSubset
-        IntSet.empty IntSet.empty
+    IntSet.isSubset IntSet.empty IntSet.empty
     |> assertTrue
 
     // A set is a subset of itself (this distinguishes isSubset from isProperSubset).
     IntSet.isSubset
-        (IntSet.ofArray [| 5; 3; 11; 2; 17; 4; 12; 14 |])
-        (IntSet.ofArray [| 5; 3; 11; 2; 17; 4; 12; 14 |])
+        (IntSet.ofArray [| 5
+                           3
+                           11
+                           2
+                           17
+                           4
+                           12
+                           14 |])
+        (IntSet.ofArray [| 5
+                           3
+                           11
+                           2
+                           17
+                           4
+                           12
+                           14 |])
     |> assertTrue
 
     // Basic tests.
     IntSet.isSubset
         (IntSet.ofArray [| 5; 3; 11; 12; 14 |])
-        (IntSet.ofArray [| 5; 3; 11; 2; 17; 4; 12; 14 |])
+        (IntSet.ofArray [| 5
+                           3
+                           11
+                           2
+                           17
+                           4
+                           12
+                           14 |])
     |> assertTrue
 
     IntSet.isSubset
-        (IntSet.ofArray [| 5; 3; 11; 2; 17; 4; 12; 14 |])
+        (IntSet.ofArray [| 5
+                           3
+                           11
+                           2
+                           17
+                           4
+                           12
+                           14 |])
         (IntSet.ofArray [| 5; 3; 11; 12; 14 |])
     |> assertFalse
 
     // Partially-overlapping sets.
     IntSet.isSubset
-        (IntSet.ofArray [| 5; 3; 11; 12; 14; 22; 42; 25; |])
-        (IntSet.ofArray [| 5; 3; 11; 12; 14; 32; 57; 53; |])
+        (IntSet.ofArray [| 5
+                           3
+                           11
+                           12
+                           14
+                           22
+                           42
+                           25 |])
+        (IntSet.ofArray [| 5
+                           3
+                           11
+                           12
+                           14
+                           32
+                           57
+                           53 |])
     |> assertFalse
 
     // Disjoint sets.
-    IntSet.isSubset
-        (IntSet.ofArray [| 1..5 |])
-        (IntSet.ofArray [| 6..10 |])
+    IntSet.isSubset (IntSet.ofArray [| 1 .. 5 |]) (IntSet.ofArray [| 6 .. 10 |])
     |> assertFalse
 
 [<Test>]
@@ -306,40 +412,86 @@ let isProperSubset () : unit =
     // The empty set is a proper subset of any set except itself.
     IntSet.isProperSubset
         IntSet.empty
-        (IntSet.ofArray [| 5; 3; 11; 2; 17; 4; 12; 14 |])
+        (IntSet.ofArray [| 5
+                           3
+                           11
+                           2
+                           17
+                           4
+                           12
+                           14 |])
     |> assertTrue
 
-    IntSet.isProperSubset
-        IntSet.empty IntSet.empty
+    IntSet.isProperSubset IntSet.empty IntSet.empty
     |> assertFalse
 
     // A set is not a proper subset of itself (this distinguishes isSubset from isProperSubset).
     IntSet.isProperSubset
-        (IntSet.ofArray [| 5; 3; 11; 2; 17; 4; 12; 14 |])
-        (IntSet.ofArray [| 5; 3; 11; 2; 17; 4; 12; 14 |])
+        (IntSet.ofArray [| 5
+                           3
+                           11
+                           2
+                           17
+                           4
+                           12
+                           14 |])
+        (IntSet.ofArray [| 5
+                           3
+                           11
+                           2
+                           17
+                           4
+                           12
+                           14 |])
     |> assertFalse
 
     // Basic tests.
     IntSet.isProperSubset
         (IntSet.ofArray [| 5; 3; 11; 12; 14 |])
-        (IntSet.ofArray [| 5; 3; 11; 2; 17; 4; 12; 14 |])
+        (IntSet.ofArray [| 5
+                           3
+                           11
+                           2
+                           17
+                           4
+                           12
+                           14 |])
     |> assertTrue
 
     IntSet.isProperSubset
-        (IntSet.ofArray [| 5; 3; 11; 2; 17; 4; 12; 14 |])
+        (IntSet.ofArray [| 5
+                           3
+                           11
+                           2
+                           17
+                           4
+                           12
+                           14 |])
         (IntSet.ofArray [| 5; 3; 11; 12; 14 |])
     |> assertFalse
 
     // Partially-overlapping sets.
     IntSet.isProperSubset
-        (IntSet.ofArray [| 5; 3; 11; 12; 14; 22; 42; 25; |])
-        (IntSet.ofArray [| 5; 3; 11; 12; 14; 32; 57; 53; |])
+        (IntSet.ofArray [| 5
+                           3
+                           11
+                           12
+                           14
+                           22
+                           42
+                           25 |])
+        (IntSet.ofArray [| 5
+                           3
+                           11
+                           12
+                           14
+                           32
+                           57
+                           53 |])
     |> assertFalse
 
     // Disjoint sets.
-    IntSet.isProperSubset
-        (IntSet.ofArray [| 1..5 |])
-        (IntSet.ofArray [| 6..10 |])
+    IntSet.isProperSubset (IntSet.ofArray [| 1 .. 5 |]) (IntSet.ofArray [| 6 .. 10 |])
     |> assertFalse
 
 [<Test>]
@@ -347,40 +499,86 @@ let isSuperset () : unit =
     // The empty set is never a superset of any other set except itself.
     IntSet.isSuperset
         IntSet.empty
-        (IntSet.ofArray [| 5; 3; 11; 2; 17; 4; 12; 14 |])
+        (IntSet.ofArray [| 5
+                           3
+                           11
+                           2
+                           17
+                           4
+                           12
+                           14 |])
     |> assertFalse
 
-    IntSet.isSuperset
-        IntSet.empty IntSet.empty
+    IntSet.isSuperset IntSet.empty IntSet.empty
     |> assertTrue
 
     // A set is a superset of itself (this distinguishes isSuperset from isProperSuperset).
     IntSet.isSuperset
-        (IntSet.ofArray [| 5; 3; 11; 2; 17; 4; 12; 14 |])
-        (IntSet.ofArray [| 5; 3; 11; 2; 17; 4; 12; 14 |])
+        (IntSet.ofArray [| 5
+                           3
+                           11
+                           2
+                           17
+                           4
+                           12
+                           14 |])
+        (IntSet.ofArray [| 5
+                           3
+                           11
+                           2
+                           17
+                           4
+                           12
+                           14 |])
     |> assertTrue
 
     // Basic tests.
     IntSet.isSuperset
         (IntSet.ofArray [| 5; 3; 11; 12; 14 |])
-        (IntSet.ofArray [| 5; 3; 11; 2; 17; 4; 12; 14 |])
+        (IntSet.ofArray [| 5
+                           3
+                           11
+                           2
+                           17
+                           4
+                           12
+                           14 |])
     |> assertFalse
 
     IntSet.isSuperset
-        (IntSet.ofArray [| 5; 3; 11; 2; 17; 4; 12; 14 |])
+        (IntSet.ofArray [| 5
+                           3
+                           11
+                           2
+                           17
+                           4
+                           12
+                           14 |])
         (IntSet.ofArray [| 5; 3; 11; 12; 14 |])
     |> assertTrue
 
     // Partially-overlapping sets.
     IntSet.isSuperset
-        (IntSet.ofArray [| 5; 3; 11; 12; 14; 22; 42; 25; |])
-        (IntSet.ofArray [| 5; 3; 11; 12; 14; 32; 57; 53; |])
+        (IntSet.ofArray [| 5
+                           3
+                           11
+                           12
+                           14
+                           22
+                           42
+                           25 |])
+        (IntSet.ofArray [| 5
+                           3
+                           11
+                           12
+                           14
+                           32
+                           57
+                           53 |])
     |> assertFalse
 
     // Disjoint sets.
-    IntSet.isSuperset
-        (IntSet.ofArray [| 1..5 |])
-        (IntSet.ofArray [| 6..10 |])
+    IntSet.isSuperset (IntSet.ofArray [| 1 .. 5 |]) (IntSet.ofArray [| 6 .. 10 |])
     |> assertFalse
 
 [<Test>]
@@ -388,40 +586,86 @@ let isProperSuperset () : unit =
     // The empty set is never a proper superset of any set.
     IntSet.isProperSuperset
         IntSet.empty
-        (IntSet.ofArray [| 5; 3; 11; 2; 17; 4; 12; 14 |])
+        (IntSet.ofArray [| 5
+                           3
+                           11
+                           2
+                           17
+                           4
+                           12
+                           14 |])
     |> assertFalse
 
-    IntSet.isProperSuperset
-        IntSet.empty IntSet.empty
+    IntSet.isProperSuperset IntSet.empty IntSet.empty
     |> assertFalse
 
     // A set is a superset of itself (this distinguishes isSuperset from isProperSuperset).
     IntSet.isProperSuperset
-        (IntSet.ofArray [| 5; 3; 11; 2; 17; 4; 12; 14 |])
-        (IntSet.ofArray [| 5; 3; 11; 2; 17; 4; 12; 14 |])
+        (IntSet.ofArray [| 5
+                           3
+                           11
+                           2
+                           17
+                           4
+                           12
+                           14 |])
+        (IntSet.ofArray [| 5
+                           3
+                           11
+                           2
+                           17
+                           4
+                           12
+                           14 |])
     |> assertFalse
 
     // Basic tests.
     IntSet.isProperSuperset
         (IntSet.ofArray [| 5; 3; 11; 12; 14 |])
-        (IntSet.ofArray [| 5; 3; 11; 2; 17; 4; 12; 14 |])
+        (IntSet.ofArray [| 5
+                           3
+                           11
+                           2
+                           17
+                           4
+                           12
+                           14 |])
     |> assertFalse
 
     IntSet.isProperSuperset
-        (IntSet.ofArray [| 5; 3; 11; 2; 17; 4; 12; 14 |])
+        (IntSet.ofArray [| 5
+                           3
+                           11
+                           2
+                           17
+                           4
+                           12
+                           14 |])
         (IntSet.ofArray [| 5; 3; 11; 12; 14 |])
     |> assertTrue
 
     // Partially-overlapping sets.
     IntSet.isProperSuperset
-        (IntSet.ofArray [| 5; 3; 11; 12; 14; 22; 42; 25; |])
-        (IntSet.ofArray [| 5; 3; 11; 12; 14; 32; 57; 53; |])
+        (IntSet.ofArray [| 5
+                           3
+                           11
+                           12
+                           14
+                           22
+                           42
+                           25 |])
+        (IntSet.ofArray [| 5
+                           3
+                           11
+                           12
+                           14
+                           32
+                           57
+                           53 |])
     |> assertFalse
 
     // Disjoint sets.
-    IntSet.isProperSuperset
-        (IntSet.ofArray [| 1..5 |])
-        (IntSet.ofArray [| 6..10 |])
+    IntSet.isProperSuperset (IntSet.ofArray [| 1 .. 5 |]) (IntSet.ofArray [| 6 .. 10 |])
     |> assertFalse
 
 [<Test>]
@@ -435,10 +679,19 @@ let ofSeq () : unit =
         yield 11
         yield 12
         yield 14
-        yield 17 }
+        yield 17
+    }
     |> IntSet.ofSeq
     |> assertEqual (
-        IntSet.ofArray [| 5; 3; 11; 2; 17; 4; 12; 14 |])
+        IntSet.ofArray [| 5
+                          3
+                          11
+                          2
+                          17
+                          4
+                          12
+                          14 |]
+    )
 
 [<Test>]
 let ofList () : unit =
@@ -446,10 +699,18 @@ let ofList () : unit =
     |> IntSet.ofList
     |> assertEqual IntSet.empty
 
-    [5; 3; 11; 2; 17; 4; 12; 14]
+    [ 5; 3; 11; 2; 17; 4; 12; 14 ]
     |> IntSet.ofList
     |> assertEqual (
-        IntSet.ofArray [| 5; 3; 11; 2; 17; 4; 12; 14 |])
+        IntSet.ofArray [| 5
+                          3
+                          11
+                          2
+                          17
+                          4
+                          12
+                          14 |]
+    )
 
 [<Test>]
 let ofArray () : unit =
@@ -468,7 +729,8 @@ let ofArray () : unit =
         |> IntSet.add 11
         |> IntSet.add 12
         |> IntSet.add 14
-        |> IntSet.add 17)
+        |> IntSet.add 17
+    )
 
 [<Test>]
 let ofSet () : unit =
@@ -480,7 +742,15 @@ let ofSet () : unit =
     |> Set.ofArray
     |> IntSet.ofSet
     |> assertEqual (
-        IntSet.ofArray [| 5; 3; 11; 2; 17; 4; 12; 14 |])
+        IntSet.ofArray [| 5
+                          3
+                          11
+                          2
+                          17
+                          4
+                          12
+                          14 |]
+    )
 
 [<Test>]
 let toSeq () : unit =
@@ -493,8 +763,14 @@ let toSeq () : unit =
     |> IntSet.ofArray
     |> IntSet.toSeq
     |> Seq.toArray
-    |> assertEqual
-        [|2; 3; 4; 5; 11; 12; 14; 17|]
+    |> assertEqual [| 2
+                      3
+                      4
+                      5
+                      11
+                      12
+                      14
+                      17 |]
 
 [<Test>]
 let toList () : unit =
@@ -505,8 +781,14 @@ let toList () : unit =
     [| 5; 3; 11; 2; 17; 4; 12; 14 |]
     |> IntSet.ofArray
     |> IntSet.toList
-    |> assertEqual
-        [2; 3; 4; 5; 11; 12; 14; 17]
+    |> assertEqual [ 2
+                     3
+                     4
+                     5
+                     11
+                     12
+                     14
+                     17 ]
 
 [<Test>]
 let toArray () : unit =
@@ -517,8 +799,14 @@ let toArray () : unit =
     [| 5; 3; 11; 2; 17; 4; 12; 14 |]
     |> IntSet.ofArray
     |> IntSet.toArray
-    |> assertEqual
-        [|2; 3; 4; 5; 11; 12; 14; 17|]
+    |> assertEqual [| 2
+                      3
+                      4
+                      5
+                      11
+                      12
+                      14
+                      17 |]
 
 [<Test>]
 let toSet () : unit =
@@ -529,8 +817,16 @@ let toSet () : unit =
     [| 5; 3; 11; 2; 17; 4; 12; 14 |]
     |> IntSet.ofArray
     |> IntSet.toSet
-    |> assertEqual
-        (Set.ofArray [| 5; 3; 11; 2; 17; 4; 12; 14 |])
+    |> assertEqual (
+        Set.ofArray [| 5
+                       3
+                       11
+                       2
+                       17
+                       4
+                       12
+                       14 |]
+    )
 
 [<Test>]
 let iter () : unit =
@@ -538,13 +834,18 @@ let iter () : unit =
 
     [| 5; 3; 11; 2; 17; 4; 12; 14 |]
     |> IntSet.ofArray
-    |> IntSet.iter (fun el ->
-        elements.Add (el + 2))
+    |> IntSet.iter (fun el -> elements.Add (el + 2))
 
     elements
     |> raToArray
-    |> Collection.assertEqual
-        [|4; 5; 6; 7; 13; 14; 16; 19|]
+    |> Collection.assertEqual [| 4
+                                 5
+                                 6
+                                 7
+                                 13
+                                 14
+                                 16
+                                 19 |]
 
 [<Test>]
 let iterBack () : unit =
@@ -552,13 +853,18 @@ let iterBack () : unit =
 
     [| 5; 3; 11; 2; 17; 4; 12; 14 |]
     |> IntSet.ofArray
-    |> IntSet.iterBack (fun el ->
-        elements.Add (el + 2))
+    |> IntSet.iterBack (fun el -> elements.Add (el + 2))
 
     elements
     |> raToArray
-    |> Collection.assertEqual
-        [|19; 16; 14; 13; 7; 6; 5; 4|]
+    |> Collection.assertEqual [| 19
+                                 16
+                                 14
+                                 13
+                                 7
+                                 6
+                                 5
+                                 4 |]
 
 [<Test>]
 let fold () : unit =
@@ -566,32 +872,37 @@ let fold () : unit =
         let elements = ResizeArray ()
 
         (0, IntSet.empty)
-        ||> IntSet.fold (fun counter el ->
-            elements.Add (counter + el + 2)
-            counter + 1)
+        ||> IntSet.fold
+                (fun counter el ->
+                    elements.Add (counter + el + 2)
+                    counter + 1)
         |> assertEqual 0
 
-        elements
-        |> raIsEmpty
-        |> assertTrue
+        elements |> raIsEmpty |> assertTrue
 
     do
         let elements = ResizeArray ()
 
         let testSet =
-            [| 5; 3; 11; 2; 17; 4; 12; 14 |]
-            |> IntSet.ofArray
+            [| 5; 3; 11; 2; 17; 4; 12; 14 |] |> IntSet.ofArray
 
         (0, testSet)
-        ||> IntSet.fold (fun counter el ->
-            elements.Add (counter + el + 2)
-            counter + 1)
+        ||> IntSet.fold
+                (fun counter el ->
+                    elements.Add (counter + el + 2)
+                    counter + 1)
         |> assertEqual (IntSet.count testSet)
 
         elements
         |> raToArray
-        |> assertEqual
-            [|4; 6; 8; 10; 17; 19; 22; 26|]
+        |> assertEqual [| 4
+                          6
+                          8
+                          10
+                          17
+                          19
+                          22
+                          26 |]
 
 [<Test>]
 let foldBack () : unit =
@@ -599,210 +910,208 @@ let foldBack () : unit =
         let elements = ResizeArray ()
 
         (IntSet.empty, 0)
-        ||> IntSet.foldBack (fun el counter ->
-            elements.Add (counter + el + 2)
-            counter + 1)
+        ||> IntSet.foldBack
+                (fun el counter ->
+                    elements.Add (counter + el + 2)
+                    counter + 1)
         |> assertEqual 0
 
-        elements
-        |> raIsEmpty
-        |> assertTrue
+        elements |> raIsEmpty |> assertTrue
 
     do
         let elements = ResizeArray ()
 
         let testSet =
-            [| 5; 3; 11; 2; 17; 4; 12; 14 |]
-            |> IntSet.ofArray
+            [| 5; 3; 11; 2; 17; 4; 12; 14 |] |> IntSet.ofArray
 
         (testSet, 0)
-        ||> IntSet.foldBack (fun el counter ->
-            elements.Add (counter + el + 2)
-            counter + 1)
+        ||> IntSet.foldBack
+                (fun el counter ->
+                    elements.Add (counter + el + 2)
+                    counter + 1)
         |> assertEqual (IntSet.count testSet)
 
         elements
         |> raToArray
-        |> assertEqual
-            [|19; 17; 16; 16; 11; 11; 11; 11|]
+        |> assertEqual [| 19
+                          17
+                          16
+                          16
+                          11
+                          11
+                          11
+                          11 |]
 
 [<Test>]
 let choose () : unit =
     IntSet.empty
-    |> IntSet.choose (fun el ->
-        if el % 2 = 0 then
-            Some (el + 1)
-        else None)
+    |> IntSet.choose
+        (fun el ->
+            if el % 2 = 0 then
+                Some (el + 1)
+            else
+                None)
     |> assertEqual IntSet.empty
 
     [| 5; 3; 11; 2; 17; 4; 12; 14 |]
     |> IntSet.ofArray
-    |> IntSet.choose (fun el ->
-        if el % 2 = 0 then
-            Some (el + 1)
-        else None)
-    |> assertEqual
-        (IntSet.ofArray [|3; 5; 13; 15|])
+    |> IntSet.choose
+        (fun el ->
+            if el % 2 = 0 then
+                Some (el + 1)
+            else
+                None)
+    |> assertEqual (IntSet.ofArray [| 3; 5; 13; 15 |])
 
 [<Test>]
 let filter () : unit =
     IntSet.empty
-    |> IntSet.filter (fun el ->
-        el % 2 <> 0)
+    |> IntSet.filter (fun el -> el % 2 <> 0)
     |> IntSet.isEmpty
     |> assertTrue
 
     [| 5; 3; 11; 2; 17; 4; 12; 14 |]
     |> IntSet.ofArray
-    |> IntSet.filter (fun el ->
-        el % 2 <> 0)
-    |> assertEqual
-        (IntSet.ofArray [|5; 3; 11; 17|])
+    |> IntSet.filter (fun el -> el % 2 <> 0)
+    |> assertEqual (IntSet.ofArray [| 5; 3; 11; 17 |])
 
 [<Test>]
 let map () : unit =
     IntSet.empty
-    |> IntSet.map (fun el ->
-        el * 2)
+    |> IntSet.map (fun el -> el * 2)
     |> IntSet.isEmpty
     |> assertTrue
 
     [| 5; 3; 11; 2; 17; 4; 12; 14 |]
     |> IntSet.ofArray
-    |> IntSet.map (fun el ->
-        el * 2)
+    |> IntSet.map (fun el -> el * 2)
     |> assertEqual (
         [| 5; 3; 11; 2; 17; 4; 12; 14 |]
         |> Set.ofArray
-        |> mapSetToArray (fun el ->
-            el * 2)
-        |> IntSet.ofArray)
+        |> mapSetToArray (fun el -> el * 2)
+        |> IntSet.ofArray
+    )
 
 [<Test>]
 let partition () : unit =
     do
         let evens, odds =
             IntSet.empty
-            |> IntSet.partition (fun el ->
-                el % 2 = 0)
+            |> IntSet.partition (fun el -> el % 2 = 0)
 
-        evens
-        |> IntSet.isEmpty
-        |> assertTrue
+        evens |> IntSet.isEmpty |> assertTrue
 
-        odds
-        |> IntSet.isEmpty
-        |> assertTrue
+        odds |> IntSet.isEmpty |> assertTrue
 
     do
         let evens, odds =
             [| 5; 3; 11; 2; 17; 4; 12; 14 |]
             |> IntSet.ofArray
-            |> IntSet.partition (fun el ->
-                el % 2 = 0)
+            |> IntSet.partition (fun el -> el % 2 = 0)
 
         evens
-        |> assertEqual
-            (IntSet.ofArray [|2; 4; 12; 14|])
+        |> assertEqual (IntSet.ofArray [| 2; 4; 12; 14 |])
 
         odds
-        |> assertEqual
-            (IntSet.ofArray [|5; 3; 11; 17|])
+        |> assertEqual (IntSet.ofArray [| 5; 3; 11; 17 |])
 
 [<Test>]
 let exists () : unit =
     IntSet.empty
-    |> IntSet.exists (fun el ->
-        el % 7 = 0)
+    |> IntSet.exists (fun el -> el % 7 = 0)
     |> assertFalse
 
     [| 5; 3; 11; 2; 17; 4; 12; 14 |]
     |> IntSet.ofArray
-    |> IntSet.exists (fun el ->
-        el = 6)
+    |> IntSet.exists (fun el -> el = 6)
     |> assertFalse
 
     [| 5; 3; 11; 2; 17; 4; 12; 14 |]
     |> IntSet.ofArray
-    |> IntSet.exists (fun el ->
-        el % 7 = 0)
+    |> IntSet.exists (fun el -> el % 7 = 0)
     |> assertTrue
 
 [<Test>]
 let forall () : unit =
     IntSet.empty
-    |> IntSet.forall (fun el ->
-        el % 7 = 0)
+    |> IntSet.forall (fun el -> el % 7 = 0)
     |> assertTrue
 
     [| 5; 3; 11; 2; 17; 4; 12; 14 |]
     |> IntSet.ofArray
-    |> IntSet.forall (fun el ->
-        el < 100)
+    |> IntSet.forall (fun el -> el < 100)
     |> assertTrue
 
     [| 5; 3; 11; 2; 17; 4; 12; 14 |]
     |> IntSet.ofArray
-    |> IntSet.forall (fun el ->
-        el % 2 = 0)
+    |> IntSet.forall (fun el -> el % 2 = 0)
     |> assertFalse
 
 [<Test>]
 let tryPick () : unit =
     // Test against an empty set.
     IntSet.empty
-    |> IntSet.tryPick (fun el ->
-        if el % 7 = 0 then
-            Some (el + 2)
-        else None)
-    |> assertEqual (None : int option)
+    |> IntSet.tryPick
+        (fun el ->
+            if el % 7 = 0 then
+                Some (el + 2)
+            else
+                None)
+    |> assertEqual (None: int option)
 
     // Test for case where the set does not contain a matching element.
     [| 5; 3; 11; 2; 17; 4; 12; 14 |]
     |> IntSet.ofArray
-    |> IntSet.tryPick (fun el ->
-        if el > 30 then
-            Some (el - 10)
-        else None)
-    |> assertEqual (None : int option)
+    |> IntSet.tryPick (fun el -> if el > 30 then Some (el - 10) else None)
+    |> assertEqual (None: int option)
 
     // Test for case where the set contains a single matching element.
     [| 5; 3; 11; 2; 17; 4; 12; 14 |]
     |> IntSet.ofArray
-    |> IntSet.tryPick (fun el ->
-        if el % 7 = 0 then
-            Some (el - 2)
-        else None)
+    |> IntSet.tryPick
+        (fun el ->
+            if el % 7 = 0 then
+                Some (el - 2)
+            else
+                None)
     |> assertEqual (Some 12)
 
     // Test for case where the set contains multiple matching elements.
     [| 5; 3; 11; 2; 17; 4; 12; 14 |]
     |> IntSet.ofArray
-    |> IntSet.tryPick (fun el ->
-        if el % 3 = 2 then
-            Some (el + 1)
-        else None)
+    |> IntSet.tryPick
+        (fun el ->
+            if el % 3 = 2 then
+                Some (el + 1)
+            else
+                None)
     |> assertEqual (Some 3)
 
 [<Test>]
 let pick () : unit =
     [| 5; 3; 11; 2; 17; 4; 12; 14 |]
     |> IntSet.ofArray
-    |> IntSet.pick (fun el ->
-        if el % 3 = 2 then
-            Some (el + 1)
-        else None)
+    |> IntSet.pick
+        (fun el ->
+            if el % 3 = 2 then
+                Some (el + 1)
+            else
+                None)
     |> assertEqual 3
 
 [<Test>]
 let ``pick raises exn on empty input`` () : unit =
-    Assert.Throws<KeyNotFoundException>(fun () ->
-        IntSet.empty
-        |> IntSet.pick (fun el ->
-            if el % 3 = 2 then
-                Some (el + 1)
-            else None)
-        |> ignore) |> ignore
+    Assert.Throws<KeyNotFoundException>
+        (fun () ->
+            IntSet.empty
+            |> IntSet.pick
+                (fun el ->
+                    if el % 3 = 2 then
+                        Some (el + 1)
+                    else
+                        None)
+            |> ignore)
+    |> ignore
 
 [<Test>]
 let tryFind () : unit =
@@ -830,302 +1139,314 @@ module SetType =
               This test is ignored for now until that is fixed or the workaround (implementing a custom enumerator) is implemented.")>]
     let ``IEnumerable (Legit)`` () : unit =
         // Legit IE
-        let ie = (new IntSet([1; 2; 3])) :> IEnumerable
+        let ie =
+            (new IntSet ([ 1; 2; 3 ])) :> IEnumerable
         //let alphabet = new IntSet<char>([| 'a' .. 'z' |])
-        let enum = ie.GetEnumerator()
+        let enum = ie.GetEnumerator ()
 
         let testStepping () : unit =
-            checkThrowsInvalidOperationExn(fun () -> enum.Current |> ignore)
-            Assert.AreEqual(enum.MoveNext(), true)
-            Assert.AreEqual(enum.Current, 1)
-            Assert.AreEqual(enum.MoveNext(), true)
-            Assert.AreEqual(enum.Current, 2)
-            Assert.AreEqual(enum.MoveNext(), true)
-            Assert.AreEqual(enum.Current, 3)
-            Assert.AreEqual(enum.MoveNext(), false)
-            checkThrowsInvalidOperationExn(fun () -> enum.Current |> ignore)
+            checkThrowsInvalidOperationExn (fun () -> enum.Current |> ignore)
+            Assert.AreEqual (enum.MoveNext (), true)
+            Assert.AreEqual (enum.Current, 1)
+            Assert.AreEqual (enum.MoveNext (), true)
+            Assert.AreEqual (enum.Current, 2)
+            Assert.AreEqual (enum.MoveNext (), true)
+            Assert.AreEqual (enum.Current, 3)
+            Assert.AreEqual (enum.MoveNext (), false)
+            checkThrowsInvalidOperationExn (fun () -> enum.Current |> ignore)
 
-        testStepping()
-        enum.Reset()
-        testStepping()
+        testStepping ()
+        enum.Reset ()
+        testStepping ()
 
     [<Test>]
     [<Ignore("The failure of this test may to be due to a bug in the compiler-generated seq implementation. \
               This test is ignored for now until that is fixed or the workaround (implementing a custom enumerator) is implemented.")>]
     let ``IEnumerable (Empty)`` () : unit =
         // Empty IE
-        let ie = (new IntSet([])) :> IEnumerable  // Note no type args
-        let enum = ie.GetEnumerator()
+        let ie = (new IntSet ([])) :> IEnumerable // Note no type args
+        let enum = ie.GetEnumerator ()
 
-        checkThrowsInvalidOperationExn(fun () -> enum.Current |> ignore)
-        Assert.AreEqual(enum.MoveNext(), false)
-        checkThrowsInvalidOperationExn(fun () -> enum.Current |> ignore)
+        checkThrowsInvalidOperationExn (fun () -> enum.Current |> ignore)
+        Assert.AreEqual (enum.MoveNext (), false)
+        checkThrowsInvalidOperationExn (fun () -> enum.Current |> ignore)
 
     [<Test>]
     [<Ignore("The failure of this test may to be due to a bug in the compiler-generated seq implementation. \
               This test is ignored for now until that is fixed or the workaround (implementing a custom enumerator) is implemented.")>]
     let ``IEnumerable<T> (Legit)`` () : unit =
         // Legit IE
-        let ie =(new IntSet([1; 2; 3])) :> IEnumerable<int>
-        let enum = ie.GetEnumerator()
+        let ie =
+            (new IntSet ([ 1; 2; 3 ])) :> IEnumerable<int>
+
+        let enum = ie.GetEnumerator ()
 
         let testStepping () : unit =
-            checkThrowsInvalidOperationExn(fun () -> enum.Current |> ignore)
-            Assert.AreEqual(enum.MoveNext(), true)
-            Assert.AreEqual(enum.Current, 1)
-            Assert.AreEqual(enum.MoveNext(), true)
-            Assert.AreEqual(enum.Current, 2)
-            Assert.AreEqual(enum.MoveNext(), true)
-            Assert.AreEqual(enum.Current, 3)
-            Assert.AreEqual(enum.MoveNext(), false)
-            checkThrowsInvalidOperationExn(fun () -> enum.Current |> ignore)
+            checkThrowsInvalidOperationExn (fun () -> enum.Current |> ignore)
+            Assert.AreEqual (enum.MoveNext (), true)
+            Assert.AreEqual (enum.Current, 1)
+            Assert.AreEqual (enum.MoveNext (), true)
+            Assert.AreEqual (enum.Current, 2)
+            Assert.AreEqual (enum.MoveNext (), true)
+            Assert.AreEqual (enum.Current, 3)
+            Assert.AreEqual (enum.MoveNext (), false)
+            checkThrowsInvalidOperationExn (fun () -> enum.Current |> ignore)
 
-        testStepping()
-        enum.Reset()
-        testStepping()
+        testStepping ()
+        enum.Reset ()
+        testStepping ()
 
     [<Test>]
     [<Ignore("The failure of this test may to be due to a bug in the compiler-generated seq implementation. \
               This test is ignored for now until that is fixed or the workaround (implementing a custom enumerator) is implemented.")>]
     let ``IEnumerable<T> (Empty)`` () : unit =
         // Empty IE
-        let ie = (new IntSet([])) :> IEnumerable<int>
-        let enum = ie.GetEnumerator()
+        let ie = (new IntSet ([])) :> IEnumerable<int>
+        let enum = ie.GetEnumerator ()
 
-        checkThrowsInvalidOperationExn(fun () -> enum.Current |> ignore)
-        Assert.AreEqual(enum.MoveNext(), false)
-        checkThrowsInvalidOperationExn(fun () -> enum.Current |> ignore)
+        checkThrowsInvalidOperationExn (fun () -> enum.Current |> ignore)
+        Assert.AreEqual (enum.MoveNext (), false)
+        checkThrowsInvalidOperationExn (fun () -> enum.Current |> ignore)
 
     [<Test>]
     let ``ICollection (Legit)`` () : unit =
         // Legit IC
-        let ic = (new IntSet([1;2;3;4])) :> ICollection<int>
-        let st = new IntSet([1;2;3;4])
+        let ic =
+            (new IntSet ([ 1; 2; 3; 4 ])) :> ICollection<int>
 
-        Assert.IsTrue(ic.Contains(3))
+        let st = new IntSet ([ 1; 2; 3; 4 ])
+
+        Assert.IsTrue (ic.Contains (3))
         let newArr = Array.create 5 0
-        ic.CopyTo(newArr,0)
-        Assert.IsTrue(ic.IsReadOnly)
+        ic.CopyTo (newArr, 0)
+        Assert.IsTrue (ic.IsReadOnly)
 
     [<Test>]
     let ``ICollection (Empty)`` () : unit =
         // Empty IC
-        let ic = (new IntSet([])) :> ICollection<int>
-        Assert.IsFalse(ic.Contains(123) )
+        let ic = (new IntSet ([])) :> ICollection<int>
+        Assert.IsFalse (ic.Contains (123))
         let newArr = Array.create 5 -1
-        ic.CopyTo(newArr,0)
+        ic.CopyTo (newArr, 0)
 
     [<Test>]
     let ``IComparable (Legit)`` () : unit =
         // Legit IC
-        let ic = (new IntSet([1;2;3;4])) :> IComparable
-        Assert.AreEqual(ic.CompareTo(new IntSet([1;2;3;4])),0)
+        let ic =
+            (new IntSet ([ 1; 2; 3; 4 ])) :> IComparable
+
+        Assert.AreEqual (ic.CompareTo (new IntSet ([ 1; 2; 3; 4 ])), 0)
 
     [<Test>]
     let ``IComparable (Empty)`` () : unit =
         // Empty IC
-        let ic = (new IntSet([])) :> IComparable
-        Assert.AreEqual(ic.CompareTo(IntSet.empty),0)
+        let ic = (new IntSet ([])) :> IComparable
+        Assert.AreEqual (ic.CompareTo (IntSet.empty), 0)
 
 
     // Base class methods
     [<Test>]
     let ObjectGetHashCode () : unit =
         // Verify order added is independent
-        let x = IntSet.ofList [1; 2; 3]
-        let y = IntSet.ofList [3; 2; 1]
-        Assert.AreEqual(x.GetHashCode(), y.GetHashCode())
+        let x = IntSet.ofList [ 1; 2; 3 ]
+        let y = IntSet.ofList [ 3; 2; 1 ]
+        Assert.AreEqual (x.GetHashCode (), y.GetHashCode ())
 
     [<Test>]
     let ObjectToString () : unit =
-        Assert.AreEqual("intSet [1; 2; 3; ... ]", (new IntSet([1;2;3;4])).ToString())
-        Assert.AreEqual("intSet []", (IntSet.empty).ToString())
-        Assert.AreEqual("intSet [1; 3]", (new IntSet([1;3])).ToString())
+        Assert.AreEqual ("intSet [1; 2; 3; ... ]", (new IntSet ([ 1; 2; 3; 4 ])).ToString ())
+        Assert.AreEqual ("intSet []", (IntSet.empty).ToString ())
+        Assert.AreEqual ("intSet [1; 3]", (new IntSet ([ 1; 3 ])).ToString ())
 
 
     [<Test>]
     let ObjectEquals () : unit =
         // All three are different references, but equality has been
         // provided by the F# compiler.
-        let a = new IntSet([1;2;3])
-        let b = new IntSet([1..3])
-        let c = new IntSet(seq{1..3})
-        Assert.IsTrue( (a = b) )
-        Assert.IsTrue( (b = c) )
-        Assert.IsTrue( (c = a) )
-        Assert.IsTrue( a.Equals(b) ); Assert.IsTrue( b.Equals(a) )
-        Assert.IsTrue( b.Equals(c) ); Assert.IsTrue( c.Equals(b) )
-        Assert.IsTrue( c.Equals(a) ); Assert.IsTrue( a.Equals(c) )
+        let a = new IntSet ([ 1; 2; 3 ])
+        let b = new IntSet ([ 1 .. 3 ])
+        let c = new IntSet (seq { 1 .. 3 })
+        Assert.IsTrue ((a = b))
+        Assert.IsTrue ((b = c))
+        Assert.IsTrue ((c = a))
+        Assert.IsTrue (a.Equals (b))
+        Assert.IsTrue (b.Equals (a))
+        Assert.IsTrue (b.Equals (c))
+        Assert.IsTrue (c.Equals (b))
+        Assert.IsTrue (c.Equals (a))
+        Assert.IsTrue (a.Equals (c))
 
         // Self equality
-        let a = new IntSet([1])
-        Assert.IsTrue( (a = a) )
-        Assert.IsTrue(a.Equals(a))
+        let a = new IntSet ([ 1 ])
+        Assert.IsTrue ((a = a))
+        Assert.IsTrue (a.Equals (a))
 
         // Null
-        Assert.IsFalse(a.Equals(null))
+        Assert.IsFalse (a.Equals (null))
 
 
     // Instance methods
     [<Test>]
     let Add () : unit =
-        let l = new IntSet([1 .. 10])
+        let l = new IntSet ([ 1 .. 10 ])
         let ad = l.Add 88
-        Assert.IsTrue(ad.Contains(88))
+        Assert.IsTrue (ad.Contains (88))
 
-        let e : IntSet = IntSet.empty
+        let e: IntSet = IntSet.empty
         let ade = e.Add 123
-        Assert.IsTrue(ade.Contains(123))
+        Assert.IsTrue (ade.Contains (123))
 
         let s = IntSet.singleton 168
         let ads = s.Add 100
-        Assert.IsTrue(ads.Contains(100))
+        Assert.IsTrue (ads.Contains (100))
 
     [<Test>]
     let Contains () : unit =
-        let i = new IntSet([1 .. 10])
-        Assert.IsTrue(i.Contains(8))
+        let i = new IntSet ([ 1 .. 10 ])
+        Assert.IsTrue (i.Contains (8))
 
-        let e : IntSet = IntSet.empty
-        Assert.IsFalse(e.Contains(123))
+        let e: IntSet = IntSet.empty
+        Assert.IsFalse (e.Contains (123))
 
         let s = IntSet.singleton 168
-        Assert.IsTrue(s.Contains(168))
+        Assert.IsTrue (s.Contains (168))
 
     [<Test>]
     let Count () : unit =
-        let l = new IntSet([1 .. 10])
-        Assert.AreEqual(l.Count, 10)
+        let l = new IntSet ([ 1 .. 10 ])
+        Assert.AreEqual (l.Count, 10)
 
-        let e : IntSet = IntSet.empty
-        Assert.AreEqual(e.Count, 0)
+        let e: IntSet = IntSet.empty
+        Assert.AreEqual (e.Count, 0)
 
         let s = IntSet.singleton 123
-        Assert.AreEqual(s.Count, 1)
+        Assert.AreEqual (s.Count, 1)
 
     [<Test>]
     let IsEmpty () : unit =
-        let i = new IntSet([1 .. 10])
-        Assert.IsFalse(i.IsEmpty)
+        let i = new IntSet ([ 1 .. 10 ])
+        Assert.IsFalse (i.IsEmpty)
 
-        let e : IntSet = IntSet.empty
-        Assert.IsTrue(e.IsEmpty)
+        let e: IntSet = IntSet.empty
+        Assert.IsTrue (e.IsEmpty)
 
         let s = IntSet.singleton 168
-        Assert.IsFalse(s.IsEmpty)
+        Assert.IsFalse (s.IsEmpty)
 
     [<Test>]
     let IsSubsetOf () : unit =
-        let fir = new IntSet([1 .. 20])
-        let sec = new IntSet([1 .. 10])
-        Assert.IsTrue(sec.IsSubsetOf(fir))
-        Assert.IsTrue(IntSet.isSubset sec fir)
+        let fir = new IntSet ([ 1 .. 20 ])
+        let sec = new IntSet ([ 1 .. 10 ])
+        Assert.IsTrue (sec.IsSubsetOf (fir))
+        Assert.IsTrue (IntSet.isSubset sec fir)
 
-        let e : IntSet = IntSet.empty
-        Assert.IsTrue(e.IsSubsetOf(fir))
-        Assert.IsTrue(IntSet.isSubset e fir)
+        let e: IntSet = IntSet.empty
+        Assert.IsTrue (e.IsSubsetOf (fir))
+        Assert.IsTrue (IntSet.isSubset e fir)
 
         let s = IntSet.singleton 8
-        Assert.IsTrue(s.IsSubsetOf(fir))
-        Assert.IsTrue(IntSet.isSubset s fir)
+        Assert.IsTrue (s.IsSubsetOf (fir))
+        Assert.IsTrue (IntSet.isSubset s fir)
 
-        let s100 = IntSet [0..100]
-        let s101 = IntSet [0..101]
+        let s100 = IntSet [ 0 .. 100 ]
+        let s101 = IntSet [ 0 .. 101 ]
+
         for i = 0 to 100 do
-            Assert.IsFalse( (IntSet [-1..i]).IsSubsetOf s100)
-            Assert.IsTrue( (IntSet [0..i]).IsSubsetOf s100)
-            Assert.IsTrue( (IntSet [0..i]).IsProperSubsetOf s101)
+            Assert.IsFalse ((IntSet [ -1 .. i ]).IsSubsetOf s100)
+            Assert.IsTrue ((IntSet [ 0 .. i ]).IsSubsetOf s100)
+            Assert.IsTrue ((IntSet [ 0 .. i ]).IsProperSubsetOf s101)
 
 
     [<Test>]
     let IsSupersetOf () : unit =
-        let fir = new IntSet([1 .. 10])
-        let sec = new IntSet([1 .. 20])
-        Assert.IsTrue(sec.IsSupersetOf(fir))
-        Assert.IsTrue(IntSet.isSuperset sec fir)
+        let fir = new IntSet ([ 1 .. 10 ])
+        let sec = new IntSet ([ 1 .. 20 ])
+        Assert.IsTrue (sec.IsSupersetOf (fir))
+        Assert.IsTrue (IntSet.isSuperset sec fir)
 
-        let e : IntSet = IntSet.empty
-        Assert.IsFalse(e.IsSupersetOf(fir))
-        Assert.IsFalse(IntSet.isSuperset e fir)
+        let e: IntSet = IntSet.empty
+        Assert.IsFalse (e.IsSupersetOf (fir))
+        Assert.IsFalse (IntSet.isSuperset e fir)
 
         let s = IntSet.singleton 168
-        Assert.IsFalse(s.IsSupersetOf(fir))
-        Assert.IsFalse(IntSet.isSuperset s fir)
+        Assert.IsFalse (s.IsSupersetOf (fir))
+        Assert.IsFalse (IntSet.isSuperset s fir)
 
-        let s100 = IntSet [0..100]
-        let s101 = IntSet [0..101]
+        let s100 = IntSet [ 0 .. 100 ]
+        let s101 = IntSet [ 0 .. 101 ]
+
         for i = 0 to 100 do
-            Assert.IsFalse( s100.IsSupersetOf (IntSet [-1..i]))
-            Assert.IsTrue( s100.IsSupersetOf (IntSet [0..i]))
-            Assert.IsTrue( s101.IsSupersetOf (IntSet [0..i]))
+            Assert.IsFalse (s100.IsSupersetOf (IntSet [ -1 .. i ]))
+            Assert.IsTrue (s100.IsSupersetOf (IntSet [ 0 .. i ]))
+            Assert.IsTrue (s101.IsSupersetOf (IntSet [ 0 .. i ]))
 
     [<Test>]
     let Remove () : unit =
-        let i = new IntSet([1;2;3;4])
-        Assert.AreEqual(i.Remove 3,(new IntSet([1;2;4])))
+        let i = new IntSet ([ 1; 2; 3; 4 ])
+        Assert.AreEqual (i.Remove 3, (new IntSet ([ 1; 2; 4 ])))
 
-        let e : IntSet = IntSet.empty
-        Assert.AreEqual(e.Remove 123, e)
+        let e: IntSet = IntSet.empty
+        Assert.AreEqual (e.Remove 123, e)
 
         let s = IntSet.singleton 168
-        Assert.AreEqual(s.Remove 168, IntSet.empty)
+        Assert.AreEqual (s.Remove 168, IntSet.empty)
 
     [<Test>]
     let MinimumElement () : unit =
-        let fir = new IntSet([1..6])
-        let sec = new IntSet([2;4;6])
-        Assert.AreEqual(fir.MinimumElement, 1)
-        Assert.AreEqual(sec.MinimumElement, 2)
-        Assert.AreEqual(IntSet.minElement fir, 1)
-        Assert.AreEqual(IntSet.minElement sec, 2)
+        let fir = new IntSet ([ 1 .. 6 ])
+        let sec = new IntSet ([ 2; 4; 6 ])
+        Assert.AreEqual (fir.MinimumElement, 1)
+        Assert.AreEqual (sec.MinimumElement, 2)
+        Assert.AreEqual (IntSet.minElement fir, 1)
+        Assert.AreEqual (IntSet.minElement sec, 2)
 
 
     [<Test>]
     let MaximumElement () : unit =
-        let fir = new IntSet([1..6])
-        let sec = new IntSet([2;4;7])
-        Assert.AreEqual(fir.MaximumElement, 6)
-        Assert.AreEqual(sec.MaximumElement, 7)
-        Assert.AreEqual(IntSet.maxElement fir, 6)
-        Assert.AreEqual(IntSet.maxElement sec, 7)
+        let fir = new IntSet ([ 1 .. 6 ])
+        let sec = new IntSet ([ 2; 4; 7 ])
+        Assert.AreEqual (fir.MaximumElement, 6)
+        Assert.AreEqual (sec.MaximumElement, 7)
+        Assert.AreEqual (IntSet.maxElement fir, 6)
+        Assert.AreEqual (IntSet.maxElement sec, 7)
 
 
     // Static methods
     [<Test>]
     let Addition () : unit =
-        let fir = new IntSet([1;3;5])
-        let sec = new IntSet([2;4;6])
-        Assert.AreEqual(fir + sec, new IntSet([1;2;3;4;5;6]))
-        Assert.AreEqual(IntSet.op_Addition(fir,sec), new IntSet([1;2;3;4;5;6]))
+        let fir = new IntSet ([ 1; 3; 5 ])
+        let sec = new IntSet ([ 2; 4; 6 ])
+        Assert.AreEqual (fir + sec, new IntSet ([ 1; 2; 3; 4; 5; 6 ]))
+        Assert.AreEqual (IntSet.op_Addition (fir, sec), new IntSet ([ 1; 2; 3; 4; 5; 6 ]))
 
-        let e : IntSet = IntSet.empty
-        Assert.AreEqual(e + e, e)
-        Assert.AreEqual(IntSet.op_Addition(e,e),e)
+        let e: IntSet = IntSet.empty
+        Assert.AreEqual (e + e, e)
+        Assert.AreEqual (IntSet.op_Addition (e, e), e)
 
         let s1 = IntSet.singleton 8
         let s2 = IntSet.singleton 6
-        Assert.AreEqual(s1 + s2, new IntSet([8;6]))
-        Assert.AreEqual(IntSet.op_Addition(s1,s2), new IntSet([8;6]))
+        Assert.AreEqual (s1 + s2, new IntSet ([ 8; 6 ]))
+        Assert.AreEqual (IntSet.op_Addition (s1, s2), new IntSet ([ 8; 6 ]))
 
 
     [<Test>]
     let Subtraction () : unit =
-        let fir = new IntSet([1..6])
-        let sec = new IntSet([2;4;6])
-        Assert.AreEqual(fir - sec, new IntSet([1;3;5]))
-        Assert.AreEqual(IntSet.difference fir sec, new IntSet([1;3;5]))
-        Assert.AreEqual(IntSet.op_Subtraction(fir,sec), new IntSet([1;3;5]))
+        let fir = new IntSet ([ 1 .. 6 ])
+        let sec = new IntSet ([ 2; 4; 6 ])
+        Assert.AreEqual (fir - sec, new IntSet ([ 1; 3; 5 ]))
+        Assert.AreEqual (IntSet.difference fir sec, new IntSet ([ 1; 3; 5 ]))
+        Assert.AreEqual (IntSet.op_Subtraction (fir, sec), new IntSet ([ 1; 3; 5 ]))
 
-        let e : IntSet = IntSet.empty
-        Assert.AreEqual(e - e, e)
-        Assert.AreEqual(IntSet.difference e e, e)
-        Assert.AreEqual(IntSet.op_Subtraction(e,e),e)
+        let e: IntSet = IntSet.empty
+        Assert.AreEqual (e - e, e)
+        Assert.AreEqual (IntSet.difference e e, e)
+        Assert.AreEqual (IntSet.op_Subtraction (e, e), e)
 
         let s1 = IntSet.singleton 8
         let s2 = IntSet.singleton 6
-        Assert.AreEqual(s1 - s2, new IntSet([8]))
-        Assert.AreEqual(IntSet.difference s1 s2, new IntSet([8]))
-        Assert.AreEqual(IntSet.op_Subtraction(s1,s2), new IntSet([8]))
+        Assert.AreEqual (s1 - s2, new IntSet ([ 8 ]))
+        Assert.AreEqual (IntSet.difference s1 s2, new IntSet ([ 8 ]))
+        Assert.AreEqual (IntSet.op_Subtraction (s1, s2), new IntSet ([ 8 ]))
 
 
 (*

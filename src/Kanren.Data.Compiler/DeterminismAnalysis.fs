@@ -258,7 +258,11 @@ and determinismInferCall detInfo callee args goalInfo solutionContext rightFaili
 
     if (numSolutions = CommittedChoice
         && solutionContext = AllSolutions) then
-        detInfo.Errors.Add({SourceInfo = goalInfo.SourceInfo; Relation = detInfo.CurrentRelation; Error = CallMustBeInSingleSolutionContext callee })
+        detInfo.Errors.Add (
+            { SourceInfo = goalInfo.SourceInfo
+              Relation = detInfo.CurrentRelation
+              Error = CallMustBeInSingleSolutionContext callee }
+        )
 
     let goalFailingContexts =
         match canFail with
@@ -312,28 +316,52 @@ and determinismInferConjunction detInfo conjGoals instMap0 solutionContext right
         (headGoal' :: tailGoals', determinism, conjFailingContexts'')
     | [] -> ([], Det, conjFailingContexts)
 
-let determinismInferProcedureBody instTable relationProcId args argModes declaredDet varSet goal lookupRelationModes lookupFSharpModes =
+let determinismInferProcedureBody
+    instTable
+    relationProcId
+    args
+    argModes
+    declaredDet
+    varSet
+    goal
+    lookupRelationModes
+    lookupFSharpModes
+    =
     let detInfo =
         { InstTable = instTable
           VarSet = varSet
           LookupRelationModes = lookupRelationModes
           LookupFSharpFunctionModes = lookupFSharpModes
           CurrentRelation = relationProcId
-          Errors = ResizeArray()
-          Warnings = ResizeArray() }
+          Errors = ResizeArray ()
+          Warnings = ResizeArray () }
 
     let instMap = InstMap.ofInitialArgModes args argModes
 
-    let solutionContext = SolutionContext.ofDeterminism declaredDet
-    let (goal', inferredDet, _) = determinismInferGoal detInfo goal instMap solutionContext []
+    let solutionContext =
+        SolutionContext.ofDeterminism declaredDet
 
-    let compareDeterminism = compareDeterminisms declaredDet inferredDet
+    let (goal', inferredDet, _) =
+        determinismInferGoal detInfo goal instMap solutionContext []
+
+    let compareDeterminism =
+        compareDeterminisms declaredDet inferredDet
+
     match compareDeterminism with
     | DeterminismComparison.FirstSameAs -> ()
     | DeterminismComparison.FirstTighterThan ->
-        detInfo.Warnings.Add({Relation = relationProcId; SourceInfo = goal.Info.SourceInfo; Warning = DeterminismWarning.DeclarationTooLax (declaredDet, inferredDet) })
-    | DeterminismComparison.FirstLooserThan | DeterminismComparison.Incomparable ->
+        detInfo.Warnings.Add (
+            { Relation = relationProcId
+              SourceInfo = goal.Info.SourceInfo
+              Warning = DeterminismWarning.DeclarationTooLax (declaredDet, inferredDet) }
+        )
+    | DeterminismComparison.FirstLooserThan
+    | DeterminismComparison.Incomparable ->
         // TODO: diagnose error.
-        detInfo.Errors.Add({ Relation = relationProcId; SourceInfo = goal.Info.SourceInfo; Error = DeterminismError.DeclarationNotSatisfied (declaredDet, inferredDet, []) })
+        detInfo.Errors.Add (
+            { Relation = relationProcId
+              SourceInfo = goal.Info.SourceInfo
+              Error = DeterminismError.DeclarationNotSatisfied (declaredDet, inferredDet, []) }
+        )
 
     (goal', detInfo.Errors, detInfo.Warnings, inferredDet)

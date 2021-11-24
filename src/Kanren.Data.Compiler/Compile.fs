@@ -6,10 +6,11 @@ open Kanren.Data
 module Compile =
 
     let internal parseRelation
-                    (sourceModule: kanrenModule)
-                    (rel: RelationAttribute)
-                    (relation: RelationBase)
-                    (moduleInfo: ModuleInfo) =
+        (sourceModule: kanrenModule)
+        (rel: RelationAttribute)
+        (relation: RelationBase)
+        (moduleInfo: ModuleInfo)
+        =
         let varset = VarSet.init
 
         let varset' =
@@ -22,7 +23,8 @@ module Compile =
               StartCol = 0
               EndCol = 0 }
 
-        let parserInfo = ParserInfo.init sourceModule varset' sourceInfo
+        let parserInfo =
+            ParserInfo.init sourceModule varset' sourceInfo
 
         let ((args, goal: Goal), parserInfo'') =
             State.run (QuotationParser.translateExpr relation.Body) parserInfo
@@ -40,19 +42,26 @@ module Compile =
             match combineResults modeResult with
             | Ok _ ->
                 let relation =
-                    initRelation moduleInfo.InstTable sourceModule.moduleName rel relation args goal' parserInfo''.varset
+                    initRelation
+                        moduleInfo.InstTable
+                        sourceModule.moduleName
+                        rel
+                        relation
+                        args
+                        goal'
+                        parserInfo''.varset
 
                 (moduleInfo.addRelation (relation), parserInfo''.errors)
             | Error modeErrors -> (moduleInfo, List.concat (parserInfo''.errors :: modeErrors))
 
     let internal compileRelationMethod (instance: kanrenModule) (moduleInfo, errors) (property: PropertyInfo) =
         let relationAttribute =
-            property.GetCustomAttribute(typeof<RelationAttribute>) :?> RelationAttribute
+            property.GetCustomAttribute (typeof<RelationAttribute>) :?> RelationAttribute
 
         let relation =
-            property.GetValue(instance) :?> RelationBase
+            property.GetValue (instance) :?> RelationBase
 
-        do System.Console.WriteLine($"{relation.Body}")
+        do System.Console.WriteLine ($"{relation.Body}")
 
         let (moduleInfo', errors') =
             parseRelation instance relationAttribute relation moduleInfo
@@ -63,7 +72,7 @@ module Compile =
         let moduleInfo = ModuleInfo.init
 
         let instance =
-            System.Activator.CreateInstance(moduleType) :?> kanrenModule
+            System.Activator.CreateInstance (moduleType) :?> kanrenModule
 
         let bindingFlags =
             BindingFlags.Public
@@ -71,7 +80,7 @@ module Compile =
             ||| BindingFlags.Instance
 
         let properties =
-            moduleType.GetProperties(bindingFlags)
+            moduleType.GetProperties (bindingFlags)
             |> Array.toList
 
         let relationProperties =

@@ -30,9 +30,9 @@ module internal StringBuffer =
 
         member __.For(xs: 'a seq, f: 'a -> StringBuffer) =
             fun (b: StringBuilder) ->
-                let e = xs.GetEnumerator()
+                let e = xs.GetEnumerator ()
 
-                while e.MoveNext() do
+                while e.MoveNext () do
                     (f e.Current) b
 
         member __.While(p: unit -> bool, f: StringBuffer) =
@@ -45,4 +45,4 @@ module internal StringBuffer =
     //do f b
     //b.ToString()
 
-    let stringBuffer = new StringBufferBuilder()
+    let stringBuffer = new StringBufferBuilder ()

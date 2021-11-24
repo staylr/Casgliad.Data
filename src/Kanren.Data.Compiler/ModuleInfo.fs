@@ -47,7 +47,7 @@ module internal ModuleInfoModule =
               Args = args
               ProcGoal = goal
               VarSet = varset }
-        | Error _ -> raise (System.Exception("invalid modes"))
+        | Error _ -> raise (System.Exception ("invalid modes"))
 
     type RelationInfo =
         { Name: RelationId
@@ -71,14 +71,18 @@ module internal ModuleInfoModule =
         let procMap =
             List.fold (fun map (proc: ProcInfo) -> Map.add proc.ProcId proc map) Map.empty procs
 
-        { Name = { ModuleName = moduleName; RelationName = relation.Name }
+        { Name =
+              { ModuleName = moduleName
+                RelationName = relation.Name }
           SourceInfo = sourceInfo
           Procedures = procMap }
 
     type ModuleInfo =
         { Relations: Map<RelationId, RelationInfo>
           InstTable: InstTable }
-        static member init = { Relations = Map.empty; InstTable = InstTable() }
+        static member init =
+            { Relations = Map.empty
+              InstTable = InstTable () }
 
         member x.addRelation(relation) =
             { x with

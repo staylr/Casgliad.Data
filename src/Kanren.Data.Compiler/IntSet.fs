@@ -32,7 +32,7 @@ module internal BitOps32 =
     let inline isNullReference<'T when 'T: not struct> (arg: 'T) =
         // OPTIMIZE :   Implement with inline IL (ldnull, ldarg.0, ceq). We can't use LanguagePrimitives.PhysicalEquality because it
         //              requires the 'null' constraint which we don't want to require for this function.
-        System.Object.ReferenceEquals(null, arg)
+        System.Object.ReferenceEquals (null, arg)
 
     /// <summary>
     /// Determines if a reference is a null reference, and if it is, throws an <see cref="System.ArgumentNullException"/>.
@@ -44,7 +44,7 @@ module internal BitOps32 =
     let inline checkNonNull<'T when 'T: not struct> paramName (arg: 'T) =
         if isNullReference arg then
             if System.String.IsNullOrWhiteSpace paramName then
-                raise <| System.ArgumentNullException()
+                raise <| System.ArgumentNullException ()
             else
                 raise <| System.ArgumentNullException paramName
 
@@ -55,7 +55,7 @@ module internal BitOps32 =
     [<CompiledName("RaiseNotSupportedException")>]
     let inline notSupported message : 'T =
         if System.String.IsNullOrEmpty message then
-            raise <| System.NotSupportedException()
+            raise <| System.NotSupportedException ()
         else
             raise <| System.NotSupportedException message
 
@@ -127,7 +127,7 @@ type private PatriciaSet32 =
         match set with
         | Empty -> false
         | Lf j -> key = j
-        | Br (_, m, t0, t1) -> PatriciaSet32.Contains(key, (if zeroBit (key, m) then t0 else t1))
+        | Br (_, m, t0, t1) -> PatriciaSet32.Contains (key, (if zeroBit (key, m) then t0 else t1))
 
     /// The number of items (i.e., the cardinality) of the set.
     static member Count(set: PatriciaSet32) : int =
@@ -184,7 +184,7 @@ type private PatriciaSet32 =
         | Br (p, m, t0, t1) ->
             if matchPrefix (key, p, m) then
                 if zeroBit (key, m) then
-                    match PatriciaSet32.Remove(key, t0) with
+                    match PatriciaSet32.Remove (key, t0) with
                     | Empty -> t1
                     | left ->
                         // Only create a new tree when the value was actually removed
@@ -192,9 +192,9 @@ type private PatriciaSet32 =
                         if left == t0 then
                             set
                         else
-                            Br(p, m, left, t1)
+                            Br (p, m, left, t1)
                 else
-                    match PatriciaSet32.Remove(key, t1) with
+                    match PatriciaSet32.Remove (key, t1) with
                     | Empty -> t0
                     | right ->
                         // Only create a new tree when the value was actually removed
@@ -202,7 +202,7 @@ type private PatriciaSet32 =
                         if right == t1 then
                             set
                         else
-                            Br(p, m, t0, right)
+                            Br (p, m, t0, right)
             else
                 set
 
@@ -212,9 +212,9 @@ type private PatriciaSet32 =
         let p = mask (p0, m)
 
         if zeroBit (p0, m) then
-            Br(p, m, t0, t1)
+            Br (p, m, t0, t1)
         else
-            Br(p, m, t1, t0)
+            Br (p, m, t1, t0)
 
     /// Insert a binding (key-value pair) into a set. returning a new, updated set.
     static member Add(key, set) =
@@ -226,30 +226,30 @@ type private PatriciaSet32 =
                 // existing set without modifying it.
                 set
             else
-                PatriciaSet32.Join(key, Lf key, j, set)
+                PatriciaSet32.Join (key, Lf key, j, set)
 
         | Br (p, m, t0, t1) ->
             if matchPrefix (key, p, m) then
                 if zeroBit (key, m) then
-                    let left = PatriciaSet32.Add(key, t0)
+                    let left = PatriciaSet32.Add (key, t0)
 
                     // Only create a new tree when the value was actually added
                     // (i.e., the tree was modified).
                     if left == t0 then
                         set
                     else
-                        Br(p, m, left, t1)
+                        Br (p, m, left, t1)
                 else
-                    let right = PatriciaSet32.Add(key, t1)
+                    let right = PatriciaSet32.Add (key, t1)
 
                     // Only create a new tree when the value was actually added
                     // (i.e., the tree was modified).
                     if right == t1 then
                         set
                     else
-                        Br(p, m, t0, right)
+                        Br (p, m, t0, right)
             else
-                PatriciaSet32.Join(key, Lf key, p, set)
+                PatriciaSet32.Join (key, Lf key, p, set)
 
     /// Computes the union of two PatriciaSet32s.
     static member Union(s, t) : PatriciaSet32 =
@@ -262,88 +262,88 @@ type private PatriciaSet32 =
                 if m = n then
                     if p = q then
                         // The trees have the same prefix. Merge the subtrees.
-                        let left = PatriciaSet32.Union(s0, t0)
-                        let right = PatriciaSet32.Union(s1, t1)
+                        let left = PatriciaSet32.Union (s0, t0)
+                        let right = PatriciaSet32.Union (s1, t1)
 
                         // Only create a new tree if some values were actually added
                         // (i.e., the tree was modified).
                         if left == s0 && right == s1 then s
                         elif left == t0 && right == t1 then t
-                        else Br(p, m, left, right)
+                        else Br (p, m, left, right)
                     else
                         // The prefixes disagree.
-                        PatriciaSet32.Join(p, s, q, t)
+                        PatriciaSet32.Join (p, s, q, t)
 
                 elif m > n then
                     if matchPrefix (q, p, m) then
                         // q contains p. Merge t with a subtree of s.
                         if zeroBit (q, m) then
-                            let left = PatriciaSet32.Union(s0, t)
+                            let left = PatriciaSet32.Union (s0, t)
 
                             // Only create a new tree when the subtree is actually modified.
                             if left == s0 then
                                 s
                             else
-                                Br(p, m, left, s1)
+                                Br (p, m, left, s1)
                         else
-                            let right = PatriciaSet32.Union(s1, t)
+                            let right = PatriciaSet32.Union (s1, t)
 
                             // Only create a new tree when the subtree is actually modified.
                             if right == s1 then
                                 s
                             else
-                                Br(p, m, s0, right)
+                                Br (p, m, s0, right)
                     else
                         // The prefixes disagree.
-                        PatriciaSet32.Join(p, s, q, t)
+                        PatriciaSet32.Join (p, s, q, t)
 
                 else
                 // p contains q. Merge s with a subtree of t.
                 if matchPrefix (p, q, n) then
                     // p contains q. Merge s with a subtree of t.
                     if zeroBit (p, n) then
-                        let left = PatriciaSet32.Union(s, t0)
+                        let left = PatriciaSet32.Union (s, t0)
 
                         // Only create a new tree when the subtree is actually modified.
                         if left == t0 then
                             t
                         else
-                            Br(q, n, left, t1)
+                            Br (q, n, left, t1)
                     else
-                        let right = PatriciaSet32.Union(s, t1)
+                        let right = PatriciaSet32.Union (s, t1)
 
                         // Only create a new tree when the subtree is actually modified.
                         if right == t1 then
                             t
                         else
-                            Br(q, n, t0, right)
+                            Br (q, n, t0, right)
                 else
                     // The prefixes disagree.
-                    PatriciaSet32.Join(p, s, q, t)
+                    PatriciaSet32.Join (p, s, q, t)
 
             | Br (p, m, s0, s1), Lf k ->
                 if matchPrefix (k, p, m) then
                     if zeroBit (k, m) then
-                        let left = PatriciaSet32.Add(k, s0)
+                        let left = PatriciaSet32.Add (k, s0)
 
                         // Only create a new tree when the subtree is actually modified.
                         if left == s0 then
                             s
                         else
-                            Br(p, m, left, s1)
+                            Br (p, m, left, s1)
                     else
-                        let right = PatriciaSet32.Add(k, s1)
+                        let right = PatriciaSet32.Add (k, s1)
 
                         // Only create a new tree when the subtree is actually modified.
                         if right == s1 then
                             s
                         else
-                            Br(p, m, s0, right)
+                            Br (p, m, s0, right)
                 else
-                    PatriciaSet32.Join(k, t, p, s)
+                    PatriciaSet32.Join (k, t, p, s)
 
             | Br (_, _, _, _), Empty -> s
-            | Lf k, t -> PatriciaSet32.Add(k, t)
+            | Lf k, t -> PatriciaSet32.Add (k, t)
             | Empty, t -> t
 
     /// Compute the intersection of two PatriciaSet32s.
@@ -358,8 +358,8 @@ type private PatriciaSet32 =
                     if p <> q then
                         Empty
                     else
-                        let left = PatriciaSet32.Intersect(s0, t0)
-                        let right = PatriciaSet32.Intersect(s1, t1)
+                        let left = PatriciaSet32.Intersect (s0, t0)
+                        let right = PatriciaSet32.Intersect (s1, t1)
 
                         match left, right with
                         | Empty, r
@@ -369,29 +369,29 @@ type private PatriciaSet32 =
                             // (i.e., the tree was modified).
                             if left == s0 && right == s1 then s
                             elif left == t0 && right == t1 then t
-                            else Br(p, m, left, right)
+                            else Br (p, m, left, right)
 
                 elif m > n then
                     if matchPrefix (q, p, m) then
                         if zeroBit (q, m) then
-                            PatriciaSet32.Intersect(s0, t)
+                            PatriciaSet32.Intersect (s0, t)
                         else
-                            PatriciaSet32.Intersect(s1, t)
+                            PatriciaSet32.Intersect (s1, t)
                     else
                         Empty
 
                 else if matchPrefix (p, q, n) then
                     if zeroBit (p, n) then
-                        PatriciaSet32.Intersect(s, t0)
+                        PatriciaSet32.Intersect (s, t0)
                     else
-                        PatriciaSet32.Intersect(s, t1)
+                        PatriciaSet32.Intersect (s, t1)
                 else
                     Empty
 
             | Br (_, m, s0, s1), Lf k ->
                 let s' = if zeroBit (k, m) then s0 else s1
 
-                if PatriciaSet32.Contains(k, s') then
+                if PatriciaSet32.Contains (k, s') then
                     t
                 else
                     Empty
@@ -399,7 +399,7 @@ type private PatriciaSet32 =
             | Br (_, _, _, _), Empty -> Empty
 
             | Lf k, t ->
-                if PatriciaSet32.Contains(k, t) then
+                if PatriciaSet32.Contains (k, t) then
                     s
                 else
                     Empty
@@ -418,8 +418,8 @@ type private PatriciaSet32 =
                     if p <> q then
                         s
                     else
-                        let left = PatriciaSet32.Difference(s0, t0)
-                        let right = PatriciaSet32.Difference(s1, t1)
+                        let left = PatriciaSet32.Difference (s0, t0)
+                        let right = PatriciaSet32.Difference (s1, t1)
 
                         match left, right with
                         | Empty, r
@@ -430,12 +430,12 @@ type private PatriciaSet32 =
                             if left == s0 && right == s1 then
                                 s
                             else
-                                Br(p, m, left, right)
+                                Br (p, m, left, right)
 
                 elif m > n then
                     if matchPrefix (q, p, m) then
                         if zeroBit (q, m) then
-                            match PatriciaSet32.Difference(s0, t) with
+                            match PatriciaSet32.Difference (s0, t) with
                             | Empty -> s1
                             | left ->
                                 // Only create a new tree some values were actually removed
@@ -443,9 +443,9 @@ type private PatriciaSet32 =
                                 if left == s0 then
                                     s
                                 else
-                                    Br(p, m, left, s1)
+                                    Br (p, m, left, s1)
                         else
-                            match PatriciaSet32.Difference(s1, t) with
+                            match PatriciaSet32.Difference (s1, t) with
                             | Empty -> s0
                             | right ->
                                 // Only create a new tree some values were actually removed
@@ -453,22 +453,22 @@ type private PatriciaSet32 =
                                 if right == s1 then
                                     s
                                 else
-                                    Br(p, m, s0, right)
+                                    Br (p, m, s0, right)
                     else
                         s
 
                 else if matchPrefix (p, q, n) then
                     if zeroBit (p, n) then
-                        PatriciaSet32.Difference(s, t0)
+                        PatriciaSet32.Difference (s, t0)
                     else
-                        PatriciaSet32.Difference(s, t1)
+                        PatriciaSet32.Difference (s, t1)
                 else
                     s
 
             | Br (p, m, s0, s1), Lf k ->
                 if matchPrefix (k, p, m) then
                     if zeroBit (k, m) then
-                        match PatriciaSet32.Remove(k, s0) with
+                        match PatriciaSet32.Remove (k, s0) with
                         | Empty -> s1
                         | left ->
                             match s1 with
@@ -479,9 +479,9 @@ type private PatriciaSet32 =
                                 if left == s0 then
                                     s
                                 else
-                                    Br(p, m, left, s1)
+                                    Br (p, m, left, s1)
                     else
-                        match PatriciaSet32.Remove(k, s1) with
+                        match PatriciaSet32.Remove (k, s1) with
                         | Empty -> s0
                         | right ->
                             match s0 with
@@ -492,13 +492,13 @@ type private PatriciaSet32 =
                                 if right == s1 then
                                     s
                                 else
-                                    Br(p, m, s0, right)
+                                    Br (p, m, s0, right)
                 else
                     s
 
             | Br (_, _, _, _), Empty -> s
             | Lf k, t ->
-                if PatriciaSet32.Contains(k, t) then
+                if PatriciaSet32.Contains (k, t) then
                     Empty
                 else
                     s
@@ -518,16 +518,16 @@ type private PatriciaSet32 =
                 if not <| matchPrefix (p1, p2, m2) then
                     1
                 elif zeroBit (p1, m2) then
-                    match PatriciaSet32.SubsetCompare(t1, l2) with
+                    match PatriciaSet32.SubsetCompare (t1, l2) with
                     | 1 -> 1
                     | _ -> -1
                 else
-                    match PatriciaSet32.SubsetCompare(t1, r2) with
+                    match PatriciaSet32.SubsetCompare (t1, r2) with
                     | 1 -> 1
                     | _ -> -1
             elif p1 = p2 then
-                let left = PatriciaSet32.SubsetCompare(l1, l2)
-                let right = PatriciaSet32.SubsetCompare(r1, r2)
+                let left = PatriciaSet32.SubsetCompare (l1, l2)
+                let right = PatriciaSet32.SubsetCompare (r1, r2)
 
                 match left, right with
                 | 1, _
@@ -547,11 +547,11 @@ type private PatriciaSet32 =
             if not <| matchPrefix (x, p, m) then
                 1
             elif zeroBit (x, m) then
-                match PatriciaSet32.SubsetCompare(t1, l) with
+                match PatriciaSet32.SubsetCompare (t1, l) with
                 | 1 -> 1
                 | _ -> -1
             else
-                match PatriciaSet32.SubsetCompare(t1, r) with
+                match PatriciaSet32.SubsetCompare (t1, r) with
                 | 1 -> 1
                 | _ -> -1
 
@@ -566,14 +566,14 @@ type private PatriciaSet32 =
     /// IsProperSubset (set1, set2) returns true if all keys in set1 are in set2,
     /// and at least one element in set2 is not in set1.
     static member IsProperSubsetOf(set1: PatriciaSet32, set2: PatriciaSet32) : bool =
-        match PatriciaSet32.SubsetCompare(set1, set2) with
+        match PatriciaSet32.SubsetCompare (set1, set2) with
         | -1 -> true
         | _ -> false
 
     /// Is 'set1' a subset of 'set2'?
     /// IsSubset (set1, set2) returns true if all keys in set1 are in set2.
     static member IsSubsetOf(set1: PatriciaSet32, set2: PatriciaSet32) : bool =
-        match PatriciaSet32.SubsetCompare(set1, set2) with
+        match PatriciaSet32.SubsetCompare (set1, set2) with
         | -1
         | 0 -> true
         | _ -> false
@@ -581,7 +581,7 @@ type private PatriciaSet32 =
     //
     static member OfSeq(source: seq<int>) : PatriciaSet32 =
         (Empty, source)
-        ||> Seq.fold (fun trie el -> PatriciaSet32.Add(uint32 el, trie))
+        ||> Seq.fold (fun trie el -> PatriciaSet32.Add (uint32 el, trie))
 
     //
     static member OfList(source: int list) : PatriciaSet32 =
@@ -589,7 +589,7 @@ type private PatriciaSet32 =
         checkNonNull "source" source
 
         (Empty, source)
-        ||> List.fold (fun trie el -> PatriciaSet32.Add(uint32 el, trie))
+        ||> List.fold (fun trie el -> PatriciaSet32.Add (uint32 el, trie))
 
     //
     static member OfArray(source: int []) : PatriciaSet32 =
@@ -597,7 +597,7 @@ type private PatriciaSet32 =
         checkNonNull "source" source
 
         (Empty, source)
-        ||> Array.fold (fun trie el -> PatriciaSet32.Add(uint32 el, trie))
+        ||> Array.fold (fun trie el -> PatriciaSet32.Add (uint32 el, trie))
 
     //
     static member OfSet(source: Set<int>) : PatriciaSet32 =
@@ -605,7 +605,7 @@ type private PatriciaSet32 =
         checkNonNull "source" source
 
         (Empty, source)
-        ||> Set.fold (fun trie el -> PatriciaSet32.Add(uint32 el, trie))
+        ||> Set.fold (fun trie el -> PatriciaSet32.Add (uint32 el, trie))
 
     //
     static member Iterate(action: int -> unit, set) : unit =
@@ -614,8 +614,8 @@ type private PatriciaSet32 =
         | Lf k -> action (int k)
         | Br (_, _, left, right) ->
             // Iterate over the left and right subtrees.
-            PatriciaSet32.Iterate(action, left)
-            PatriciaSet32.Iterate(action, right)
+            PatriciaSet32.Iterate (action, left)
+            PatriciaSet32.Iterate (action, right)
 
     //
     static member IterateBack(action: int -> unit, set) : unit =
@@ -624,30 +624,30 @@ type private PatriciaSet32 =
         | Lf k -> action (int k)
         | Br (_, _, left, right) ->
             // Iterate over the right and left subtrees.
-            PatriciaSet32.IterateBack(action, right)
-            PatriciaSet32.IterateBack(action, left)
+            PatriciaSet32.IterateBack (action, right)
+            PatriciaSet32.IterateBack (action, left)
 
     //
     static member Fold(folder: FSharpFunc<'State, int, 'State>, state: 'State, set) : 'State =
         match set with
         | Empty -> state
-        | Lf k -> folder.Invoke(state, int k)
+        | Lf k -> folder.Invoke (state, int k)
         | Br (_, _, left, right) ->
             // Fold over the left subtree, then the right subtree.
-            let state = PatriciaSet32.Fold(folder, state, left)
-            PatriciaSet32.Fold(folder, state, right)
+            let state = PatriciaSet32.Fold (folder, state, left)
+            PatriciaSet32.Fold (folder, state, right)
 
     //
     static member FoldBack(folder: FSharpFunc<int, 'State, 'State>, state: 'State, set) : 'State =
         match set with
         | Empty -> state
-        | Lf k -> folder.Invoke(int k, state)
+        | Lf k -> folder.Invoke (int k, state)
         | Br (_, _, left, right) ->
             // Fold over the right subtree, then the left subtree.
             let state =
-                PatriciaSet32.FoldBack(folder, state, right)
+                PatriciaSet32.FoldBack (folder, state, right)
 
-            PatriciaSet32.FoldBack(folder, state, left)
+            PatriciaSet32.FoldBack (folder, state, left)
 
     //
     static member TryPick(picker: int -> 'T option, set) : 'T option =
@@ -656,8 +656,8 @@ type private PatriciaSet32 =
         | Lf k -> picker (int k)
         | Br (_, _, left, right) ->
             // Visit the left subtree, then the right subtree if necessary.
-            match PatriciaSet32.TryPick(picker, left) with
-            | None -> PatriciaSet32.TryPick(picker, right)
+            match PatriciaSet32.TryPick (picker, left) with
+            | None -> PatriciaSet32.TryPick (picker, right)
             | res -> res
 
     //
@@ -666,13 +666,13 @@ type private PatriciaSet32 =
         | Empty -> None
         | Lf k ->
             if predicate (int k) then
-                Some(int k)
+                Some (int k)
             else
                 None
         | Br (_, _, left, right) ->
             // Visit the left subtree, then the right subtree if necessary.
-            match PatriciaSet32.TryFind(predicate, left) with
-            | None -> PatriciaSet32.TryFind(predicate, right)
+            match PatriciaSet32.TryFind (predicate, left) with
+            | None -> PatriciaSet32.TryFind (predicate, right)
             | res -> res
 
     //
@@ -706,7 +706,7 @@ type IntSet private (trie: PatriciaSet32) =
 
         // OPTIMIZE : Try to cast the sequence to array or list;
         // if it succeeds use the specialized method for that type for better performance.
-        IntSet(PatriciaSet32.OfSeq elements)
+        IntSet (PatriciaSet32.OfSeq elements)
 
     //
     member __.Trie
@@ -723,7 +723,7 @@ type IntSet private (trie: PatriciaSet32) =
 
     /// Tests if an element is in the domain of the IntSet.
     member __.Contains(key: int) : bool =
-        PatriciaSet32.Contains(uint32 key, trie)
+        PatriciaSet32.Contains (uint32 key, trie)
 
     /// The minimum unsigned value stored in the set.
 #if FX_NO_DEBUG_DISPLAYS
@@ -737,7 +737,8 @@ type IntSet private (trie: PatriciaSet32) =
 #else
     [<DebuggerBrowsable(DebuggerBrowsableState.Never)>]
 #endif
-    member __.MinimumElementSigned: int = int <| PatriciaSet32.MinElementSigned trie
+    member __.MinimumElementSigned: int =
+        int <| PatriciaSet32.MinElementSigned trie
 
     /// The maximum unsigned value stored in the set.
 #if FX_NO_DEBUG_DISPLAYS
@@ -751,31 +752,32 @@ type IntSet private (trie: PatriciaSet32) =
 #else
     [<DebuggerBrowsable(DebuggerBrowsableState.Never)>]
 #endif
-    member __.MaximumElementSigned: int = int <| PatriciaSet32.MaxElementSigned trie
+    member __.MaximumElementSigned: int =
+        int <| PatriciaSet32.MaxElementSigned trie
 
     /// The IntSet containing the given element.
-    static member Singleton(element: int) : IntSet = IntSet(Lf <| uint32 element)
+    static member Singleton(element: int) : IntSet = IntSet (Lf <| uint32 element)
 
     /// Returns a new IntSet with the element added to this IntSet.
     member this.Add(key: int) : IntSet =
         // If the trie isn't modified, just return this IntSet instead of creating a new one.
-        let trie' = PatriciaSet32.Add(uint32 key, trie)
+        let trie' = PatriciaSet32.Add (uint32 key, trie)
 
         if trie == trie' then
             this
         else
-            IntSet(trie')
+            IntSet (trie')
 
     /// Removes an element from the domain of the IntSet.
     /// No exception is raised if the element is not present.
     member this.Remove(key: int) : IntSet =
         // If the trie isn't modified, just return this IntSet instead of creating a new one.
-        let trie' = PatriciaSet32.Remove(uint32 key, trie)
+        let trie' = PatriciaSet32.Remove (uint32 key, trie)
 
         if trie == trie' then
             this
         else
-            IntSet(trie')
+            IntSet (trie')
 
     /// Computes the union of two IntSets.
     member this.Union(otherSet: IntSet) : IntSet =
@@ -785,14 +787,15 @@ type IntSet private (trie: PatriciaSet32) =
         else
             // If the result is the same (physical equality) to one of the inputs,
             // return that input instead of creating a new IntSet.
-            let trie' = PatriciaSet32.Union(trie, otherSet.Trie)
+            let trie' =
+                PatriciaSet32.Union (trie, otherSet.Trie)
 
             if trie == trie' then
                 this
             elif otherSet.Trie == trie' then
                 otherSet
             else
-                IntSet(trie')
+                IntSet (trie')
 
     /// Computes the intersection of two IntSets.
     member this.Intersect(otherSet: IntSet) : IntSet =
@@ -803,14 +806,14 @@ type IntSet private (trie: PatriciaSet32) =
             // If the result is the same (physical equality) to one of the inputs,
             // return that input instead of creating a new IntSet.
             let trie' =
-                PatriciaSet32.Intersect(trie, otherSet.Trie)
+                PatriciaSet32.Intersect (trie, otherSet.Trie)
 
             if trie == trie' then
                 this
             elif otherSet.Trie == trie' then
                 otherSet
             else
-                IntSet(trie')
+                IntSet (trie')
 
     /// Removes the elements of the specified IntSet from this IntSet.
     member this.Difference(otherSet: IntSet) : IntSet =
@@ -821,14 +824,14 @@ type IntSet private (trie: PatriciaSet32) =
             // If the result is the same (physical equality) to one of the inputs,
             // return that input instead of creating a new IntSet.
             let trie' =
-                PatriciaSet32.Difference(trie, otherSet.Trie)
+                PatriciaSet32.Difference (trie, otherSet.Trie)
 
             if trie == trie' then
                 this
             elif otherSet.Trie == trie' then
                 otherSet
             else
-                IntSet(trie')
+                IntSet (trie')
 
     /// Computes the union of a sequence of IntSets.
     static member internal UnionMany(sets: seq<IntSet>) : IntSet =
@@ -837,13 +840,13 @@ type IntSet private (trie: PatriciaSet32) =
 
         let result =
             (PatriciaSet32.Empty, sets)
-            ||> Seq.fold (fun combinedSetTree set -> PatriciaSet32.Union(combinedSetTree, set.Trie))
+            ||> Seq.fold (fun combinedSetTree set -> PatriciaSet32.Union (combinedSetTree, set.Trie))
 
         // If the resulting trie is empty, return the empty IntSet instance
         // instead of creating a new one to allow for better structure sharing.
         match result with
         | Empty -> IntSet.Empty
-        | _ -> IntSet(result)
+        | _ -> IntSet (result)
 
     /// Computes the intersection of a sequence of IntSets.
     static member internal IntersectMany(sets: seq<IntSet>) : IntSet =
@@ -857,28 +860,28 @@ type IntSet private (trie: PatriciaSet32) =
     /// Determines if this set is a subset of the given set.
     // IsSubsetOf (otherSet) returns true if all values in this set are in 'otherSet'.
     member __.IsSubsetOf(otherSet: IntSet) : bool =
-        PatriciaSet32.IsSubsetOf(trie, otherSet.Trie)
+        PatriciaSet32.IsSubsetOf (trie, otherSet.Trie)
 
     /// Determines if set1 is a proper subset of set2.
     // IsProperSubsetOf (otherSet) returns true if all values in this set are in 'otherSet',
     // and 'otherSet' contains at least one value which is not in this set.
     member __.IsProperSubsetOf(otherSet: IntSet) : bool =
-        PatriciaSet32.IsProperSubsetOf(trie, otherSet.Trie)
+        PatriciaSet32.IsProperSubsetOf (trie, otherSet.Trie)
 
     //
     member __.IsSupersetOf(otherSet: IntSet) : bool =
-        PatriciaSet32.IsSubsetOf(otherSet.Trie, trie)
+        PatriciaSet32.IsSubsetOf (otherSet.Trie, trie)
 
     //
     member __.IsProperSupersetOf(otherSet: IntSet) : bool =
-        PatriciaSet32.IsProperSubsetOf(otherSet.Trie, trie)
+        PatriciaSet32.IsProperSubsetOf (otherSet.Trie, trie)
 
     /// Returns a new IntSet made from the given elements.
     static member internal OfSeq(source: seq<int>) : IntSet =
         // Preconditions
         checkNonNull "source" source
 
-        IntSet(PatriciaSet32.OfSeq source)
+        IntSet (PatriciaSet32.OfSeq source)
 
     /// Returns a new IntSet made from the given elements.
     static member internal OfList(source: int list) : IntSet =
@@ -889,7 +892,7 @@ type IntSet private (trie: PatriciaSet32) =
         if List.isEmpty source then
             IntSet.Empty
         else
-            IntSet(PatriciaSet32.OfList source)
+            IntSet (PatriciaSet32.OfList source)
 
     /// Returns a new IntSet made from the given elements.
     static member internal OfArray(source: int []) : IntSet =
@@ -900,7 +903,7 @@ type IntSet private (trie: PatriciaSet32) =
         if Array.isEmpty source then
             IntSet.Empty
         else
-            IntSet(PatriciaSet32.OfArray source)
+            IntSet (PatriciaSet32.OfArray source)
 
     /// Returns a new IntSet made from the given elements.
     static member internal OfSet(source: Set<int>) : IntSet =
@@ -911,7 +914,7 @@ type IntSet private (trie: PatriciaSet32) =
         if Set.isEmpty source then
             IntSet.Empty
         else
-            IntSet(PatriciaSet32.OfSet source)
+            IntSet (PatriciaSet32.OfSet source)
 
     //
     member __.ToSeq() = PatriciaSet32.ToSeq trie
@@ -921,37 +924,38 @@ type IntSet private (trie: PatriciaSet32) =
         let folder =
             FSharpFunc<_, _, _>.Adapt (fun el list -> el :: list)
 
-        PatriciaSet32.FoldBack(folder, [], trie)
+        PatriciaSet32.FoldBack (folder, [], trie)
 
     //
     member __.ToArray() : int [] =
-        let elements = ResizeArray()
-        PatriciaSet32.Iterate(elements.Add, trie)
-        elements.ToArray()
+        let elements = ResizeArray ()
+        PatriciaSet32.Iterate (elements.Add, trie)
+        elements.ToArray ()
 
     //
     member __.ToSet() : Set<int> =
         let folder = FSharpFunc<_, _, _>.Adapt Set.add
-        PatriciaSet32.FoldBack(folder, Set.empty, trie)
+        PatriciaSet32.FoldBack (folder, Set.empty, trie)
 
     //
-    member __.Iterate(action: int -> unit) : unit = PatriciaSet32.Iterate(action, trie)
+    member __.Iterate(action: int -> unit) : unit = PatriciaSet32.Iterate (action, trie)
 
     //
-    member __.IterateBack(action: int -> unit) : unit = PatriciaSet32.IterateBack(action, trie)
+    member __.IterateBack(action: int -> unit) : unit =
+        PatriciaSet32.IterateBack (action, trie)
 
     //
     member __.Fold(folder: 'State -> int -> 'State, state: 'State) : 'State =
         let folder = FSharpFunc<_, _, _>.Adapt folder
-        PatriciaSet32.Fold(folder, state, trie)
+        PatriciaSet32.Fold (folder, state, trie)
 
     //
     member __.FoldBack(folder: int -> 'State -> 'State, state: 'State) : 'State =
         let folder = FSharpFunc<_, _, _>.Adapt folder
-        PatriciaSet32.FoldBack(folder, state, trie)
+        PatriciaSet32.FoldBack (folder, state, trie)
 
     //
-    member __.TryPick(picker: int -> 'T option) : 'T option = PatriciaSet32.TryPick(picker, trie)
+    member __.TryPick(picker: int -> 'T option) : 'T option = PatriciaSet32.TryPick (picker, trie)
 
     //
     member this.Pick(picker: int -> 'T option) : 'T =
@@ -961,10 +965,10 @@ type IntSet private (trie: PatriciaSet32) =
             // TODO : Provide a better error message
             //keyNotFound ""
             raise
-            <| System.Collections.Generic.KeyNotFoundException()
+            <| System.Collections.Generic.KeyNotFoundException ()
 
     //
-    member __.TryFind(predicate: int -> bool) : int option = PatriciaSet32.TryFind(predicate, trie)
+    member __.TryFind(predicate: int -> bool) : int option = PatriciaSet32.TryFind (predicate, trie)
 
     //
     member this.Find(predicate: int -> bool) : int =
@@ -974,11 +978,11 @@ type IntSet private (trie: PatriciaSet32) =
             // TODO : Provide a better error message
             //keyNotFound ""
             raise
-            <| System.Collections.Generic.KeyNotFoundException()
+            <| System.Collections.Generic.KeyNotFoundException ()
 
     //
     member this.Exists(predicate: int -> bool) : bool =
-        this.TryPick(fun el -> if predicate el then Some() else None)
+        this.TryPick (fun el -> if predicate el then Some () else None)
         |> Option.isSome
 
     //
@@ -986,14 +990,14 @@ type IntSet private (trie: PatriciaSet32) =
         this.TryPick
             (fun el ->
                 if not (predicate el) then
-                    Some()
+                    Some ()
                 else
                     None)
         |> Option.isNone
 
     //
     member this.Choose(chooser: int -> int option) : IntSet =
-        this.Fold(
+        this.Fold (
             (fun chosenSet el ->
                 match chooser el with
                 | None -> chosenSet
@@ -1003,7 +1007,7 @@ type IntSet private (trie: PatriciaSet32) =
 
     //
     member this.Filter(predicate: int -> bool) : IntSet =
-        this.Fold(
+        this.Fold (
             (fun filteredSet el ->
                 if predicate el then
                     filteredSet
@@ -1014,12 +1018,12 @@ type IntSet private (trie: PatriciaSet32) =
 
     //
     member this.Map(mapping: int -> int) : IntSet =
-        this.Fold((fun map el -> map.Add(mapping el)), IntSet.Empty)
+        this.Fold ((fun map el -> map.Add (mapping el)), IntSet.Empty)
 
     //
     // OPTIMIZE : Replace this with an optimized implementation instead of using Fold.
     member this.Partition(predicate: int -> bool) : IntSet * IntSet =
-        this.Fold(
+        this.Fold (
             (fun (trueSet, falseSet) el ->
                 if predicate el then
                     trueSet.Add el, falseSet
@@ -1043,7 +1047,7 @@ type IntSet private (trie: PatriciaSet32) =
                 .Append("intSet [")
                 .Append(IntSet.ElementString h1)
                 .Append("]")
-                .ToString()
+                .ToString ()
         | [ h1; h2 ] ->
             System
                 .Text
@@ -1053,7 +1057,7 @@ type IntSet private (trie: PatriciaSet32) =
                 .Append("; ")
                 .Append(IntSet.ElementString h2)
                 .Append("]")
-                .ToString()
+                .ToString ()
         | [ h1; h2; h3 ] ->
             System
                 .Text
@@ -1065,7 +1069,7 @@ type IntSet private (trie: PatriciaSet32) =
                 .Append("; ")
                 .Append(IntSet.ElementString h3)
                 .Append("]")
-                .ToString()
+                .ToString ()
         | h1 :: h2 :: h3 :: _ ->
             System
                 .Text
@@ -1077,7 +1081,7 @@ type IntSet private (trie: PatriciaSet32) =
                 .Append("; ")
                 .Append(IntSet.ElementString h3)
                 .Append("; ... ]")
-                .ToString()
+                .ToString ()
 
     /// Compute the union of two sets.
     static member op_Addition(set1: IntSet, set2: IntSet) : IntSet = set1.Union set2
@@ -1096,7 +1100,7 @@ type IntSet private (trie: PatriciaSet32) =
         // TODO : Come up with a better hash code implementation.
         match trie with
         | Empty -> 0
-        | _ -> trie.GetHashCode()
+        | _ -> trie.GetHashCode ()
 
     interface System.IEquatable<IntSet> with
         /// <inherit />
@@ -1113,12 +1117,12 @@ type IntSet private (trie: PatriciaSet32) =
     interface System.Collections.IEnumerable with
         /// <inherit />
         member __.GetEnumerator() =
-            (PatriciaSet32.ToSeq trie).GetEnumerator() :> System.Collections.IEnumerator
+            (PatriciaSet32.ToSeq trie).GetEnumerator () :> System.Collections.IEnumerator
 
     interface IEnumerable<int> with
         /// <inherit />
         member __.GetEnumerator() =
-            (PatriciaSet32.ToSeq trie).GetEnumerator()
+            (PatriciaSet32.ToSeq trie).GetEnumerator ()
 
     interface ICollection<int> with
         /// <inherit />
@@ -1137,7 +1141,7 @@ type IntSet private (trie: PatriciaSet32) =
 
         /// <inherit />
         member __.Contains(item: int) =
-            PatriciaSet32.Contains(uint32 item, trie)
+            PatriciaSet32.Contains (uint32 item, trie)
 
         /// <inherit />
         member this.CopyTo(array, arrayIndex) =
@@ -1156,7 +1160,7 @@ type IntSet private (trie: PatriciaSet32) =
                     "There is not enough room in the array to copy the \
                      elements when starting at the specified index."
 
-            this.Fold(
+            this.Fold (
                 (fun index el ->
                     array.[index] <- el
                     index + 1),
@@ -1172,7 +1176,7 @@ type IntSet private (trie: PatriciaSet32) =
 and [<Sealed>] internal IntSetDebuggerProxy(set: IntSet) =
 
     [<DebuggerBrowsable(DebuggerBrowsableState.RootHidden)>]
-    member __.Items: int [] = set.ToArray()
+    member __.Items: int [] = set.ToArray ()
 
 
 /// Functional programming operators related to the IntSet type.
@@ -1377,7 +1381,7 @@ module IntSet =
         // Preconditions
         checkNonNull "set" set
 
-        set.ToSeq()
+        set.ToSeq ()
 
     /// Builds a list that contains the elements of the set in order.
     [<CompiledName("ToList")>]
@@ -1385,7 +1389,7 @@ module IntSet =
         // Preconditions
         checkNonNull "set" set
 
-        set.ToList()
+        set.ToList ()
 
     /// Builds an array that contains the elements of the set in order.
     [<CompiledName("ToArray")>]
@@ -1393,7 +1397,7 @@ module IntSet =
         // Preconditions
         checkNonNull "set" set
 
-        set.ToArray()
+        set.ToArray ()
 
     /// Builds a Set that contains the same elements as the given IntSet.
     [<CompiledName("ToSet")>]
@@ -1401,7 +1405,7 @@ module IntSet =
         // Preconditions
         checkNonNull "set" set
 
-        set.ToSet()
+        set.ToSet ()
 
     /// Applies the given function to each element of the set,
     /// in order according to the comparison function.
@@ -1428,7 +1432,7 @@ module IntSet =
         // Preconditions
         checkNonNull "set" set
 
-        set.Fold(folder, state)
+        set.Fold (folder, state)
 
     /// Applies the given accumulating function to each element of the set,
     /// in reverse order according to the comparison function.
@@ -1437,7 +1441,7 @@ module IntSet =
         // Preconditions
         checkNonNull "set" set
 
-        set.FoldBack(folder, state)
+        set.FoldBack (folder, state)
 
     /// <summary>
     /// Applies the given function to each element of the set.
@@ -1567,7 +1571,7 @@ module TagSet =
     [<CompiledName("IsEmpty")>]
     let inline isEmpty (set: TagSet<'Tag>) : bool =
         // Retype as IntSet
-        let set : IntSet = retype set
+        let set: IntSet = retype set
 
         // Preconditions
         checkNonNull "set" set
@@ -1578,7 +1582,7 @@ module TagSet =
     [<CompiledName("Count")>]
     let inline count (set: TagSet<'Tag>) : int =
         // Retype as IntSet
-        let set : IntSet = retype set
+        let set: IntSet = retype set
 
         // Preconditions
         checkNonNull "set" set
@@ -1587,31 +1591,32 @@ module TagSet =
 
     /// The set containing the given element.
     [<CompiledName("Singleton")>]
-    let inline singleton (element: int<'Tag>) : TagSet<'Tag> = IntSet.Singleton(int element) |> retype
+    let inline singleton (element: int<'Tag>) : TagSet<'Tag> =
+        IntSet.Singleton (int element) |> retype
 
     /// Returns a new set with an element added to the set.
     /// No exception is raised if the set already contains the element.
     [<CompiledName("Add")>]
     let inline add (key: int<'Tag>) (set: TagSet<'Tag>) : TagSet<'Tag> =
         // Retype as IntSet
-        let set : IntSet = retype set
+        let set: IntSet = retype set
 
         // Preconditions
         checkNonNull "set" set
 
-        set.Add(int key) |> retype
+        set.Add (int key) |> retype
 
     /// Returns a new set with the given element removed.
     /// No exception is raised if the set does not contain the element.
     [<CompiledName("Remove")>]
     let inline remove (key: int<'Tag>) (set: TagSet<'Tag>) : TagSet<'Tag> =
         // Retype as IntSet
-        let set : IntSet = retype set
+        let set: IntSet = retype set
 
         // Preconditions
         checkNonNull "set" set
 
-        set.Remove(int key) |> retype
+        set.Remove (int key) |> retype
 
     /// <summary>
     /// Evaluates to &quot;true&quot; if the given element is in the given set.
@@ -1619,18 +1624,18 @@ module TagSet =
     [<CompiledName("Contains")>]
     let inline contains (key: int<'Tag>) (set: TagSet<'Tag>) : bool =
         // Retype as IntSet
-        let set : IntSet = retype set
+        let set: IntSet = retype set
 
         // Preconditions
         checkNonNull "set" set
 
-        set.Contains(int key)
+        set.Contains (int key)
 
     /// Returns the lowest element in the set according to an unsigned integer comparison.
     [<CompiledName("MinElement")>]
     let inline minElement (set: TagSet<'Tag>) : int<'Tag> =
         // Retype as IntSet
-        let set : IntSet = retype set
+        let set: IntSet = retype set
 
         // Preconditions
         checkNonNull "set" set
@@ -1641,7 +1646,7 @@ module TagSet =
     [<CompiledName("MinElementSigned")>]
     let inline minElementSigned (set: TagSet<'Tag>) : int<'Tag> =
         // Retype as IntSet
-        let set : IntSet = retype set
+        let set: IntSet = retype set
 
         // Preconditions
         checkNonNull "set" set
@@ -1652,7 +1657,7 @@ module TagSet =
     [<CompiledName("MaxElement")>]
     let inline maxElement (set: TagSet<'Tag>) : int<'Tag> =
         // Retype as IntSet
-        let set : IntSet = retype set
+        let set: IntSet = retype set
 
         // Preconditions
         checkNonNull "set" set
@@ -1663,7 +1668,7 @@ module TagSet =
     [<CompiledName("MaxElementSigned")>]
     let inline maxElementSigned (set: TagSet<'Tag>) : int<'Tag> =
         // Retype as IntSet
-        let set : IntSet = retype set
+        let set: IntSet = retype set
 
         // Preconditions
         checkNonNull "set" set
@@ -1674,8 +1679,8 @@ module TagSet =
     [<CompiledName("Union")>]
     let inline union (set1: TagSet<'Tag>) (set2: TagSet<'Tag>) : TagSet<'Tag> =
         // Retype as IntSet
-        let set1 : IntSet = retype set1
-        let set2 : IntSet = retype set2
+        let set1: IntSet = retype set1
+        let set2: IntSet = retype set2
 
         // Preconditions
         checkNonNull "set1" set1
@@ -1687,7 +1692,7 @@ module TagSet =
     [<CompiledName("UnionMany")>]
     let unionMany (sets: seq<TagSet<'Tag>>) : TagSet<'Tag> =
         // Retype as seq<IntSet>
-        let sets : seq<IntSet> = retype sets
+        let sets: seq<IntSet> = retype sets
 
         // Preconditions checked by the target method.
         IntSet.UnionMany sets |> retype
@@ -1696,8 +1701,8 @@ module TagSet =
     [<CompiledName("Intersect")>]
     let inline intersect (set1: TagSet<'Tag>) (set2: TagSet<'Tag>) : TagSet<'Tag> =
         // Retype as IntSet
-        let set1 : IntSet = retype set1
-        let set2 : IntSet = retype set2
+        let set1: IntSet = retype set1
+        let set2: IntSet = retype set2
 
         // Preconditions
         checkNonNull "set1" set1
@@ -1709,7 +1714,7 @@ module TagSet =
     [<CompiledName("IntersectMany")>]
     let intersectMany (sets: seq<TagSet<'Tag>>) : TagSet<'Tag> =
         // Retype as seq<IntSet>
-        let sets : seq<IntSet> = retype sets
+        let sets: seq<IntSet> = retype sets
 
         // Preconditions checked by the target method.
         IntSet.IntersectMany sets |> retype
@@ -1718,8 +1723,8 @@ module TagSet =
     [<CompiledName("Difference")>]
     let inline difference (set1: TagSet<'Tag>) (set2: TagSet<'Tag>) : TagSet<'Tag> =
         // Retype as IntSet
-        let set1 : IntSet = retype set1
-        let set2 : IntSet = retype set2
+        let set1: IntSet = retype set1
+        let set2: IntSet = retype set2
 
         // Preconditions
         checkNonNull "set1" set1
@@ -1733,8 +1738,8 @@ module TagSet =
     [<CompiledName("IsSubset")>]
     let inline isSubset (set1: TagSet<'Tag>) (set2: TagSet<'Tag>) : bool =
         // Retype as IntSet
-        let set1 : IntSet = retype set1
-        let set2 : IntSet = retype set2
+        let set1: IntSet = retype set1
+        let set2: IntSet = retype set2
 
         // Preconditions
         checkNonNull "set1" set1
@@ -1749,8 +1754,8 @@ module TagSet =
     [<CompiledName("IsProperSubset")>]
     let inline isProperSubset (set1: TagSet<'Tag>) (set2: TagSet<'Tag>) : bool =
         // Retype as IntSet
-        let set1 : IntSet = retype set1
-        let set2 : IntSet = retype set2
+        let set1: IntSet = retype set1
+        let set2: IntSet = retype set2
 
         // Preconditions
         checkNonNull "set1" set1
@@ -1764,8 +1769,8 @@ module TagSet =
     [<CompiledName("IsSuperset")>]
     let inline isSuperset (set1: TagSet<'Tag>) (set2: TagSet<'Tag>) : bool =
         // Retype as IntSet
-        let set1 : IntSet = retype set1
-        let set2 : IntSet = retype set2
+        let set1: IntSet = retype set1
+        let set2: IntSet = retype set2
 
         // Preconditions
         checkNonNull "set1" set1
@@ -1780,8 +1785,8 @@ module TagSet =
     [<CompiledName("IsProperSuperset")>]
     let inline isProperSuperset (set1: TagSet<'Tag>) (set2: TagSet<'Tag>) : bool =
         // Retype as IntSet
-        let set1 : IntSet = retype set1
-        let set2 : IntSet = retype set2
+        let set1: IntSet = retype set1
+        let set2: IntSet = retype set2
 
         // Preconditions
         checkNonNull "set1" set1
@@ -1793,117 +1798,117 @@ module TagSet =
     [<CompiledName("OfSeq")>]
     let ofSeq (source: seq<int<'Tag>>) : TagSet<'Tag> =
         // Preconditions are checked by the member.
-        IntSet.OfSeq(retype source) |> retype
+        IntSet.OfSeq (retype source) |> retype
 
     /// Builds a set that contains the same elements as the given list.
     [<CompiledName("OfList")>]
     let ofList (source: int<'Tag> list) : TagSet<'Tag> =
         // Preconditions are checked by the member.
-        IntSet.OfList(retype source) |> retype
+        IntSet.OfList (retype source) |> retype
 
     /// Builds a set that contains the same elements as the given array.
     [<CompiledName("OfArray")>]
     let ofArray (source: int<'Tag> []) : TagSet<'Tag> =
         // Preconditions are checked by the member.
-        IntSet.OfArray(retype source) |> retype
+        IntSet.OfArray (retype source) |> retype
 
     /// Builds an set that contains the same elements as the given Set.
     [<CompiledName("OfSet")>]
     let ofSet (source: Set<int<'Tag>>) : TagSet<'Tag> =
         // Preconditions are checked by the member.
-        IntSet.OfSet(retype source) |> retype
+        IntSet.OfSet (retype source) |> retype
 
     /// Returns an ordered view of the collection as an enumerable object.
     [<CompiledName("ToSeq")>]
     let inline toSeq (set: TagSet<'Tag>) : seq<int<'Tag>> =
         // Retype as IntSet
-        let set : IntSet = retype set
+        let set: IntSet = retype set
 
         // Preconditions
         checkNonNull "set" set
 
-        set.ToSeq() |> retype
+        set.ToSeq () |> retype
 
     /// Builds a list that contains the elements of the set in order.
     [<CompiledName("ToList")>]
     let inline toList (set: TagSet<'Tag>) : int<'Tag> list =
         // Retype as IntSet
-        let set : IntSet = retype set
+        let set: IntSet = retype set
 
         // Preconditions
         checkNonNull "set" set
 
-        set.ToList() |> retype
+        set.ToList () |> retype
 
     /// Builds an array that contains the elements of the set in order.
     [<CompiledName("ToArray")>]
     let inline toArray (set: TagSet<'Tag>) : int<'Tag> [] =
         // Retype as IntSet
-        let set : IntSet = retype set
+        let set: IntSet = retype set
 
         // Preconditions
         checkNonNull "set" set
 
-        set.ToArray() |> retype
+        set.ToArray () |> retype
 
     /// Builds a Set that contains the same elements as the given TagSet.
     [<CompiledName("ToSet")>]
     let inline toSet (set: TagSet<'Tag>) : Set<int<'Tag>> =
         // Retype as IntSet
-        let set : IntSet = retype set
+        let set: IntSet = retype set
 
         // Preconditions
         checkNonNull "set" set
 
-        set.ToSet() |> retype
+        set.ToSet () |> retype
 
     /// Applies the given function to each element of the set,
     /// in order according to the comparison function.
     [<CompiledName("Iterate")>]
     let inline iter (action: int<'Tag> -> unit) (set: TagSet<'Tag>) =
         // Retype as IntSet
-        let set : IntSet = retype set
+        let set: IntSet = retype set
 
         // Preconditions
         checkNonNull "set" set
 
-        set.Iterate(retype action)
+        set.Iterate (retype action)
 
     /// Applies the given function to each element of the set,
     /// in reverse order according to the comparison function.
     [<CompiledName("IterateBack")>]
     let inline iterBack (action: int<'Tag> -> unit) (set: TagSet<'Tag>) =
         // Retype as IntSet
-        let set : IntSet = retype set
+        let set: IntSet = retype set
 
         // Preconditions
         checkNonNull "set" set
 
-        set.IterateBack(retype action)
+        set.IterateBack (retype action)
 
     /// Applies the given accumulating function to each element of the set,
     /// in order according to the comparison function.
     [<CompiledName("Fold")>]
     let inline fold (folder: 'State -> int<'Tag> -> 'State) (state: 'State) (set: TagSet<'Tag>) =
         // Retype as IntSet
-        let set : IntSet = retype set
+        let set: IntSet = retype set
 
         // Preconditions
         checkNonNull "set" set
 
-        set.Fold(retype folder, state)
+        set.Fold (retype folder, state)
 
     /// Applies the given accumulating function to each element of the set,
     /// in reverse order according to the comparison function.
     [<CompiledName("FoldBack")>]
     let inline foldBack (folder: int<'Tag> -> 'State -> 'State) (set: TagSet<'Tag>) (state: 'State) =
         // Retype as IntSet
-        let set : IntSet = retype set
+        let set: IntSet = retype set
 
         // Preconditions
         checkNonNull "set" set
 
-        set.FoldBack(retype folder, state)
+        set.FoldBack (retype folder, state)
 
     /// <summary>
     /// Applies the given function to each element of the set.
@@ -1913,12 +1918,12 @@ module TagSet =
     [<CompiledName("Choose")>]
     let inline choose (chooser: int<'Tag1> -> int<'Tag2> option) (set: TagSet<'Tag1>) : TagSet<'Tag2> =
         // Retype as IntSet
-        let set : IntSet = retype set
+        let set: IntSet = retype set
 
         // Preconditions
         checkNonNull "set" set
 
-        set.Choose(retype chooser) |> retype
+        set.Choose (retype chooser) |> retype
 
     /// <summary>
     /// Returns a new collection containing only the elements of the collection
@@ -1927,24 +1932,24 @@ module TagSet =
     [<CompiledName("Filter")>]
     let inline filter (predicate: int<'Tag> -> bool) (set: TagSet<'Tag>) : TagSet<'Tag> =
         // Retype as IntSet
-        let set : IntSet = retype set
+        let set: IntSet = retype set
 
         // Preconditions
         checkNonNull "set" set
 
-        set.Filter(retype predicate) |> retype
+        set.Filter (retype predicate) |> retype
 
     /// Returns a new collection containing the results of applying the given function
     /// to each element of the input set.
     [<CompiledName("Map")>]
     let inline map (mapping: int<'Tag1> -> int<'Tag2>) (set: TagSet<'Tag1>) : TagSet<'Tag2> =
         // Retype as IntSet
-        let set : IntSet = retype set
+        let set: IntSet = retype set
 
         // Preconditions
         checkNonNull "set" set
 
-        set.Map(retype mapping) |> retype
+        set.Map (retype mapping) |> retype
 
     /// <summary>
     /// Splits the set into two sets containing the elements for which the given
@@ -1953,35 +1958,35 @@ module TagSet =
     [<CompiledName("Partition")>]
     let inline partition (predicate: int<'Tag> -> bool) (set: TagSet<'Tag>) : TagSet<'Tag> * TagSet<'Tag> =
         // Retype as IntSet
-        let set : IntSet = retype set
+        let set: IntSet = retype set
 
         // Preconditions
         checkNonNull "set" set
 
-        let set1, set2 = set.Partition(retype predicate)
+        let set1, set2 = set.Partition (retype predicate)
         (retype set1), (retype set2)
 
     /// Tests if any element of the collection satisfies the given predicate.
     [<CompiledName("Exists")>]
     let inline exists (predicate: int<'Tag> -> bool) (set: TagSet<'Tag>) : bool =
         // Retype as IntSet
-        let set : IntSet = retype set
+        let set: IntSet = retype set
 
         // Preconditions
         checkNonNull "set" set
 
-        set.Exists(retype predicate)
+        set.Exists (retype predicate)
 
     /// Tests if all elements of the collection satisfy the given predicate.
     [<CompiledName("Forall")>]
     let inline forall (predicate: int<'Tag> -> bool) (set: TagSet<'Tag>) : bool =
         // Retype as IntSet
-        let set : IntSet = retype set
+        let set: IntSet = retype set
 
         // Preconditions
         checkNonNull "set" set
 
-        set.Forall(retype predicate)
+        set.Forall (retype predicate)
 
     /// <summary>
     /// Applies the given function to each element of the set, returning the first result
@@ -1991,12 +1996,12 @@ module TagSet =
     [<CompiledName("TryPick")>]
     let inline tryPick (picker: int<'Tag> -> 'T option) (set: TagSet<'Tag>) : 'T option =
         // Retype as IntSet
-        let set : IntSet = retype set
+        let set: IntSet = retype set
 
         // Preconditions
         checkNonNull "set" set
 
-        set.TryPick(retype picker)
+        set.TryPick (retype picker)
 
     /// <summary>
     /// Applies the given function to each element of the set, returning the first result
@@ -2006,12 +2011,12 @@ module TagSet =
     [<CompiledName("Pick")>]
     let inline pick (picker: int<'Tag> -> 'T option) (set: TagSet<'Tag>) : 'T =
         // Retype as IntSet
-        let set : IntSet = retype set
+        let set: IntSet = retype set
 
         // Preconditions
         checkNonNull "set" set
 
-        set.Pick(retype picker)
+        set.Pick (retype picker)
 
     /// <summary>
     /// Returns the first (least) element for which the given predicate returns &quot;true&quot;.
@@ -2020,12 +2025,12 @@ module TagSet =
     [<CompiledName("TryFind")>]
     let inline tryFind (predicate: int<'Tag> -> bool) (set: TagSet<'Tag>) : int<'Tag> option =
         // Retype as IntSet
-        let set : IntSet = retype set
+        let set: IntSet = retype set
 
         // Preconditions
         checkNonNull "set" set
 
-        set.TryFind(retype predicate) |> retype
+        set.TryFind (retype predicate) |> retype
 
     /// <summary>
     /// Returns the first (least) element for which the given predicate returns &quot;true&quot;.
@@ -2034,9 +2039,9 @@ module TagSet =
     [<CompiledName("Find")>]
     let inline find (predicate: int<'Tag> -> bool) (set: TagSet<'Tag>) : int<'Tag> =
         // Retype as IntSet
-        let set : IntSet = retype set
+        let set: IntSet = retype set
 
         // Preconditions
         checkNonNull "set" set
 
-        set.Find(retype predicate) |> retype
+        set.Find (retype predicate) |> retype

@@ -6,10 +6,14 @@ type SourceInfo =
       StartCol: int
       EndLine: int
       EndCol: int }
-with
-    static member empty = { File = ""; StartLine = 0; StartCol = 0; EndLine = 0; EndCol = 0 }
+    static member empty =
+        { File = ""
+          StartLine = 0
+          StartCol = 0
+          EndLine = 0
+          EndCol = 0 }
 
-    member this.isEmpty () = this.File = ""
+    member this.isEmpty() = this.File = ""
 
 
 [<AutoOpen>]
@@ -33,16 +37,16 @@ module internal Util =
             res
             |> List.tryHead
             |> function
-            | None -> (ok, err)
-            | Some curr ->
-                match curr with
-                | Ok x -> _combine (List.append [ x ] ok) err (List.tail res)
-                | Error e -> _combine ok (List.append [ e ] err) (List.tail res)
+                | None -> (ok, err)
+                | Some curr ->
+                    match curr with
+                    | Ok x -> _combine (List.append [ x ] ok) err (List.tail res)
+                    | Error e -> _combine ok (List.append [ e ] err) (List.tail res)
         // Invoke recursive call
         _combine [] [] results
         |> function
-        | (values, []) -> Ok values
-        | (_, errors) -> Error errors
+            | (values, []) -> Ok values
+            | (_, errors) -> Error errors
 
     /// The function creates a function that calls the argument 'f'
     /// only once and stores the result in a mutable dictionary (cache)
@@ -50,15 +54,20 @@ module internal Util =
     let memoize f =
         // Create (mutable) cache that is used for storing results of
         // for function arguments that were already calculated.
-        let cache = new System.Collections.Generic.Dictionary<_, _>()
+        let cache =
+            new System.Collections.Generic.Dictionary<_, _> ()
+
         (fun x ->
-          // The returned function first performs a cache lookup
-          let succ, v = cache.TryGetValue(x)
-          if succ then v else
-            // If value was not found, calculate & cache it
-            let v = f(x)
-            cache.Add(x, v)
-            v)
+            // The returned function first performs a cache lookup
+            let succ, v = cache.TryGetValue (x)
+
+            if succ then
+                v
+            else
+                // If value was not found, calculate & cache it
+                let v = f (x)
+                cache.Add (x, v)
+                v)
 
     let rec mapOption (f: 'T -> 'U option) (list: 'T list) : ('U list) option =
         match list with
@@ -85,8 +94,8 @@ module internal Util =
             match f state x y with
             | None -> None
             | Some state' -> foldOption2 f state' xs ys
-        | ([], _ :: _) | (_ :: _, []) ->
-            failwith "length mismatch in Util.foldOption2"
+        | ([], _ :: _)
+        | (_ :: _, []) -> failwith "length mismatch in Util.foldOption2"
 
     let rec mapFoldOption (f: 'S -> 'T -> ('U * 'S) option) (state: 'S) (list: 'T list) : ('U list * 'S) option =
         match list with
@@ -95,25 +104,21 @@ module internal Util =
             match f state x with
             | None -> None
             | Some (x', state') ->
-                mapFoldOption f state' xs |> Option.map (fun res -> (x' :: fst res, snd res))
+                mapFoldOption f state' xs
+                |> Option.map (fun res -> (x' :: fst res, snd res))
 
 
-    let consOption (o: 'T option) (l: 'T list) : 'T list =
-        Option.fold (fun l' o' -> o' :: l') l o
+    let consOption (o: 'T option) (l: 'T list) : 'T list = Option.fold (fun l' o' -> o' :: l') l o
 
     let rec forall3 (f: 'T -> 'U -> 'V -> bool) (ts: 'T list) (us: 'U list) (vs: 'V list) : bool =
         match (ts, us, vs) with
-        | ([], [], []) ->
-            true
-        | (t1 :: ts', u1 :: us', v1 :: vs') ->
-            f t1 u1 v1
-            && forall3 f ts' us' vs'
-        | _ ->
-            false
+        | ([], [], []) -> true
+        | (t1 :: ts', u1 :: us', v1 :: vs') -> f t1 u1 v1 && forall3 f ts' us' vs'
+        | _ -> false
 
 
     let rec mapWithState f list =
-        Kanren.Data.Compiler.State.StateBuilder() {
+        Kanren.Data.Compiler.State.StateBuilder () {
             match list with
             | [] -> return []
             | x :: xs ->
@@ -123,7 +128,7 @@ module internal Util =
         }
 
     let rec iterWithState f list =
-        Kanren.Data.Compiler.State.StateBuilder()  {
+        Kanren.Data.Compiler.State.StateBuilder () {
             match list with
             | [] -> return ()
             | x :: xs ->
@@ -132,7 +137,7 @@ module internal Util =
         }
 
     let rec foldWithState2 f state list =
-        Kanren.Data.Compiler.State.StateBuilder() {
+        Kanren.Data.Compiler.State.StateBuilder () {
             match list with
             | [] -> return state
             | x :: xs ->
@@ -141,12 +146,11 @@ module internal Util =
         }
 
     let rec iterWithState2 f list1 list2 =
-        Kanren.Data.Compiler.State.StateBuilder() {
+        Kanren.Data.Compiler.State.StateBuilder () {
             match (list1, list2) with
             | ([], []) -> return ()
             | (x :: xs, y :: ys) ->
-                do!  f x y
+                do! f x y
                 return! iterWithState2 f xs ys
-            | _ ->
-                failwith "iterWithState2: mismatching lengths"
+            | _ -> failwith "iterWithState2: mismatching lengths"
         }

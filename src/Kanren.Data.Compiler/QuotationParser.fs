@@ -31,7 +31,7 @@ module internal QuotationParser =
 
     type ParserStateFunc<'T> = StateFunc<ParserInfo, 'T>
 
-    let parse = StateBuilder()
+    let parse = StateBuilder ()
 
     let getSourceInfo (e: Quotations.Expr) =
         match e with
@@ -98,53 +98,55 @@ module internal QuotationParser =
           Info = GoalInfo.init (sourceInfo) }
 
     let initUnify lhs rhs context =
-        Unify(lhs, rhs, ((InstE.Free, BoundInstE.NotReached), (InstE.Free, BoundInstE.NotReached)), context)
+        Unify (lhs, rhs, ((InstE.Free, BoundInstE.NotReached), (InstE.Free, BoundInstE.NotReached)), context)
 
     let listToGoal (goals: Goal list) =
         match goals with
         | [ goal ] -> goal.Goal
-        | _ -> Conjunction(goals)
+        | _ -> Conjunction (goals)
 
     let addCtorSubContext unifyContext ctor index =
         { unifyContext with
               SubContext =
-                  { Functor = FunctorConstructor(ctor)
+                  { Functor = FunctorConstructor (ctor)
                     ArgIndex = index }
                   :: unifyContext.SubContext }
 
     let addCallSubContext unifyContext ctor index =
         { unifyContext with
               SubContext =
-                  { Functor = FunctorCall(ctor)
+                  { Functor = FunctorCall (ctor)
                     ArgIndex = index }
                   :: unifyContext.SubContext }
 
     let translateConstant (value: obj) (valueType: System.Type) : ConstantValue =
         if valueType = typeof<sbyte>
-            || valueType = typeof<int16>
-            || valueType = typeof<int>
-            || valueType = typeof<int64>
-        then IntValue(System.Convert.ToInt64(value))
+           || valueType = typeof<int16>
+           || valueType = typeof<int>
+           || valueType = typeof<int64> then
+            IntValue (System.Convert.ToInt64 (value))
         elif valueType = typeof<byte>
-            || valueType = typeof<uint16>
-            || valueType = typeof<uint>
-            || valueType = typeof<uint64>
-        then UIntValue(System.Convert.ToUInt64(value))
-        elif valueType = typeof<decimal>
-        then DecimalValue(value :?> decimal)
-        elif valueType = typeof<double>
-        then DoubleValue(value :?> double)
-        elif valueType = typeof<float>
-        then DoubleValue(value :?> float)
-        elif valueType = typeof<string>
-        then StringValue(value :?> string)
-        elif valueType = typeof<char>
-        then CharValue(value :?> char)
-        elif valueType = typeof<bool>
-        then BoolValue(value :?> bool)
-        else raise (System.InvalidOperationException($"Invalid constant {value} of type {valueType.Name}"))
+             || valueType = typeof<uint16>
+             || valueType = typeof<uint>
+             || valueType = typeof<uint64> then
+            UIntValue (System.Convert.ToUInt64 (value))
+        elif valueType = typeof<decimal> then
+            DecimalValue (value :?> decimal)
+        elif valueType = typeof<double> then
+            DoubleValue (value :?> double)
+        elif valueType = typeof<float> then
+            DoubleValue (value :?> float)
+        elif valueType = typeof<string> then
+            StringValue (value :?> string)
+        elif valueType = typeof<char> then
+            CharValue (value :?> char)
+        elif valueType = typeof<bool> then
+            BoolValue (value :?> bool)
+        else
+            raise (System.InvalidOperationException ($"Invalid constant {value} of type {valueType.Name}"))
 
-    let makeCtorRhs ctor args = UnifyRhs.Constructor(ctor, args, VarCtorUnifyType.Construct, [], CanFail)
+    let makeCtorRhs ctor args =
+        UnifyRhs.Constructor (ctor, args, VarCtorUnifyType.Construct, [], CanFail)
 
     let rec translateUnifyRhs rhs (maybeLhsVar: VarId option) (context: UnifyContext) =
         parse {
@@ -153,25 +155,24 @@ module internal QuotationParser =
             match rhs with
             | ExprShape.ShapeVar v ->
                 let! var = newQVar v
-                return ([], Some(UnifyRhs.Var(var, VarVarUnifyType.Assign)))
+                return ([], Some (UnifyRhs.Var (var, VarVarUnifyType.Assign)))
             | Patterns.Value (value, constType) ->
-                return ([], Some(makeCtorRhs (Constant(translateConstant value constType, constType)) []))
+                return ([], Some (makeCtorRhs (Constant (translateConstant value constType, constType)) []))
             | Patterns.NewTuple (args) ->
-                let! (argVars, extraGoals) = translateCallArgs false args (addCtorSubContext context (Tuple (args.Length)))
-                return (extraGoals, Some(makeCtorRhs (Tuple (args.Length)) argVars))
+                let! (argVars, extraGoals) =
+                    translateCallArgs false args (addCtorSubContext context (Tuple (args.Length)))
+
+                return (extraGoals, Some (makeCtorRhs (Tuple (args.Length)) argVars))
             | Patterns.NewRecord (recordType, args) ->
                 let! (argVars, extraGoals) =
-                    translateCallArgs false args (addCtorSubContext context (Record(recordType)))
+                    translateCallArgs false args (addCtorSubContext context (Record (recordType)))
 
-                return
-                    (extraGoals, Some(makeCtorRhs (Record(recordType)) argVars))
+                return (extraGoals, Some (makeCtorRhs (Record (recordType)) argVars))
             | Patterns.NewUnionCase (caseInfo, args) ->
                 let! (argVars, extraGoals) =
-                    translateCallArgs false args (addCtorSubContext context (UnionCase(caseInfo)))
+                    translateCallArgs false args (addCtorSubContext context (UnionCase (caseInfo)))
 
-                return
-                    (extraGoals,
-                     Some(makeCtorRhs (UnionCase(caseInfo)) argVars))
+                return (extraGoals, Some (makeCtorRhs (UnionCase (caseInfo)) argVars))
             | Patterns.Call (None, callee, args) ->
                 let! (argVars, extraGoals) = translateCallArgs false args (addCallSubContext context callee)
 
@@ -180,11 +181,12 @@ module internal QuotationParser =
                     | Some lhsVar -> parse { return lhsVar }
                     | None -> newVar callee.ReturnType
 
-                let goal = FSharpCall((callee, invalidProcId), Some returnVar, argVars)
+                let goal =
+                    FSharpCall ((callee, invalidProcId), Some returnVar, argVars)
 
                 return
                     List.append extraGoals [ initGoal sourceInfo goal ],
-                    Some(UnifyRhs.Var(returnVar, VarVarUnifyType.Assign))
+                    Some (UnifyRhs.Var (returnVar, VarVarUnifyType.Assign))
             | _ ->
                 do! newError (Error.unsupportedExpressionError sourceInfo rhs)
                 return ([], None)
@@ -195,9 +197,9 @@ module internal QuotationParser =
             let! sourceInfo = currentSourceInfo
 
             match arg with
-            | ExprShape.ShapeVar v when not (allowDuplicateArgs && seenArgs.Contains(v)) ->
+            | ExprShape.ShapeVar v when not (allowDuplicateArgs && seenArgs.Contains (v)) ->
                 let! var = newQVar v
-                return (var, seenArgs.Add(v), extraGoals)
+                return (var, seenArgs.Add (v), extraGoals)
             | DerivedPatterns.SpecificCall (<@@ Kanren.Data.Mode._i @@>) (_, _, _) ->
                 // Special syntax to ignore relation arguments.
                 let! var = newVar arg.Type
@@ -243,52 +245,63 @@ module internal QuotationParser =
 
     let translateCall (calleeModule: Expr) (callee: System.Reflection.PropertyInfo) args =
         let rec extractCalleeModule
-                    (sourceModule: kanrenModule)
-                    (calleeModuleExpr: Expr)
-                    (callee: System.Reflection.PropertyInfo)
-                    : (kanrenModule * obj) option =
+            (sourceModule: kanrenModule)
+            (calleeModuleExpr: Expr)
+            (callee: System.Reflection.PropertyInfo)
+            : (kanrenModule * obj) option =
             match calleeModuleExpr with
-            | Patterns.ValueWithName (_, _, "this") ->
-                Some (sourceModule, callee.GetValue(sourceModule))
+            | Patterns.ValueWithName (_, _, "this") -> Some (sourceModule, callee.GetValue (sourceModule))
             | Patterns.PropertyGet (Some calleeSubExpr, property, []) ->
                 extractCalleeModule sourceModule calleeSubExpr property
-                |> Option.map (fun (_, innerModule) -> (innerModule :?> kanrenModule, callee.GetValue(innerModule)))
-            | _ ->
-                None
+                |> Option.map (fun (_, innerModule) -> (innerModule :?> kanrenModule, callee.GetValue (innerModule)))
+            | _ -> None
 
         parse {
             let! sourceInfo = currentSourceInfo
             let! sourceModule = getSourceModule
 
-            let maybeCalledRelation = extractCalleeModule sourceModule calleeModule callee
+            let maybeCalledRelation =
+                extractCalleeModule sourceModule calleeModule callee
 
             match maybeCalledRelation with
             | Some (calledModule, calledRelationObj) ->
                 try
                     let calledRelation = calledRelationObj :?> RelationBase
-                    let calledRelationId = { ModuleName = calledModule.moduleName; RelationName = calledRelation.Name }
+
+                    let calledRelationId =
+                        { ModuleName = calledModule.moduleName
+                          RelationName = calledRelation.Name }
+
                     let! (argVars, extraGoals) =
-                        translateCallArgs false args (fun index -> initUnifyContext (CallArgUnify(RelationCallee(calledRelationId), index)))
+                        translateCallArgs
+                            false
+                            args
+                            (fun index -> initUnifyContext (CallArgUnify (RelationCallee (calledRelationId), index)))
 
 
-                    let call = initGoal sourceInfo (Goal.Call((calledRelationId, invalidProcId), argVars))
+                    let call =
+                        initGoal sourceInfo (Goal.Call ((calledRelationId, invalidProcId), argVars))
+
                     return listToGoal (List.rev (call :: extraGoals))
-                with _ ->
+                with
+                | _ ->
                     do! newError (Error.invalidCallee sourceInfo calleeModule)
-                    return Disjunction([])
+                    return Disjunction ([])
             | None ->
                 do! newError (Error.invalidCallee sourceInfo calleeModule)
-                return Disjunction([])
+                return Disjunction ([])
         }
 
     let rec translateUnify lhs rhs unifyType unifyContext =
         parse {
             let! sourceInfo = currentSourceInfo
             let! (extraGoals1, rhsResult1) = translateUnifyRhs lhs None unifyContext
+
             let lhsVar =
                 match rhsResult1 with
                 | Some (UnifyRhs.Var (v, _)) -> Some v
                 | _ -> None
+
             let! (extraGoals2, rhsResult2) = translateUnifyRhs rhs lhsVar unifyContext
 
             match (rhsResult1, rhsResult2) with
@@ -322,14 +335,14 @@ module internal QuotationParser =
                             )
             | _ ->
                 // error.
-                return Conjunction(List.append extraGoals1 extraGoals2)
+                return Conjunction (List.append extraGoals1 extraGoals2)
         }
 
     let unsupportedExpression (expr: Expr) =
         parse {
             let! sourceInfo = currentSourceInfo
             do! newError (Error.unsupportedExpressionError sourceInfo expr)
-            return Disjunction([])
+            return Disjunction ([])
         }
 
     // Some dumpster diving to convert if-then-elses corresponding to source-level pattern matches
@@ -337,30 +350,31 @@ module internal QuotationParser =
     let rec (|UnionMatch'|_|) seenCases exprToTest expr : Option<(Constructor * Expr) list * bool> =
         match expr with
         | Patterns.IfThenElse (Patterns.UnionCaseTest (caseExprToTest, case), thenExpr, elseExpr) when
-            exprToTest = caseExprToTest ->
+            exprToTest = caseExprToTest
+            ->
             match elseExpr with
             | UnionMatch' (case :: seenCases) exprToTest (cases, canFail) ->
-                Some(((UnionCase(case), thenExpr) :: cases), canFail)
+                Some (((UnionCase (case), thenExpr) :: cases), canFail)
             | False' _ ->
                 let allCases =
-                    FSharp.Reflection.FSharpType.GetUnionCases(case.DeclaringType)
+                    FSharp.Reflection.FSharpType.GetUnionCases (case.DeclaringType)
 
                 let missingCases =
                     Array.filter (fun c -> not (List.contains c seenCases)) allCases
 
                 let canFail = missingCases.Length > 1
-                Some([ (UnionCase(case), thenExpr) ], canFail)
+                Some ([ (UnionCase (case), thenExpr) ], canFail)
             | _ ->
                 let allCases =
-                    FSharp.Reflection.FSharpType.GetUnionCases(case.DeclaringType)
+                    FSharp.Reflection.FSharpType.GetUnionCases (case.DeclaringType)
 
                 let missingCases =
                     Array.filter (fun c -> not (List.contains c (case :: seenCases))) allCases
 
                 if (Array.length missingCases = 1) then
-                    Some(
-                        [ (UnionCase(case), thenExpr)
-                          (UnionCase(missingCases.[0]), elseExpr) ],
+                    Some (
+                        [ (UnionCase (case), thenExpr)
+                          (UnionCase (missingCases.[0]), elseExpr) ],
                         false
                     )
                 else
@@ -371,7 +385,7 @@ module internal QuotationParser =
         match expr with
         | Patterns.IfThenElse (Patterns.UnionCaseTest (exprToTest, _), _, _) ->
             match expr with
-            | UnionMatch' [] exprToTest (cases, canFail) -> Some(exprToTest, cases, canFail)
+            | UnionMatch' [] exprToTest (cases, canFail) -> Some (exprToTest, cases, canFail)
             | _ -> None
         | _ -> None
 
@@ -383,8 +397,8 @@ module internal QuotationParser =
             | Patterns.TupleGet (_, _)
             | Patterns.PropertyGet (_, _, _) ->
                 match subExpr with
-                | Deconstruct (getExprs, bottomSubExpr) -> Some((var, getExpr) :: getExprs, bottomSubExpr)
-                | _ -> Some([ (var, getExpr) ], subExpr)
+                | Deconstruct (getExprs, bottomSubExpr) -> Some ((var, getExpr) :: getExprs, bottomSubExpr)
+                | _ -> Some ([ (var, getExpr) ], subExpr)
             | _ -> None
         | _ -> None
 
@@ -420,12 +434,12 @@ module internal QuotationParser =
                 Seq.ofArray cases
                 |> Seq.filter
                     (fun c ->
-                        c.GetFields()
+                        c.GetFields ()
                         |> Seq.ofArray
                         |> Seq.exists (fun f -> f.Name = propertyInfo.Name))
                 |> Seq.exactlyOne
 
-            let fields = case.GetFields()
+            let fields = case.GetFields ()
 
             let index =
                 fields
@@ -434,10 +448,10 @@ module internal QuotationParser =
             let argTypes =
                 fields |> Array.map (fun f -> f.PropertyType)
 
-            (UnionCase(case), argTypes, index)
+            (UnionCase (case), argTypes, index)
         else if (FSharpType.IsRecord termExpr.Type) then
             let fields =
-                FSharpType.GetRecordFields(termExpr.Type)
+                FSharpType.GetRecordFields (termExpr.Type)
 
             let index =
                 fields
@@ -446,9 +460,9 @@ module internal QuotationParser =
             let argTypes =
                 fields |> Array.map (fun f -> f.PropertyType)
 
-            (Record(termExpr.Type), argTypes, index)
+            (Record (termExpr.Type), argTypes, index)
         else
-            raise (System.Exception($"type not supported in deconstruct {termExpr.Type.Name}"))
+            raise (System.Exception ($"type not supported in deconstruct {termExpr.Type.Name}"))
 
     let rec expandPropertyGet expr deconstructVars =
         let (termExpr, ctor, propertyIndex, argTypes) =
@@ -458,7 +472,7 @@ module internal QuotationParser =
             | Patterns.PropertyGet (Some termExpr, propertyInfo, []) ->
                 let (ctor, argTypes, propertyIndex) = getPropertyInfo termExpr propertyInfo
                 (termExpr, ctor, propertyIndex, argTypes)
-            | _ -> raise (System.Exception($"expression not supported in deconstruct {expr}"))
+            | _ -> raise (System.Exception ($"expression not supported in deconstruct {expr}"))
 
         let deconstructVars' =
             match termExpr with
@@ -470,7 +484,7 @@ module internal QuotationParser =
             |> Seq.map (fun i -> None)
             |> Array.ofSeq
 
-        Array.set argVars propertyIndex (Some(expr, None))
+        Array.set argVars propertyIndex (Some (expr, None))
         let result = (termExpr, ctor, argVars, argTypes)
         (result, result :: deconstructVars')
 
@@ -478,13 +492,13 @@ module internal QuotationParser =
         match (List.tryFind (fun (e, _, _, _) -> deconstructExprEqual e termExpr) deconstructVars) with
         | Some (_, _, unifyArgs: DeconstructUnifyArg array, _) ->
             match unifyArgs.[index] with
-            | Some (_, Some _) -> raise (System.Exception("expression deconstructed twice"))
+            | Some (_, Some _) -> raise (System.Exception ("expression deconstructed twice"))
             | _ ->
-                Array.set unifyArgs index (Some(expr, Some var))
+                Array.set unifyArgs index (Some (expr, Some var))
                 deconstructVars
         | None ->
             let ((_, _, argVars, _), deconstructVars') as newVar = expandPropertyGet expr deconstructVars
-            Array.set argVars index (Some(expr, Some var))
+            Array.set argVars index (Some (expr, Some var))
             deconstructVars'
 
     let collectDeconstructVars deconstructVars (var, expr) : DeconstructVars =
@@ -511,19 +525,28 @@ module internal QuotationParser =
             | DerivedPatterns.SpecificCall (<@@ kanren.call @@>)
                                            (_,
                                             _,
-                                            [ Patterns.PropertyGet (Some calleeObj, callee, []); Patterns.NewTuple (args); _; _ ]) ->
-                return! translateCall calleeObj callee args
+                                            [ Patterns.PropertyGet (Some calleeObj, callee, [])
+                                              Patterns.NewTuple (args)
+                                              _
+                                              _ ]) -> return! translateCall calleeObj callee args
             | DerivedPatterns.SpecificCall (<@@ (=) @@>) (_, [ unifyType ], [ lhs; rhs ]) ->
                 return! translateUnify lhs rhs unifyType (initUnifyContext ExplicitUnify)
             | Patterns.Call (None, callee, args) ->
-                let! (argVars, extraGoals) = translateCallArgs false args (fun index -> initUnifyContext (CallArgUnify(FSharpCallee(callee), index)))
-                let goal = FSharpCall((callee, invalidProcId), None, argVars)
+                let! (argVars, extraGoals) =
+                    translateCallArgs
+                        false
+                        args
+                        (fun index -> initUnifyContext (CallArgUnify (FSharpCallee (callee), index)))
+
+                let goal =
+                    FSharpCall ((callee, invalidProcId), None, argVars)
+
                 return
                     List.append extraGoals [ initGoal sourceInfo goal ]
                     |> Simplify.flattenConjunction
             | UnionMatch (ExprShape.ShapeVar v, cases, canFail) ->
                 let! caseGoals = translateMatchExpr v cases
-                return Disjunction(caseGoals)
+                return Disjunction (caseGoals)
             | DerivedPatterns.AndAlso (condExpr, thenExpr) ->
                 let! condGoal = translateSubExprGoal condExpr
                 let! thenGoal = translateSubExprGoal thenExpr
@@ -553,12 +576,15 @@ module internal QuotationParser =
                 return
                     Simplify.flattenConjunction [ initGoal sourceInfo unifyGoalExpr
                                                   exprGoal ]
-            | True' _ -> return Conjunction([])
-            | False' _ -> return Disjunction([])
+            | True' _ -> return Conjunction ([])
+            | False' _ -> return Disjunction ([])
             | ExprShape.ShapeVar v ->
                 if (v.Type = typeof<bool>) then
                     let! lhsVar = newQVar v
-                    let rhs = makeCtorRhs (Constant(BoolValue(true), typeof<bool>)) []
+
+                    let rhs =
+                        makeCtorRhs (Constant (BoolValue (true), typeof<bool>)) []
+
                     return initUnify lhsVar rhs (initUnifyContext ExplicitUnify)
                 else
                     return! unsupportedExpression expr
@@ -580,17 +606,14 @@ module internal QuotationParser =
             let fieldTypes =
                 match case with
                 | UnionCase (unionCase) ->
-                    unionCase.GetFields()
+                    unionCase.GetFields ()
                     |> Array.map (fun f -> f.PropertyType)
                 | _ -> [||]
 
             let! fieldVars = newVars (List.ofArray fieldTypes)
             // TODO fix unify context
             let unifyGoal =
-                initUnify
-                    var
-                    (makeCtorRhs case fieldVars)
-                    (initUnifyContext ImplicitUnify)
+                initUnify var (makeCtorRhs case fieldVars) (initUnifyContext ImplicitUnify)
 
             let! goal = translateSubExprGoal expr
 
@@ -639,7 +662,7 @@ module internal QuotationParser =
                         | Some (expr, None) ->
                             match (List.tryFind (fun (_, e, _, _) -> deconstructExprMatch e expr) assignedVars) with
                             | Some (argVar, _, _, _) -> return argVar :: unifyArgsVars
-                            | None -> return raise (System.Exception($"unassigned expression {expr}"))
+                            | None -> return raise (System.Exception ($"unassigned expression {expr}"))
                         | None ->
                             let! v = newVar unifyArgTypes.[i]
                             return v :: unifyArgsVars
@@ -699,7 +722,9 @@ module internal QuotationParser =
             | Patterns.Lambda (argVar, subExpr) ->
                 match subExpr with
                 | Patterns.Let (_, Patterns.TupleGet (ExprShape.ShapeVar argVar1, _), _) when
-                    argVar.Name = "tupledArg" && argVar = argVar1 -> return! translateArgs argVar subExpr []
+                    argVar.Name = "tupledArg" && argVar = argVar1
+                    ->
+                    return! translateArgs argVar subExpr []
                 | _ ->
                     let! relationArgVar = newQVar argVar
                     let! goal = translateSubExprGoal subExpr

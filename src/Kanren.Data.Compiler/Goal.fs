@@ -100,9 +100,11 @@ module internal Goal =
 
     let emptySetOfVar = TagSet.empty<varIdMeasure>
 
-    type RelationId = { ModuleName: string; RelationName: string }
-        with
-        override this.ToString() = $"{this.ModuleName}.{this.RelationName}"
+    type RelationId =
+        { ModuleName: string
+          RelationName: string }
+        override this.ToString() =
+            $"{this.ModuleName}.{this.RelationName}"
 
     [<Measure>]
     type procIdMeasure
@@ -138,9 +140,9 @@ module internal Goal =
     type UnifyMode = ModeE * ModeE
 
     type Callee =
-    | RelationCallee of Name: RelationId
-    | FSharpCallee of System.Reflection.MethodInfo
-    | HigherOrderCallee
+        | RelationCallee of Name: RelationId
+        | FSharpCallee of System.Reflection.MethodInfo
+        | HigherOrderCallee
 
     type UnifyMainContext =
         | ExplicitUnify
@@ -221,10 +223,10 @@ module internal Goal =
                     yield " = "
                     yield! rhs.Dump ()
                 | Call (callee, args) ->
-                    yield callee.ToString()
+                    yield callee.ToString ()
                     yield args
                 | FSharpCall (method, returnValue, args) ->
-                    yield returnValue.ToString()
+                    yield returnValue.ToString ()
                     yield " = F#"
                     yield (fst method).Name
                     yield args
@@ -283,7 +285,9 @@ module internal Goal =
         | Conjunction ([]) -> Some ()
         | _ -> None
 
-    let succeedGoal = { Goal.Goal = Conjunction ([]); Info = GoalInfo.init SourceInfo.empty }
+    let succeedGoal =
+        { Goal.Goal = Conjunction ([])
+          Info = GoalInfo.init SourceInfo.empty }
 
     let rec goalExprVars goal (vars: SetOfVar) =
         match goal with

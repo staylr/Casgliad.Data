@@ -14,7 +14,7 @@ module State =
         member inline __.ReturnFrom func : StateFunc<'State, 'T> = func
 
         // unit -> M<'T>
-        member inline this.Zero() : StateFunc<'State, unit> = this.Return()
+        member inline this.Zero() : StateFunc<'State, unit> = this.Return ()
 
         // M<'T> * ('T -> M<'U>) -> M<'U>
         member inline __.Bind(computation: StateFunc<_, 'T>, binder: 'T -> StateFunc<_, _>) : StateFunc<'State, 'U> =
@@ -24,13 +24,13 @@ module State =
 
         // (unit -> M<'T>) -> M<'T>
         member inline this.Delay(generator: unit -> StateFunc<_, _>) : StateFunc<'State, 'T> =
-            this.Bind(this.Return(), generator)
+            this.Bind (this.Return (), generator)
 
         // M<'T> -> M<'T> -> M<'T>
         // or
         // M<unit> -> M<'T> -> M<'T>
         member inline this.Combine(r1: StateFunc<_, _>, r2: StateFunc<_, _>) : StateFunc<'State, 'T> =
-            this.Bind(r1, (fun () -> r2))
+            this.Bind (r1, (fun () -> r2))
 
         // M<'T> * (exn -> M<'T>) -> M<'T>
         member inline __.TryWith
@@ -41,7 +41,8 @@ module State =
             fun state ->
                 try
                     computation state
-                with ex -> catchHandler ex state
+                with
+                | ex -> catchHandler ex state
 
         // M<'T> * (unit -> unit) -> M<'T>
         member inline __.TryFinally(computation: StateFunc<_, _>, compensation) : StateFunc<'State, 'T> =
@@ -58,7 +59,7 @@ module State =
                     binder resource state
                 finally
                     if not <| isNull (box resource) then
-                        resource.Dispose()
+                        resource.Dispose ()
 
         // (unit -> bool) * M<'T> -> M<'T>
         member this.While(guard, body: StateFunc<'State, unit>) : StateFunc<'State, unit> =
@@ -74,9 +75,9 @@ module State =
         // or
         // seq<'T> * ('T -> M<'U>) -> seq<M<'U>>
         member inline this.For(sequence: seq<_>, body: 'T -> StateFunc<_, _>) : StateFunc<'State, unit> =
-            this.Using(
-                sequence.GetEnumerator(),
-                (fun enum -> this.While(enum.MoveNext, this.Delay(fun () -> body enum.Current)))
+            this.Using (
+                sequence.GetEnumerator (),
+                (fun enum -> this.While (enum.MoveNext, this.Delay (fun () -> body enum.Current)))
             )
 
 module Reader =
@@ -103,20 +104,21 @@ module Reader =
 
         // (unit -> M<'T>) -> M<'T>
         member this.Delay(generator: unit -> ReaderFunc<_, _>) : ReaderFunc<'Env, 'T> =
-            this.Bind(this.Zero(), generator)
+            this.Bind (this.Zero (), generator)
 
         // M<'T> -> M<'T> -> M<'T>
         // or
         // M<unit> -> M<'T> -> M<'T>
         member this.Combine(r1: ReaderFunc<_, _>, r2: ReaderFunc<_, _>) : ReaderFunc<'Env, 'T> =
-            this.Bind(r1, (fun () -> r2))
+            this.Bind (r1, (fun () -> r2))
 
         // M<'T> * (exn -> M<'T>) -> M<'T>
         member __.TryWith(body: ReaderFunc<_, _>, handler: exn -> ReaderFunc<_, _>) : ReaderFunc<'Env, 'T> =
             fun env ->
                 try
                     body env
-                with ex -> handler ex env
+                with
+                | ex -> handler ex env
 
         // M<'T> * (unit -> unit) -> M<'T>
         member __.TryFinally(body: ReaderFunc<_, _>, handler) : ReaderFunc<'Env, 'T> =
@@ -133,7 +135,7 @@ module Reader =
                     binder resource env
                 finally
                     if not <| isNull (box resource) then
-                        resource.Dispose()
+                        resource.Dispose ()
 
         // (unit -> bool) * M<'T> -> M<'T>
         member this.While(guard, body: ReaderFunc<_, _>) : ReaderFunc<'Env, unit> =
@@ -145,9 +147,9 @@ module Reader =
         // or
         // seq<'T> * ('T -> M<'U>) -> seq<M<'U>>
         member this.For(sequence: seq<_>, body: 'T -> ReaderFunc<_, _>) : ReaderFunc<'Env, unit> =
-            this.Using(
-                sequence.GetEnumerator(),
-                fun enum -> this.While(enum.MoveNext, this.Delay(fun () -> body enum.Current))
+            this.Using (
+                sequence.GetEnumerator (),
+                fun enum -> this.While (enum.MoveNext, this.Delay (fun () -> body enum.Current))
             )
 // OPTIMIZE : Could this be replaced with Seq.map?
 (*

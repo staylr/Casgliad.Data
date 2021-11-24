@@ -12,7 +12,7 @@ module internal Quantification =
           Quantified: SetOfVar
           NonLocals: SetOfVar }
 
-    let state = new StateBuilder()
+    let state = new StateBuilder ()
 
     let seen info = (info.Seen, info)
     let quantVars info = (info.Quantified, info)
@@ -131,9 +131,9 @@ module internal Quantification =
 
     and quantifyScope reason scopeGoal =
         state {
-                let! scopeGoal' = quantifyGoal scopeGoal
-                let scope = Scope (reason, scopeGoal')
-                return (scope, (goalExprVars (Scope (reason, scopeGoal)) emptySetOfVar))
+            let! scopeGoal' = quantifyGoal scopeGoal
+            let scope = Scope (reason, scopeGoal')
+            return (scope, (goalExprVars (Scope (reason, scopeGoal)) emptySetOfVar))
         }
 
     and quantifySwitch var canFail cases =
@@ -165,8 +165,9 @@ module internal Quantification =
             let! negGoal' = quantifyGoal negGoal
             do! setOutside outside
             do! setQuantVars qvars
-            return (Not(negGoal'), goalVars negGoal' emptySetOfVar)
+            return (Not (negGoal'), goalVars negGoal' emptySetOfVar)
         }
+
     and quantifyIfThenElse condGoal thenGoal elseGoal =
         state {
             let! qvars = quantVars
@@ -205,7 +206,7 @@ module internal Quantification =
             do! setNonLocals (TagSet.union nonLocalsOutside nonLocalsLambdaOutside)
 
             let goalExpr =
-                IfThenElse(condGoal', thenGoal', elseGoal')
+                IfThenElse (condGoal', thenGoal', elseGoal')
 
             return (goalExpr, goalExprVars goalExpr emptySetOfVar)
         }
@@ -219,7 +220,7 @@ module internal Quantification =
                 List.fold combineFollowingVars emptySetOfVar followingVars
 
             let! goals = quantifyConjWithFollowing (List.zip goals followingVars)
-            return (Conjunction(goals), possibleNonLocals)
+            return (Conjunction (goals), possibleNonLocals)
         }
 
     and quantifyConjWithFollowing followingVarPairs =
@@ -264,7 +265,7 @@ module internal Quantification =
                 nonLocalVars <- TagSet.union nonLocalVars goalNonlocals
                 goals' <- goal' :: goals'
 
-            return (Disjunction(List.rev goals'), (goalExprVars (Disjunction(goals')) emptySetOfVar))
+            return (Disjunction (List.rev goals'), (goalExprVars (Disjunction (goals')) emptySetOfVar))
         }
 
     and quantifyPrimitiveGoal goalExpr args =
@@ -286,7 +287,7 @@ module internal Quantification =
             let! (rhs', rhsVars) = quantifyUnifyRhs rhs goalInfo
             let! outside = outside
             let! lambdaOutside = lambdaOutside
-            let goalExpr = Unify(lhs, rhs', mode, context)
+            let goalExpr = Unify (lhs, rhs', mode, context)
             let goalVars = TagSet.add lhs rhsVars
             do! updateSeenVarsSet goalVars
             let outsideNonLocals = TagSet.intersect goalVars outside

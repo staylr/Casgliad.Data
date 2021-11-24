@@ -12,7 +12,7 @@ module internal Simplify =
 
         match flattenedGoals with
         | [ singleGoal ] -> singleGoal.Goal
-        | _ -> Conjunction(flattenedGoals)
+        | _ -> Conjunction (flattenedGoals)
 
     let rec internal flattenDisjunction' flattenedGoals (goal: Goal) =
         match goal.Goal with
@@ -25,18 +25,20 @@ module internal Simplify =
 
         match flattenedGoals with
         | [ singleGoal ] -> singleGoal.Goal
-        | _ -> Disjunction(flattenedGoals)
+        | _ -> Disjunction (flattenedGoals)
 
     let rec internal simplifyGoal (goal: Goal) =
         match goal.Goal with
-        | Unify _ | Call _ | FSharpCall _ -> goal
+        | Unify _
+        | Call _
+        | FSharpCall _ -> goal
         | Conjunction goals ->
             let flattenedGoal = flattenConjunction goals
 
             match flattenedGoal with
             | Conjunction (goals) ->
                 { goal with
-                      Goal = Conjunction(goals |> List.map simplifyGoal) }
+                      Goal = Conjunction (goals |> List.map simplifyGoal) }
             | _ -> simplifyGoal { goal with Goal = flattenedGoal }
         | Disjunction goals ->
             let flattenedGoal = flattenDisjunction goals
@@ -44,14 +46,14 @@ module internal Simplify =
             match flattenedGoal with
             | Disjunction (goals) ->
                 { goal with
-                      Goal = Disjunction(goals |> List.map simplifyGoal) }
+                      Goal = Disjunction (goals |> List.map simplifyGoal) }
             | _ -> simplifyGoal { goal with Goal = flattenedGoal }
         | Not negGoal ->
             { goal with
-                Goal = Not(simplifyGoal negGoal) }
+                  Goal = Not (simplifyGoal negGoal) }
         | Scope (reason, scopeGoal) ->
             { goal with
-                Goal = Scope (reason, simplifyGoal scopeGoal) }
+                  Goal = Scope (reason, simplifyGoal scopeGoal) }
         | IfThenElse (condGoal, thenGoal, elseGoal) ->
             let condGoal' = simplifyGoal condGoal
             let thenGoal' = simplifyGoal thenGoal
@@ -61,26 +63,26 @@ module internal Simplify =
             | Fail _ ->
                 // TODO - sequential conjunction.
                 { goal with
-                      Goal = Conjunction([ condGoal'; thenGoal' ]) }
+                      Goal = Conjunction ([ condGoal'; thenGoal' ]) }
             | _ ->
                 match condGoal'.Goal with
                 | Fail _ ->
                     // TODO: fix determinism of Not goal.
                     { goal with
                           Goal =
-                              Conjunction(
-                                  [ { Goal = Not(condGoal')
+                              Conjunction (
+                                  [ { Goal = Not (condGoal')
                                       Info = condGoal'.Info }
                                     elseGoal' ]
                               ) }
                 | _ ->
                     { goal with
-                          Goal = IfThenElse(condGoal', thenGoal', elseGoal') }
+                          Goal = IfThenElse (condGoal', thenGoal', elseGoal') }
 
         | Switch (var, canFail, cases) ->
             { goal with
                   Goal =
-                      Switch(
+                      Switch (
                           var,
                           canFail,
                           List.map

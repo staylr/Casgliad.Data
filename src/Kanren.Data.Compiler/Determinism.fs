@@ -141,10 +141,13 @@ module internal Determinism =
     type SolutionContext =
         | FirstSolution
         | AllSolutions
-        with
         static member ofDeterminism det =
             let (maxSoln, _) = determinismComponents det
-            if (maxSoln = CommittedChoice) then FirstSolution else AllSolutions
+
+            if (maxSoln = CommittedChoice) then
+                FirstSolution
+            else
+                AllSolutions
 
     type DeterminismComparison =
         | FirstTighterThan
@@ -190,12 +193,15 @@ module internal Determinism =
         let (solutionsA, canFailA) = determinismComponents detA
         let (solutionsB, canFailB) = determinismComponents detB
         let compareCanFail = compareCanFails canFailA canFailB
-        let compareSolutions = compareSolutionCount solutionsA solutionsB
+
+        let compareSolutions =
+            compareSolutionCount solutionsA solutionsB
 
         match compareCanFail with
         | FirstTighterThan ->
             match compareSolutions with
-            | FirstTighterThan | FirstSameAs -> DeterminismComparison.FirstTighterThan
+            | FirstTighterThan
+            | FirstSameAs -> DeterminismComparison.FirstTighterThan
             | FirstLooserThan -> DeterminismComparison.Incomparable
         | FirstSameAs ->
             match compareSolutions with
@@ -205,6 +211,5 @@ module internal Determinism =
         | FirstLooserThan ->
             match compareSolutions with
             | FirstTighterThan -> DeterminismComparison.Incomparable
-            | FirstSameAs | FirstLooserThan -> DeterminismComparison.FirstLooserThan
-
-
+            | FirstSameAs
+            | FirstLooserThan -> DeterminismComparison.FirstLooserThan

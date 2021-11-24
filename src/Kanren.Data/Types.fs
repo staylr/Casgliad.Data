@@ -24,8 +24,8 @@ type CanFail =
     | CanFail
     | CannotFail
 
-    // We don't enumerate every single size of builtin type. Care must be taken
-    // when evaluating at compile time to cast to the correct type first.
+// We don't enumerate every single size of builtin type. Care must be taken
+// when evaluating at compile time to cast to the correct type first.
 type ConstantValue =
     | IntValue of int64
     | UIntValue of uint64
@@ -53,9 +53,12 @@ type Constructor =
             | Constant (constValue1, constType1) ->
                 match other with
                 | Constant (constValue2, constType2) ->
-                    let typeResult = constType1.FullName.CompareTo constType2.FullName
+                    let typeResult =
+                        constType1.FullName.CompareTo constType2.FullName
+
                     if (typeResult = 0) then
-                        (constValue1 :> System.IComparable<_>).CompareTo constValue2
+                        (constValue1 :> System.IComparable<_>)
+                            .CompareTo constValue2
                     else
                         typeResult
                 | _ -> -1
@@ -63,31 +66,42 @@ type Constructor =
                 match other with
                 | Constant _ -> 1
                 | Tuple (arity2) -> arity1.CompareTo arity2
-                | Record _ | UnionCase _ -> -1
+                | Record _
+                | UnionCase _ -> -1
             | Record (recordType1) ->
                 match other with
-                | Constant _ | Tuple _ -> 1
+                | Constant _
+                | Tuple _ -> 1
                 | Record (recordType2) -> recordType1.FullName.CompareTo recordType2.FullName
                 | UnionCase _ -> -1
             | UnionCase (case1) ->
                 match other with
-                | Constant _ | Tuple _ | Record _ -> 1
+                | Constant _
+                | Tuple _
+                | Record _ -> 1
                 | UnionCase case2 -> case1.Tag.CompareTo case2.Tag
 
-        with override this.Equals(other: obj) = (this :> System.IComparable).CompareTo other = 0
+    override this.Equals(other: obj) =
+        (this :> System.IComparable).CompareTo other = 0
 
 // TODO: user defined insts, e,g ListSkel.
 type BoundInst =
     | Ground
-    | Any   // Not yet implemented. For use in a future constraint programming implementation.
+    | Any // Not yet implemented. For use in a future constraint programming implementation.
     | HigherOrder of RelationMode
     | BoundCtor of BoundCtorInst list
     | NotReached
-and [<Struct>]Inst =
+
+and [<Struct>] Inst =
     | Free
     | Bound of BoundInst
-and BoundCtorInst = { Constructor: Constructor; ArgInsts: BoundInst list }
+
+and BoundCtorInst =
+    { Constructor: Constructor
+      ArgInsts: BoundInst list }
+
 and Mode = Inst * BoundInst
+
 and RelationMode =
     { Modes: Mode list
       Determinism: Determinism }
@@ -123,8 +137,9 @@ type Aggregate<'Query, 'Input, 'Res> =
     { Func: AggregateFunc
       Select: ('Query -> 'Input) }
 
-type kanrenModule = interface
-    abstract member moduleName : string
+type kanrenModule =
+    interface
+        abstract member moduleName : string
     end
 
 type kanren() =
@@ -134,7 +149,7 @@ type kanren() =
             [<CallerFilePath; Optional; DefaultParameterValue("")>] path: string,
             [<CallerLineNumber; Optional; DefaultParameterValue(0)>] line: int
         ) : bool =
-        raise (System.Exception("'exists' should only occur in quotations"))
+        raise (System.Exception ("'exists' should only occur in quotations"))
 
     static member call
         (
@@ -143,7 +158,7 @@ type kanren() =
             [<CallerFilePath; Optional; DefaultParameterValue("")>] path: string,
             [<CallerLineNumber; Optional; DefaultParameterValue(0)>] line: int
         ) : bool =
-        raise (System.Exception("'call' should only occur in quotations"))
+        raise (System.Exception ("'call' should only occur in quotations"))
 
     static member groupBy
         (
@@ -153,7 +168,7 @@ type kanren() =
             [<CallerFilePath; Optional; DefaultParameterValue("")>] path: string,
             [<CallerLineNumber; Optional; DefaultParameterValue(0)>] line: int
         ) : bool =
-        raise (System.Exception("'groupBy' should only occur in quotations"))
+        raise (System.Exception ("'groupBy' should only occur in quotations"))
 
     static member aggregate
         (
@@ -165,7 +180,7 @@ type kanren() =
             [<CallerFilePath; Optional; DefaultParameterValue("")>] path: string,
             [<CallerLineNumber; Optional; DefaultParameterValue(0)>] line: int
         ) : bool =
-        raise (System.Exception("'aggregate' should only occur in quotations"))
+        raise (System.Exception ("'aggregate' should only occur in quotations"))
 
     static member aggregate
         (
@@ -178,7 +193,7 @@ type kanren() =
             [<CallerFilePath; Optional; DefaultParameterValue("")>] path: string,
             [<CallerLineNumber; Optional; DefaultParameterValue(0)>] line: int
         ) : bool =
-        raise (System.Exception("'aggregate' should only occur in quotations"))
+        raise (System.Exception ("'aggregate' should only occur in quotations"))
 
     static member count(select: 'Q -> 'I) : Aggregate<'Q, 'I, int> =
         { Func = AggregateFunc.Count
@@ -196,7 +211,7 @@ type kanren() =
             [<CallerFilePath; Optional; DefaultParameterValue("")>] path: string,
             [<CallerLineNumber; Optional; DefaultParameterValue(0)>] line: int
         ) : bool =
-        raise (System.Exception("'ifThenElse' should only occur in quotations"))
+        raise (System.Exception ("'ifThenElse' should only occur in quotations"))
 
 [<System.AttributeUsage(System.AttributeTargets.Property, AllowMultiple = false)>]
 type RelationAttribute
@@ -225,11 +240,11 @@ module Mode =
     // Anonymous variable for call arguments.
     // _ only works in pattern matches.
     let _i () : 'A =
-        raise (System.Exception("'_i' should only occur in quotations"))
+        raise (System.Exception ("'_i' should only occur in quotations"))
 
     let (=>) (inst1: Inst) (inst2: BoundInst) = (inst1, inst2)
 
-    let In : Mode = Bound Ground => Ground
-    let Out : Mode = Free => Ground
+    let In: Mode = Bound Ground => Ground
+    let Out: Mode = Free => Ground
 
     let mode modes det = { Modes = modes; Determinism = det }

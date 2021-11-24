@@ -32,32 +32,26 @@ open NUnit.Framework
 
 /// Tests that the specified condition is true.
 /// If not, calls Assert.Fail with a formatted string.
-let inline assertf (condition : bool) format : 'T =
+let inline assertf (condition: bool) format : 'T =
     Printf.ksprintf (fun str -> if not condition then Assert.Fail str) format
 
 /// Asserts that two values are equal.
-let inline assertEqual<'T when 'T : equality> (expected : 'T) (actual : 'T) =
-    Assert.AreEqual (expected, actual)
+let inline assertEqual<'T when 'T: equality> (expected: 'T) (actual: 'T) = Assert.AreEqual (expected, actual)
 
 /// Asserts that two values are NOT equal.
-let inline assertNotEqual<'T when 'T : equality> (expected : 'T) (actual : 'T) =
-    Assert.AreNotEqual (expected, actual)
+let inline assertNotEqual<'T when 'T: equality> (expected: 'T) (actual: 'T) = Assert.AreNotEqual (expected, actual)
 
 /// Asserts that two objects are identical.
-let inline assertSame<'T when 'T : not struct> (expected : 'T) (actual : 'T) =
-    Assert.AreSame (expected, actual)
+let inline assertSame<'T when 'T: not struct> (expected: 'T) (actual: 'T) = Assert.AreSame (expected, actual)
 
 /// Asserts that two objects are NOT identical.
-let inline assertNotSame<'T when 'T : not struct> (expected : 'T) (actual : 'T) =
-    Assert.AreNotSame (expected, actual)
+let inline assertNotSame<'T when 'T: not struct> (expected: 'T) (actual: 'T) = Assert.AreNotSame (expected, actual)
 
 /// Asserts that a condition is true.
-let inline assertTrue (condition: bool) =
-    Assert.IsTrue (condition)
+let inline assertTrue (condition: bool) = Assert.IsTrue (condition)
 
 /// Asserts that a condition is false.
-let inline assertFalse (condition: bool) =
-    Assert.IsFalse (condition)
+let inline assertFalse (condition: bool) = Assert.IsFalse (condition)
 
 /// Asserts that the given function raises an exception of a specified exception type
 /// or a type which inherits from the specified exception type.
@@ -79,33 +73,30 @@ module Collection =
 
     /// Asserts that two collections are exactly equal.
     /// The collections must have the same count, and contain the exact same objects in the same order.
-    let inline assertEqual<'T, 'U when 'T :> seq<'U>> (expected : 'T) (actual : 'T) =
+    let inline assertEqual<'T, 'U when 'T :> seq<'U>> (expected: 'T) (actual: 'T) =
         CollectionAssert.AreEqual (expected, actual)
 
     /// Asserts that two collections are not exactly equal.
-    let inline assertNotEqual<'T, 'U when 'T :> seq<'U>> (expected : 'T) (actual : 'T) =
+    let inline assertNotEqual<'T, 'U when 'T :> seq<'U>> (expected: 'T) (actual: 'T) =
         CollectionAssert.AreNotEqual (expected, actual)
 
     /// Asserts that two collections are exactly equal.
     /// The collections must have the same count, and contain the exact same objects but the match may be in any order.
-    let inline assertEquiv<'T, 'U when 'T :> seq<'U>> (expected : 'T) (actual : 'T) =
+    let inline assertEquiv<'T, 'U when 'T :> seq<'U>> (expected: 'T) (actual: 'T) =
         CollectionAssert.AreEquivalent (expected, actual)
 
     /// Asserts that two collections are not exactly equal.
-    let inline assertNotEquiv<'T, 'U when 'T :> seq<'U>> (expected : 'T) (actual : 'T) =
+    let inline assertNotEquiv<'T, 'U when 'T :> seq<'U>> (expected: 'T) (actual: 'T) =
         CollectionAssert.AreNotEquivalent (expected, actual)
 
     /// Asserts that a collection is empty.
-    let inline assertEmpty<'T, 'U when 'T :> seq<'U>> (sequence : 'T) =
-        CollectionAssert.IsEmpty sequence
+    let inline assertEmpty<'T, 'U when 'T :> seq<'U>> (sequence: 'T) = CollectionAssert.IsEmpty sequence
 
     /// Asserts that a collection is not empty.
-    let inline assertNotEmpty<'T, 'U when 'T :> seq<'U>> (sequence : 'T) =
-        CollectionAssert.IsNotEmpty sequence
+    let inline assertNotEmpty<'T, 'U when 'T :> seq<'U>> (sequence: 'T) = CollectionAssert.IsNotEmpty sequence
 
     /// Asserts that a collection is ordered.
-    let inline assertOrdered<'T, 'U when 'T :> seq<'U>> (sequence : 'T) =
-        CollectionAssert.IsOrdered sequence
+    let inline assertOrdered<'T, 'U when 'T :> seq<'U>> (sequence: 'T) = CollectionAssert.IsOrdered sequence
 
 
 
@@ -114,85 +105,91 @@ module Collection =
 
 let numActiveEnumerators = ref 0
 
-let countEnumeratorsAndCheckedDisposedAtMostOnceAtEnd (seq : seq<'T>) =
+let countEnumeratorsAndCheckedDisposedAtMostOnceAtEnd (seq: seq<'T>) =
     let enumerator () =
         incr numActiveEnumerators
         let disposed = ref false
         let endReached = ref false
         let ie = seq.GetEnumerator ()
+
         { new System.Collections.Generic.IEnumerator<'T> with
             member __.Current =
                 Assert.IsFalse (!endReached, "MiniTest 'rvlrve0'")
                 Assert.IsFalse (!disposed, "MiniTest 'rvlrve1'")
                 ie.Current
-            member __.Dispose () =
+
+            member __.Dispose() =
                 Assert.IsTrue (!endReached, "MiniTest 'rvlrve2'")
                 Assert.IsFalse (!disposed, "MiniTest 'rvlrve4'")
                 decr numActiveEnumerators
                 disposed := true
                 ie.Dispose ()
-        interface System.Collections.IEnumerator with
-            member __.MoveNext () =
-                Assert.IsFalse (!endReached, "MiniTest 'rvlrve0'")
-                Assert.IsFalse (!disposed, "MiniTest 'rvlrve3'")
-                endReached := not <| ie.MoveNext ()
-                not !endReached
-            member __.Current =
-                Assert.IsFalse (!endReached, "MiniTest 'qrvlrve0'")
-                Assert.IsFalse (!disposed, "MiniTest 'qrvlrve1'")
-                box ie.Current
-            member __.Reset () =
-                ie.Reset()
-                }
+          interface System.Collections.IEnumerator with
+              member __.MoveNext() =
+                  Assert.IsFalse (!endReached, "MiniTest 'rvlrve0'")
+                  Assert.IsFalse (!disposed, "MiniTest 'rvlrve3'")
+                  endReached := not <| ie.MoveNext ()
+                  not !endReached
+
+              member __.Current =
+                  Assert.IsFalse (!endReached, "MiniTest 'qrvlrve0'")
+                  Assert.IsFalse (!disposed, "MiniTest 'qrvlrve1'")
+                  box ie.Current
+
+              member __.Reset() = ie.Reset () }
 
     { new seq<'T> with
-            member __.GetEnumerator () = enumerator ()
-        interface System.Collections.IEnumerable with
-            member __.GetEnumerator () = enumerator () :> _ }
+        member __.GetEnumerator() = enumerator ()
+      interface System.Collections.IEnumerable with
+          member __.GetEnumerator() = enumerator () :> _ }
 
-let countEnumeratorsAndCheckedDisposedAtMostOnce (seq : seq<'T>) =
+let countEnumeratorsAndCheckedDisposedAtMostOnce (seq: seq<'T>) =
     let enumerator () =
         let disposed = ref false
         let endReached = ref false
         let ie = seq.GetEnumerator ()
         incr numActiveEnumerators
+
         { new System.Collections.Generic.IEnumerator<'T> with
             member x.Current =
                 Assert.IsFalse (!endReached, "MiniTest 'qrvlrve0'")
                 Assert.IsFalse (!disposed, "MiniTest 'qrvlrve1'")
                 ie.Current
-            member x.Dispose () =
+
+            member x.Dispose() =
                 Assert.IsFalse (!disposed, "MiniTest 'qrvlrve4'")
                 decr numActiveEnumerators
                 disposed := true
                 ie.Dispose ()
-        interface System.Collections.IEnumerator with
-            member x.MoveNext () =
-                Assert.IsFalse (!endReached, "MiniTest 'qrvlrve0'")
-                Assert.IsFalse (!disposed, "MiniTest 'qrvlrve3'")
-                endReached := not <| ie.MoveNext ()
-                not !endReached
-            member x.Current =
-                Assert.IsFalse (!endReached, "MiniTest 'qrvlrve0'")
-                Assert.IsFalse (!disposed, "MiniTest 'qrvlrve1'")
-                box ie.Current
-            member __.Reset() =
-                ie.Reset()
-                }
+          interface System.Collections.IEnumerator with
+              member x.MoveNext() =
+                  Assert.IsFalse (!endReached, "MiniTest 'qrvlrve0'")
+                  Assert.IsFalse (!disposed, "MiniTest 'qrvlrve3'")
+                  endReached := not <| ie.MoveNext ()
+                  not !endReached
+
+              member x.Current =
+                  Assert.IsFalse (!endReached, "MiniTest 'qrvlrve0'")
+                  Assert.IsFalse (!disposed, "MiniTest 'qrvlrve1'")
+                  box ie.Current
+
+              member __.Reset() = ie.Reset () }
 
     { new seq<'T> with
-            member __.GetEnumerator () = enumerator ()
-        interface System.Collections.IEnumerable with
-            member __.GetEnumerator () = enumerator () :> _ }
+        member __.GetEnumerator() = enumerator ()
+      interface System.Collections.IEnumerable with
+          member __.GetEnumerator() = enumerator () :> _ }
 
 /// Check that the lambda throws an exception of the given type.
 /// Otherwise calls Assert.Fail().
-let private checkThrowsExn<'Exn when 'Exn :> exn> (f : unit -> unit) : unit =
+let private checkThrowsExn<'Exn when 'Exn :> exn> (f: unit -> unit) : unit =
     try
         do f ()
 
         // Did not throw -- return an error message explaining this.
-        let msg = sprintf "The function did not throw an exception. (Expected: %s)" typeof<'Exn>.FullName
+        let msg =
+            sprintf "The function did not throw an exception. (Expected: %s)" typeof<'Exn>.FullName
+
         Assert.Fail msg
     with
     | :? AssertionException ->
@@ -208,22 +205,36 @@ let private checkThrowsExn<'Exn when 'Exn :> exn> (f : unit -> unit) : unit =
     | ex ->
         // The expected exception type was not raised.
         let msg =
-            sprintf "The function raised an exception of type '%s'. (Expected: %s)"
-                (ex.GetType().FullName) typeof<'Exn>.FullName
+            sprintf
+                "The function raised an exception of type '%s'. (Expected: %s)"
+                (ex.GetType().FullName)
+                typeof<'Exn>.FullName
+
         Assert.Fail msg
 
 // Illegitimate exceptions. Once we've scrubbed the library, we should add an
 // attribute to flag these exception's usage as a bug.
 [<Obsolete>]
 let checkThrowsNullRefException = checkThrowsExn<NullReferenceException>
+
 [<Obsolete>]
 let checkThrowsIndexOutRangeException = checkThrowsExn<IndexOutOfRangeException>
 
 // Legit exceptions
-let checkThrowsNotSupportedException action = checkThrowsExn<NotSupportedException> action
-let checkThrowsArgumentException action = checkThrowsExn<ArgumentException> action
-let checkThrowsArgumentNullException action = checkThrowsExn<ArgumentNullException> action
-let checkThrowsKeyNotFoundException action = checkThrowsExn<KeyNotFoundException> action
-let checkThrowsDivideByZeroException action = checkThrowsExn<DivideByZeroException> action
-let checkThrowsInvalidOperationExn action = checkThrowsExn<InvalidOperationException> action
+let checkThrowsNotSupportedException action =
+    checkThrowsExn<NotSupportedException> action
 
+let checkThrowsArgumentException action =
+    checkThrowsExn<ArgumentException> action
+
+let checkThrowsArgumentNullException action =
+    checkThrowsExn<ArgumentNullException> action
+
+let checkThrowsKeyNotFoundException action =
+    checkThrowsExn<KeyNotFoundException> action
+
+let checkThrowsDivideByZeroException action =
+    checkThrowsExn<DivideByZeroException> action
+
+let checkThrowsInvalidOperationExn action =
+    checkThrowsExn<InvalidOperationException> action

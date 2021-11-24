@@ -41,20 +41,19 @@ module internal Delay =
               WaitingGoals = WaitingGoalsTable.Empty
               PendingGoals = PendingGoalsTable.Empty }
 
-        member this.enterConj () =
+        member this.enterConj() =
             let conjInfo =
                 { DelayedGoals = ImmutableDictionary.Empty
                   NextSeqNum = 0<seqNumMeasure> }
 
             { this with
-                DelayedGoalStack = this.DelayedGoalStack.Push (conjInfo)
-                CurrentDepth = this.CurrentDepth + 1<depthNumMeasure>
-            }
+                  DelayedGoalStack = this.DelayedGoalStack.Push (conjInfo)
+                  CurrentDepth = this.CurrentDepth + 1<depthNumMeasure> }
 
-        member this.leaveConj () =
+        member this.leaveConj() =
             let currentDepth = this.CurrentDepth
-            let delayedGoals = this.DelayedGoalStack.Peek()
-            let delayedGoalStack = this.DelayedGoalStack.Pop()
+            let delayedGoals = this.DelayedGoalStack.Peek ()
+            let delayedGoalStack = this.DelayedGoalStack.Pop ()
 
             let flounderedGoals =
                 delayedGoals.DelayedGoals
@@ -68,26 +67,38 @@ module internal Delay =
                 delayedGoals.DelayedGoals
                 |> Seq.fold
                     (fun (s: DelayInfo) delayedGoal ->
-                        let goalNum = { DepthNum = currentDepth; SeqNum = delayedGoal.Key }
-                        s.deleteWaitingVars goalNum delayedGoal.Value.Vars
-                    )
+                        let goalNum =
+                            { DepthNum = currentDepth
+                              SeqNum = delayedGoal.Key }
+
+                        s.deleteWaitingVars goalNum delayedGoal.Value.Vars)
                     this
 
             (flounderedGoals,
-                { this' with DelayedGoalStack = delayedGoalStack;
-                            CurrentDepth = currentDepth - 1<depthNumMeasure> })
+             { this' with
+                   DelayedGoalStack = delayedGoalStack
+                   CurrentDepth = currentDepth - 1<depthNumMeasure> })
 
         member this.delayGoal (error: ModeErrorInfo) (goal: Goal) =
             let delayConjInfo = this.DelayedGoalStack.Peek ()
             let nextSeqNum = delayConjInfo.NextSeqNum
 
-            let delayedGoal = { DelayedGoal.Goal = goal; Vars = error.Vars; ErrorInfo = error }
+            let delayedGoal =
+                { DelayedGoal.Goal = goal
+                  Vars = error.Vars
+                  ErrorInfo = error }
 
-            let delayedGoals' = delayConjInfo.DelayedGoals.Add (delayConjInfo.NextSeqNum, delayedGoal)
-            let delayConjInfo' = { delayConjInfo with NextSeqNum = delayConjInfo.NextSeqNum + 1<seqNumMeasure>;
-                                                        DelayedGoals = delayedGoals' }
+            let delayedGoals' =
+                delayConjInfo.DelayedGoals.Add (delayConjInfo.NextSeqNum, delayedGoal)
 
-            let delayedGoalStack = this.DelayedGoalStack.Pop().Push(delayConjInfo')
+            let delayConjInfo' =
+                { delayConjInfo with
+                      NextSeqNum = delayConjInfo.NextSeqNum + 1<seqNumMeasure>
+                      DelayedGoals = delayedGoals' }
+
+            let delayedGoalStack =
+                this.DelayedGoalStack.Pop().Push (delayConjInfo')
+
             let goalNum =
                 { DepthNum = this.CurrentDepth
                   SeqNum = nextSeqNum }
@@ -98,23 +109,30 @@ module internal Delay =
                     | true, waitingGoals -> waitingGoals
                     | _ -> WaitingGoals.Empty
 
-                wg.SetItem(var, waitingGoals.SetItem(goalNum, error.Vars))
+                wg.SetItem (var, waitingGoals.SetItem (goalNum, error.Vars))
 
-            let waitingGoalsTable = error.Vars |> TagSet.fold addWaitingVar this.WaitingGoals
+            let waitingGoalsTable =
+                error.Vars
+                |> TagSet.fold addWaitingVar this.WaitingGoals
 
             { this with
-                DelayedGoalStack = delayedGoalStack
-                WaitingGoals = waitingGoalsTable }
+                  DelayedGoalStack = delayedGoalStack
+                  WaitingGoals = waitingGoalsTable }
 
         member private this.addPendingGoal goalNum waitingVars =
-            let this' = this.deleteWaitingVars goalNum waitingVars
+            let this' =
+                this.deleteWaitingVars goalNum waitingVars
 
             match this'.PendingGoals.TryGetValue goalNum.DepthNum with
             | true, pendingSeq ->
-                { this' with PendingGoals = this'.PendingGoals.SetItem(goalNum.DepthNum, pendingSeq.Add(goalNum.SeqNum)) }
+                { this' with
+                      PendingGoals = this'.PendingGoals.SetItem (goalNum.DepthNum, pendingSeq.Add (goalNum.SeqNum)) }
             | _ ->
-                let pendingSeq = ImmutableList<SeqNum>.Empty.Add(goalNum.SeqNum)
-                { this' with PendingGoals = this'.PendingGoals.SetItem(goalNum.DepthNum, pendingSeq) }
+                let pendingSeq =
+                    ImmutableList<SeqNum>.Empty.Add (goalNum.SeqNum)
+
+                { this' with
+                      PendingGoals = this'.PendingGoals.SetItem (goalNum.DepthNum, pendingSeq) }
 
         member this.bindAllVars() =
             this.WaitingGoals
@@ -125,8 +143,7 @@ module internal Delay =
             | true, waitingGoals ->
                 waitingGoals
                 |> Seq.fold (fun s g -> s.addPendingGoal g.Key g.Value) this
-            | _ ->
-                this
+            | _ -> this
 
         // Remove all references to a goal from the waiting goals table.
         member private this.deleteWaitingVars goalNum (vars: SetOfVar) : DelayInfo =
@@ -137,10 +154,11 @@ module internal Delay =
                     let waitingGoals' = waitingGoals.Remove (goalNum)
 
                     if (waitingGoals'.Count = 0) then
-                        { di with WaitingGoals = di.WaitingGoals.Remove (var) }
+                        { di with
+                              WaitingGoals = di.WaitingGoals.Remove (var) }
                     else
-                        { di with WaitingGoals = di.WaitingGoals.SetItem(var, waitingGoals') }
-                )
+                        { di with
+                              WaitingGoals = di.WaitingGoals.SetItem (var, waitingGoals') })
                 this
 
         member this.wakeupGoals() =
@@ -151,14 +169,18 @@ module internal Delay =
                 let (goals, conjInfo'') =
                     pendingGoals
                     |> Seq.mapFold
-                        (fun conjInfo' pg->
+                        (fun conjInfo' pg ->
                             let goal = conjInfo.DelayedGoals.[pg]
-                            (goal.Goal, { conjInfo' with DelayedGoals = conjInfo'.DelayedGoals.Remove(pg) })
-                        )
+
+                            (goal.Goal,
+                             { conjInfo' with
+                                   DelayedGoals = conjInfo'.DelayedGoals.Remove (pg) }))
                         conjInfo
 
-                let dgs = this.DelayedGoalStack.Pop().Push(conjInfo'')
+                let dgs =
+                    this.DelayedGoalStack.Pop().Push (conjInfo'')
+
                 (List.ofSeq goals,
-                    { this with PendingGoals = this.PendingGoals.SetItem(this.CurrentDepth, ImmutableList<SeqNum>.Empty) })
-            | _ ->
-                ([], this)
+                 { this with
+                       PendingGoals = this.PendingGoals.SetItem (this.CurrentDepth, ImmutableList<SeqNum>.Empty) })
+            | _ -> ([], this)
