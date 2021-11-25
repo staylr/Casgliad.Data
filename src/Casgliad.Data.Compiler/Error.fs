@@ -1,4 +1,4 @@
-namespace Kanren.Data.Compiler
+namespace Casgliad.Data.Compiler
 
 open FSharp.Quotations
 
@@ -33,7 +33,7 @@ module internal Error =
 
     let invalidCallee sourceInfo expr =
         { Error.Location = Some sourceInfo
-          Text = "expected `this.<property>' in callee of kanren.call"
+          Text = "expected `this.<property>' in callee of casgliad.call"
           Context = ErrorContext.Expr expr
           Severity = ErrorSeverity.Error }
 

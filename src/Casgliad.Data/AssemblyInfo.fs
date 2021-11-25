@@ -3,8 +3,8 @@ namespace System
 
 open System.Reflection
 
-[<assembly: AssemblyTitleAttribute("Kanren.Data")>]
-[<assembly: AssemblyProductAttribute("Kanren.Data")>]
+[<assembly: AssemblyTitleAttribute("Casgliad.Data")>]
+[<assembly: AssemblyProductAttribute("Casgliad.Data")>]
 [<assembly: AssemblyVersionAttribute("0.1.0")>]
 [<assembly: AssemblyMetadataAttribute("ReleaseDate", "2017-03-17T00:00:00.0000000")>]
 [<assembly: AssemblyFileVersionAttribute("0.1.0")>]
@@ -15,10 +15,10 @@ do ()
 
 module internal AssemblyVersionInformation =
     [<Literal>]
-    let AssemblyTitle = "Kanren.Data"
+    let AssemblyTitle = "Casgliad.Data"
 
     [<Literal>]
-    let AssemblyProduct = "Kanren.Data"
+    let AssemblyProduct = "Casgliad.Data"
 
     [<Literal>]
     let AssemblyVersion = "0.1.0"

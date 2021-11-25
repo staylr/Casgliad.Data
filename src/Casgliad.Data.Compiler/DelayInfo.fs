@@ -1,8 +1,8 @@
-﻿namespace Kanren.Data.Compiler
+﻿namespace Casgliad.Data.Compiler
 
 open System.Collections.Immutable
 
-open Kanren.Data.Compiler.ModeErrors
+open Casgliad.Data.Compiler.ModeErrors
 
 module internal Delay =
     [<Measure>]

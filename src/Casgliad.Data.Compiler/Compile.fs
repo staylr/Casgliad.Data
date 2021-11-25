@@ -1,12 +1,12 @@
-namespace Kanren.Data.Compiler
+namespace Casgliad.Data.Compiler
 
 open System.Reflection
-open Kanren.Data
+open Casgliad.Data
 
 module Compile =
 
     let internal parseRelation
-        (sourceModule: kanrenModule)
+        (sourceModule: casgliadModule)
         (rel: RelationAttribute)
         (relation: RelationBase)
         (moduleInfo: ModuleInfo)
@@ -54,7 +54,7 @@ module Compile =
                 (moduleInfo.addRelation (relation), parserInfo''.errors)
             | Error modeErrors -> (moduleInfo, List.concat (parserInfo''.errors :: modeErrors))
 
-    let internal compileRelationMethod (instance: kanrenModule) (moduleInfo, errors) (property: PropertyInfo) =
+    let internal compileRelationMethod (instance: casgliadModule) (moduleInfo, errors) (property: PropertyInfo) =
         let relationAttribute =
             property.GetCustomAttribute (typeof<RelationAttribute>) :?> RelationAttribute
 
@@ -68,11 +68,11 @@ module Compile =
 
         (moduleInfo', errors' :: errors)
 
-    let internal compileKanrenModule (moduleType: System.Type) =
+    let internal compileCasgliadModule (moduleType: System.Type) =
         let moduleInfo = ModuleInfo.init
 
         let instance =
-            System.Activator.CreateInstance (moduleType) :?> kanrenModule
+            System.Activator.CreateInstance (moduleType) :?> casgliadModule
 
         let bindingFlags =
             BindingFlags.Public

@@ -1,6 +1,6 @@
-namespace Kanren.Data.Compiler
+namespace Casgliad.Data.Compiler
 
-open Kanren.Data
+open Casgliad.Data
 
 module internal ModeErrors =
 

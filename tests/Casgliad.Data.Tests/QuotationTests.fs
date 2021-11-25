@@ -1,10 +1,10 @@
-namespace Kanren.Data.Tests
+namespace Casgliad.Data.Tests
 
 open FSharp.Quotations
 open System
 open Swensen.Unquote
-open Kanren.Data
-open Kanren.Data.Compiler
+open Casgliad.Data
+open Casgliad.Data.Compiler
 open NUnit.Framework
 
 module QuotationTests =
@@ -13,9 +13,9 @@ module QuotationTests =
         | Case2 of a: int * b: int
         | Case3 of c: int * d: int
 
-    type kanrenTest() =
-        interface kanrenModule with
-            member this.moduleName = "kanrenTest"
+    type casgliadTest() =
+        interface casgliadModule with
+            member this.moduleName = "casgliadTest"
 
         [<Relation>]
         member this.rel2 =
@@ -36,7 +36,7 @@ module QuotationTests =
                     && y = 2
                     && z = y + 3
                     && z < 10
-                    && kanren.call (this.rel2, (x, _i ()))
+                    && casgliad.call (this.rel2, (x, _i ()))
                     && (match u with
                         | Case1 (_, _) -> true
                         | Case2 (_, _) -> false
@@ -54,7 +54,7 @@ module QuotationTests =
                     && y = 2
                     && z = 4
                     && a < e
-                    && kanren.call (this.rel2, (x, z))
+                    && casgliad.call (this.rel2, (x, z))
             )
     //[<AbstractClass>]
 //type 'A tree() =
@@ -85,7 +85,7 @@ module QuotationTests =
             | Some sourceInfo -> sourceInfo
             | None -> defaultSourceInfo
 
-        ParserInfo.init (kanrenTest ()) varset testSourceInfo
+        ParserInfo.init (casgliadTest ()) varset testSourceInfo
 
     [<ReflectedDefinitionAttribute>]
     let internal testVarName info var varName = info.varset.[var].Name = varName
@@ -310,7 +310,7 @@ module QuotationTests =
     [<Test>]
     let exists () : unit =
         let expr =
-            <@ fun (x, y) -> kanren.exists (fun z -> x = 4 && y = 2 && z = 3) @>
+            <@ fun (x, y) -> casgliad.exists (fun z -> x = 4 && y = 2 && z = 3) @>
 
         let ((args, goal), info) = compileExpr expr None
         test <@ info.errors = [] @>
@@ -330,7 +330,7 @@ module QuotationTests =
     [<Test>]
     let existsTuple () : unit =
         let expr =
-            <@ fun (x, y) -> kanren.exists (fun (z1, z2) -> x = 4 && y = 2 && z1 = 6 && z2 = 7) @>
+            <@ fun (x, y) -> casgliad.exists (fun (z1, z2) -> x = 4 && y = 2 && z1 = 6 && z2 = 7) @>
 
         let ((args, goal), info) = compileExpr expr None
         test <@ info.errors = [] @>
@@ -352,6 +352,6 @@ module QuotationTests =
 
     [<Test>]
     let callRelation () : unit =
-        let testModule = kanrenTest ()
+        let testModule = casgliadTest ()
         let ((args, goal), info) = compileExpr testModule.rel4.Body None
         test <@ info.errors = [] @>

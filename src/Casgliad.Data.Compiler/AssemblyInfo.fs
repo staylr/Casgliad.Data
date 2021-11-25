@@ -3,23 +3,23 @@ namespace System
 
 open System.Reflection
 
-[<assembly: AssemblyTitleAttribute("Kanren.Data")>]
-[<assembly: AssemblyProductAttribute("Kanren.Data")>]
+[<assembly: AssemblyTitleAttribute("Casgliad.Data")>]
+[<assembly: AssemblyProductAttribute("Casgliad.Data")>]
 [<assembly: AssemblyVersionAttribute("0.1.0")>]
 [<assembly: AssemblyMetadataAttribute("ReleaseDate", "2017-03-17T00:00:00.0000000")>]
 [<assembly: AssemblyFileVersionAttribute("0.1.0")>]
 [<assembly: AssemblyInformationalVersionAttribute("0.1.0")>]
 [<assembly: AssemblyMetadataAttribute("ReleaseChannel", "release")>]
 [<assembly: AssemblyMetadataAttribute("GitHash", "bb8964b54bee133e9af64d316dc2cfee16df7f72")>]
-[<assembly: System.Runtime.CompilerServices.InternalsVisibleToAttribute("Kanren.Data.Tests")>]
+[<assembly: System.Runtime.CompilerServices.InternalsVisibleToAttribute("Casgliad.Data.Tests")>]
 do ()
 
 module internal AssemblyVersionInformation =
     [<Literal>]
-    let AssemblyTitle = "Kanren.Data"
+    let AssemblyTitle = "Casgliad.Data"
 
     [<Literal>]
-    let AssemblyProduct = "Kanren.Data"
+    let AssemblyProduct = "Casgliad.Data"
 
     [<Literal>]
     let AssemblyVersion = "0.1.0"

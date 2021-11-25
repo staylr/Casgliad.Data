@@ -1,6 +1,6 @@
-﻿module internal Kanren.Data.Compiler.DeterminismErrors
+﻿module internal Casgliad.Data.Compiler.DeterminismErrors
 
-open Kanren.Data
+open Casgliad.Data
 
 type DeterminismDiagnosis =
     | DisjunctionHasMultipleClausesWithSolutions

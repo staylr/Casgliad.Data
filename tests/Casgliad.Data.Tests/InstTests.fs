@@ -1,9 +1,9 @@
-﻿namespace Kanren.Data.Tests
+﻿namespace Casgliad.Data.Tests
 
 open System.Collections.Generic
 open Swensen.Unquote
-open Kanren.Data
-open Kanren.Data.Compiler
+open Casgliad.Data
+open Casgliad.Data.Compiler
 open NUnit.Framework
 
 module InstTests =

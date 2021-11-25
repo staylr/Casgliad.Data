@@ -1,8 +1,8 @@
-namespace Kanren.Data.Compiler
+namespace Casgliad.Data.Compiler
 
-open Kanren.Data.Compiler.ModeErrors
-open Kanren.Data.Compiler.ModeInfo
-open Kanren.Data.Compiler.State
+open Casgliad.Data.Compiler.ModeErrors
+open Casgliad.Data.Compiler.ModeInfo
+open Casgliad.Data.Compiler.State
 
 module internal Modecheck =
     let getModeOfArgs (argInitialInsts: InstE list) (finalInst: BoundInstE) =
@@ -252,7 +252,7 @@ module internal Modecheck =
             let! args' = setVarInstListCall 1 args initialInsts finalInsts extraGoals
             let (maxSoln, _) = determinismComponents det
 
-            if (maxSoln = Kanren.Data.NumSolutions.NoSolutions) then
+            if (maxSoln = Casgliad.Data.NumSolutions.NoSolutions) then
                 do! setInstMap (InstMap.initUnreachable)
 
             let call = buildCall args'
@@ -395,7 +395,7 @@ module internal Modecheck =
                     return
                         Unify (
                             lhs,
-                            Constructor (ctor, args, unifyType, modeOfLhsArgs, Kanren.Data.CannotFail),
+                            Constructor (ctor, args, unifyType, modeOfLhsArgs, Casgliad.Data.CannotFail),
                             unifyMode,
                             context
                         )
@@ -405,8 +405,8 @@ module internal Modecheck =
 
                     let canFail =
                         match instTable.expand (initialLhsInst) with
-                        | Bound (BoundCtor { BoundInsts = [ _ ]; TestResults = _ }) -> Kanren.Data.CannotFail
-                        | _ -> Kanren.Data.CanFail
+                        | Bound (BoundCtor { BoundInsts = [ _ ]; TestResults = _ }) -> Casgliad.Data.CannotFail
+                        | _ -> Casgliad.Data.CanFail
 
                     do! setVarInst lhs (Bound unifiedInst) (Some initialLhsInst)
                     do! bindArgs (Bound unifiedInst) args' initialArgInsts

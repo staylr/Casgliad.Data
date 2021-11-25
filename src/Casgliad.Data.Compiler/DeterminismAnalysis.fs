@@ -1,7 +1,7 @@
-﻿module internal Kanren.Data.Compiler.DeterminismAnalysis
+﻿module internal Casgliad.Data.Compiler.DeterminismAnalysis
 
-open Kanren.Data
-open Kanren.Data.Compiler.DeterminismErrors
+open Casgliad.Data
+open Casgliad.Data.Compiler.DeterminismErrors
 
 type FailingGoal =
     | IncompleteSwitch of VarId

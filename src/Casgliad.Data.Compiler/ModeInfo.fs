@@ -1,8 +1,8 @@
-﻿namespace Kanren.Data.Compiler
+﻿namespace Casgliad.Data.Compiler
 
-open Kanren.Data.Compiler.ModeErrors
-open Kanren.Data.Compiler.Delay
-open Kanren.Data.Compiler.State
+open Casgliad.Data.Compiler.ModeErrors
+open Casgliad.Data.Compiler.Delay
+open Casgliad.Data.Compiler.State
 
 module internal ModeInfo =
 

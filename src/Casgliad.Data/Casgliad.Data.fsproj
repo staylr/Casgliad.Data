@@ -2,11 +2,11 @@
 <Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
     <TargetFrameworks>net5.0</TargetFrameworks>
-    <RootNamespace>Kanren.Data</RootNamespace>
+    <RootNamespace>Casgliad.Data</RootNamespace>
   </PropertyGroup>
   <PropertyGroup>
-    <Title>Kanren.Data</Title>
-    <Description>Kanren.Data does the thing!</Description>
+    <Title>Casgliad.Data</Title>
+    <Description>Casgliad.Data does the thing!</Description>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)'=='Release'">
     <Optimize>true</Optimize>

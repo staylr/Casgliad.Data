@@ -1,6 +1,6 @@
-namespace Kanren.Data.Compiler
+namespace Casgliad.Data.Compiler
 
-open Kanren.Data
+open Casgliad.Data
 
 module internal GoalWriter =
 
@@ -198,7 +198,7 @@ module internal Goal =
     type GoalExpr =
         | Unify of lhs: VarId * rhs: UnifyRhs * mode: UnifyMode * context: UnifyContext
 
-        // A call to a Kanren relation.
+        // A call to a Casgliad relation.
         | Call of relationId: RelationProcId * args: (VarId list)
 
         // A call to a F# function.

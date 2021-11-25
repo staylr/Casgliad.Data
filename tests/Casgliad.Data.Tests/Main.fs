@@ -1,4 +1,4 @@
-namespace Kanren.Data.Tests
+namespace Casgliad.Data.Tests
 
 module ExpectoTemplate =
 

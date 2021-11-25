@@ -1,4 +1,4 @@
-namespace Kanren.Data.Compiler
+namespace Casgliad.Data.Compiler
 
 module internal Simplify =
     let rec internal flattenConjunction' flattenedGoals (goal: Goal) =

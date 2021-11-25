@@ -1,9 +1,9 @@
-namespace Kanren.Data.Compiler
+namespace Casgliad.Data.Compiler
 
 open System.Collections.Generic
 open FSharp.Reflection
 
-open Kanren.Data
+open Casgliad.Data
 
 [<AutoOpen>]
 module internal Inst =

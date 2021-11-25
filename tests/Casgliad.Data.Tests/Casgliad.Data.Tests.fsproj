@@ -4,7 +4,7 @@
     <OutputType>Exe</OutputType>
     <TargetFrameworks>net5.0</TargetFrameworks>
     <GenerateProgramFile>false</GenerateProgramFile>
-    <RootNamespace>Kanren.Data.Tests</RootNamespace>
+    <RootNamespace>Casgliad.Data.Tests</RootNamespace>
   </PropertyGroup>
   <ItemGroup>
     <ProjectReference Include="..\..\src\Casgliad.Data\Casgliad.Data.fsproj" />

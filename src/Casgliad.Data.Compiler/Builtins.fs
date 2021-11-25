@@ -1,6 +1,6 @@
-﻿namespace Kanren.Data.Compiler
+﻿namespace Casgliad.Data.Compiler
 
-open Kanren.Data.Compiler.ModeInfo
+open Casgliad.Data.Compiler.ModeInfo
 
 module internal Builtins =
     let lookupFSharpFunctionModes (methodInfo: System.Reflection.MethodInfo) : FunctionModeInfo list =
@@ -15,5 +15,5 @@ module internal Builtins =
             ProcId = 1<procIdMeasure>
             Modes =
                 { Modes = modes
-                  Determinism = Kanren.Data.Determinism.Det }
+                  Determinism = Casgliad.Data.Determinism.Det }
             ResultMode = (Free, Ground) } ]

@@ -1,7 +1,7 @@
 ﻿[<AutoOpen>]
-module internal Kanren.Data.Compiler.InstMap
+module internal Casgliad.Data.Compiler.InstMap
 
-open Kanren.Data.Compiler.InstMatch
+open Casgliad.Data.Compiler.InstMatch
 
 type private InstMapping = Map<VarId, BoundInstE>
 

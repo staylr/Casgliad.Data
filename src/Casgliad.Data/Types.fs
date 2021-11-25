@@ -1,4 +1,4 @@
-namespace Kanren.Data
+namespace Casgliad.Data
 
 open System.Runtime.InteropServices
 open System.Runtime.CompilerServices
@@ -137,12 +137,12 @@ type Aggregate<'Query, 'Input, 'Res> =
     { Func: AggregateFunc
       Select: ('Query -> 'Input) }
 
-type kanrenModule =
+type casgliadModule =
     interface
         abstract member moduleName : string
     end
 
-type kanren() =
+type casgliad() =
     static member exists
         (
             f: 'A -> bool,

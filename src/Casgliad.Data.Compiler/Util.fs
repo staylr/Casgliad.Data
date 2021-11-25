@@ -1,4 +1,4 @@
-namespace Kanren.Data.Compiler
+namespace Casgliad.Data.Compiler
 
 type SourceInfo =
     { File: string
@@ -118,7 +118,7 @@ module internal Util =
 
 
     let rec mapWithState f list =
-        Kanren.Data.Compiler.State.StateBuilder () {
+        Casgliad.Data.Compiler.State.StateBuilder () {
             match list with
             | [] -> return []
             | x :: xs ->
@@ -128,7 +128,7 @@ module internal Util =
         }
 
     let rec iterWithState f list =
-        Kanren.Data.Compiler.State.StateBuilder () {
+        Casgliad.Data.Compiler.State.StateBuilder () {
             match list with
             | [] -> return ()
             | x :: xs ->
@@ -137,7 +137,7 @@ module internal Util =
         }
 
     let rec foldWithState2 f state list =
-        Kanren.Data.Compiler.State.StateBuilder () {
+        Casgliad.Data.Compiler.State.StateBuilder () {
             match list with
             | [] -> return state
             | x :: xs ->
@@ -146,7 +146,7 @@ module internal Util =
         }
 
     let rec iterWithState2 f list1 list2 =
-        Kanren.Data.Compiler.State.StateBuilder () {
+        Casgliad.Data.Compiler.State.StateBuilder () {
             match (list1, list2) with
             | ([], []) -> return ()
             | (x :: xs, y :: ys) ->

@@ -1,13 +1,13 @@
-namespace Kanren.Data.Compiler
+namespace Casgliad.Data.Compiler
 
-open Kanren.Data
-open Kanren.Data.Compiler.State
+open Casgliad.Data
+open Casgliad.Data.Compiler.State
 open FSharp.Reflection
 open FSharp.Quotations
 open FSharp.Collections
 
 type internal ParserInfo =
-    { sourceModule: kanrenModule
+    { sourceModule: casgliadModule
       varset: VarSet
       errors: Error list
       sourceInfo: SourceInfo }
@@ -35,9 +35,9 @@ module internal QuotationParser =
 
     let getSourceInfo (e: Quotations.Expr) =
         match e with
-        | DerivedPatterns.SpecificCall (<@@ kanren.exists @@>)
+        | DerivedPatterns.SpecificCall (<@@ casgliad.exists @@>)
                                        (_, _, [ _; DerivedPatterns.String (file); DerivedPatterns.Int32 (line) ])
-        | DerivedPatterns.SpecificCall (<@@ kanren.call @@>)
+        | DerivedPatterns.SpecificCall (<@@ casgliad.call @@>)
                                        (_, _, [ _; _; DerivedPatterns.String (file); DerivedPatterns.Int32 (line) ]) ->
             Some
                 { SourceInfo.File = file
@@ -200,7 +200,7 @@ module internal QuotationParser =
             | ExprShape.ShapeVar v when not (allowDuplicateArgs && seenArgs.Contains (v)) ->
                 let! var = newQVar v
                 return (var, seenArgs.Add (v), extraGoals)
-            | DerivedPatterns.SpecificCall (<@@ Kanren.Data.Mode._i @@>) (_, _, _) ->
+            | DerivedPatterns.SpecificCall (<@@ Casgliad.Data.Mode._i @@>) (_, _, _) ->
                 // Special syntax to ignore relation arguments.
                 let! var = newVar arg.Type
                 return (var, seenArgs, extraGoals)
@@ -245,15 +245,15 @@ module internal QuotationParser =
 
     let translateCall (calleeModule: Expr) (callee: System.Reflection.PropertyInfo) args =
         let rec extractCalleeModule
-            (sourceModule: kanrenModule)
+            (sourceModule: casgliadModule)
             (calleeModuleExpr: Expr)
             (callee: System.Reflection.PropertyInfo)
-            : (kanrenModule * obj) option =
+            : (casgliadModule * obj) option =
             match calleeModuleExpr with
             | Patterns.ValueWithName (_, _, "this") -> Some (sourceModule, callee.GetValue (sourceModule))
             | Patterns.PropertyGet (Some calleeSubExpr, property, []) ->
                 extractCalleeModule sourceModule calleeSubExpr property
-                |> Option.map (fun (_, innerModule) -> (innerModule :?> kanrenModule, callee.GetValue (innerModule)))
+                |> Option.map (fun (_, innerModule) -> (innerModule :?> casgliadModule, callee.GetValue (innerModule)))
             | _ -> None
 
         parse {
@@ -516,13 +516,13 @@ module internal QuotationParser =
             let! sourceInfo = currentSourceInfo
 
             match expr with
-            | DerivedPatterns.SpecificCall (<@@ kanren.exists @@>) (_, _, [ ExprShape.ShapeLambda (v, expr); _; _ ]) ->
+            | DerivedPatterns.SpecificCall (<@@ casgliad.exists @@>) (_, _, [ ExprShape.ShapeLambda (v, expr); _; _ ]) ->
                 // translateArgs will strip off any TupleGet calls to deconstruct the
                 // tuple of existentially quantified variables. We're only using the lambda
                 // to introduce new variables, we don't care what was passed in.
                 let! (_, goal) = translateArgs v expr []
                 return goal.Goal
-            | DerivedPatterns.SpecificCall (<@@ kanren.call @@>)
+            | DerivedPatterns.SpecificCall (<@@ casgliad.call @@>)
                                            (_,
                                             _,
                                             [ Patterns.PropertyGet (Some calleeObj, callee, [])

@@ -1,4 +1,4 @@
-namespace Kanren.Data.Compiler
+namespace Casgliad.Data.Compiler
 
 [<Measure>]
 type internal varIdMeasure

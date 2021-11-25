@@ -1,6 +1,6 @@
-namespace Kanren.Data.Compiler
+namespace Casgliad.Data.Compiler
 
-open Kanren.Data.Compiler.State
+open Casgliad.Data.Compiler.State
 
 module internal Quantification =
 
