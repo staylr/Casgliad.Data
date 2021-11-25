@@ -2,9 +2,9 @@
 <Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
     <OutputType>Exe</OutputType>
-    <TargetFrameworks>net5.0</TargetFrameworks>
     <GenerateProgramFile>false</GenerateProgramFile>
     <RootNamespace>Casgliad.Data.Tests</RootNamespace>
+    <TargetFramework>net6.0</TargetFramework>
   </PropertyGroup>
   <ItemGroup>
     <ProjectReference Include="..\..\src\Casgliad.Data\Casgliad.Data.fsproj" />
