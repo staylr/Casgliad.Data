@@ -4,10 +4,11 @@
     <OutputType>Exe</OutputType>
     <TargetFrameworks>net5.0</TargetFrameworks>
     <GenerateProgramFile>false</GenerateProgramFile>
+    <RootNamespace>Kanren.Data.Tests</RootNamespace>
   </PropertyGroup>
   <ItemGroup>
-    <ProjectReference Include="../../src/Kanren.Data/Kanren.Data.fsproj" />
-    <ProjectReference Include="..\..\src\Kanren.Data.Compiler\Kanren.Data.Compiler.fsproj" />
+    <ProjectReference Include="..\..\src\Casgliad.Data\Casgliad.Data.fsproj" />
+    <ProjectReference Include="..\..\src\Casgliad.Data.Compiler\Casgliad.Data.Compiler.fsproj" />
   </ItemGroup>
   <ItemGroup>
     <Compile Include="TestHelpers.fs" />

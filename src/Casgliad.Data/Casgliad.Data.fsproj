@@ -2,6 +2,7 @@
 <Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
     <TargetFrameworks>net5.0</TargetFrameworks>
+    <RootNamespace>Kanren.Data</RootNamespace>
   </PropertyGroup>
   <PropertyGroup>
     <Title>Kanren.Data</Title>
