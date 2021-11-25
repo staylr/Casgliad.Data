@@ -41,8 +41,8 @@ let environVarAsBoolOrDefault varName defaultValue =
 // Metadata and Configuration
 //-----------------------------------------------------------------------------
 
-let productName = "Kanren.Data"
-let sln = "Kanren.Data.sln"
+let productName = "Casgliad.Data"
+let sln = "Casgliad.Data.sln"
 
 
 let srcCodeGlob =
@@ -72,7 +72,7 @@ let docsSrcDir = __SOURCE_DIRECTORY__  @@ "docsSrc"
 let docsToolDir = __SOURCE_DIRECTORY__ @@ "docsTool"
 
 let gitOwner = "staylr"
-let gitRepoName = "Kanren.Data"
+let gitRepoName = "Casgliad.Data"
 
 let gitHubRepoUrl = sprintf "https://github.com/%s/%s" gitOwner gitRepoName
 

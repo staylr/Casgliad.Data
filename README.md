@@ -1,17 +1,17 @@
-# Kanren.Data
+# Casgliad.Data
 
-Kanren-style strongly typed and strongly moded deductive database DSL for F#.
+Casgliad-style strongly typed and strongly moded deductive database DSL for F#.
 
 Early work in progress.
 
 Copyright (C) 2021 Simon Taylor
 
-Kanren.Data.Compiler is derived in part from the Melbourne Mercury Compiler.
+Casgliad.Data.Compiler is derived in part from the Melbourne Mercury Compiler.
 Copyright (C) 1993-2012 The University of Melbourne and
 Copyright (C) 2013-2021 The Mercury team.
 
-Kanren.Data is licensed under the terms of the MIT licence, see LICENSE.md.
-Kanren.Data.Compiler is licensed under the terms of the GNU General Public License, see LICENSE.GPL.md.
+Casgliad.Data is licensed under the terms of the MIT licence, see LICENSE.md.
+Casgliad.Data.Compiler is licensed under the terms of the GNU General Public License, see LICENSE.GPL.md.
 
 ---
 
@@ -19,14 +19,14 @@ Kanren.Data.Compiler is licensed under the terms of the GNU General Public Licen
 
 GitHub Actions |
 :---: |
-[![GitHub Actions](https://github.com/staylr/Kanren.Data/workflows/Build%20master/badge.svg)](https://github.com/staylr/Kanren.Data/actions?query=branch%3Amaster) |
-[![Build History](https://buildstats.info/github/chart/staylr/Kanren.Data)](https://github.com/staylr/Kanren.Data/actions?query=branch%3Amaster) |
+[![GitHub Actions](https://github.com/staylr/Casgliad.Data/workflows/Build%20master/badge.svg)](https://github.com/staylr/Casgliad.Data/actions?query=branch%3Amaster) |
+[![Build History](https://buildstats.info/github/chart/staylr/Casgliad.Data)](https://github.com/staylr/Casgliad.Data/actions?query=branch%3Amaster) |
 
 ## NuGet 
 
 Package | Stable | Prerelease
 --- | --- | ---
-Kanren.Data | [![NuGet Badge](https://buildstats.info/nuget/Kanren.Data)](https://www.nuget.org/packages/Kanren.Data/) | [![NuGet Badge](https://buildstats.info/nuget/Kanren.Data?includePreReleases=true)](https://www.nuget.org/packages/Kanren.Data/)
+Casgliad.Data | [![NuGet Badge](https://buildstats.info/nuget/Casgliad.Data)](https://www.nuget.org/packages/Casgliad.Data/) | [![NuGet Badge](https://buildstats.info/nuget/Casgliad.Data?includePreReleases=true)](https://www.nuget.org/packages/Casgliad.Data/)
 
 ---
 
