@@ -1,6 +1,6 @@
 # Casgliad.Data
 
-Casgliad-style strongly typed and strongly moded deductive database DSL for F#.
+A Datalog DSL for F# targeting SQL.
 
 Early work in progress.
 
@@ -13,7 +13,7 @@ Copyright (C) 2013-2021 The Mercury team.
 Casgliad.Data is licensed under the terms of the MIT licence, see LICENSE.md.
 Casgliad.Data.Compiler is licensed under the terms of the GNU General Public License, see LICENSE.GPL.md.
 
----
+--
 
 ## Builds
 
@@ -34,7 +34,7 @@ Casgliad.Data | [![NuGet Badge](https://buildstats.info/nuget/Casgliad.Data)](ht
 
 Make sure the following **requirements** are installed on your system:
 
-- [dotnet SDK](https://www.microsoft.com/net/download/core) 3.0 or higher
+- [dotnet SDK](https://www.microsoft.com/net/download/core) 6.0 or higher
 - [Mono](http://www.mono-project.com/) if you're on Linux or macOS.
 
 or
@@ -62,20 +62,6 @@ or
 ```sh
 > build.cmd <optional buildtarget> // on windows
 $ ./build.sh  <optional buildtarget>// on unix
-```
-
-The bin of your library should look similar to:
-
-```
-$ tree src/MyCoolNewLib/bin/
-src/MyCoolNewLib/bin/
-└── Debug
-    └── net50
-        ├── MyCoolNewLib.deps.json
-        ├── MyCoolNewLib.dll
-        ├── MyCoolNewLib.pdb
-        └── MyCoolNewLib.xml
-
 ```
 
 ---

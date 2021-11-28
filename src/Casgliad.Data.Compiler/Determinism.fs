@@ -127,6 +127,17 @@ module internal Determinism =
         let (maxSoln2, canFail2) = determinismComponents det2
         determinismFromComponents (detSwitchMaxSoln maxSoln1 maxSoln2) (detSwitchCanFail canFail1 canFail2)
 
+    let negationDeterminism det =
+        match det with
+        | Det -> Some Fail
+        | Semidet -> Some Semidet
+        | Multi -> None
+        | Nondet -> None
+        | CommittedChoiceMulti -> None
+        | CommittedChoiceNondet -> None
+        | Erroneous -> Some Erroneous
+        | Fail -> Some Det
+
     let negationDeterminism =
         function
         | Det -> Some Fail
