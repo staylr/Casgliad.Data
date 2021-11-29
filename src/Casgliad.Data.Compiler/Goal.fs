@@ -169,7 +169,7 @@ module internal Goal =
     type ScopeReason =
         // Require the wrapped sub-goal to have the specified determinism.
         // If it does not, report an error.
-        | RequireDeterminism of Determinism
+        //| RequireDeterminism of Determinism
 
         // This scope exists to delimit a piece of code
         // with at_most_many solutions but with no outputs,

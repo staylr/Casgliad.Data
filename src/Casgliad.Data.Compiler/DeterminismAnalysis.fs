@@ -163,6 +163,13 @@ and determinismInferGoalExpr
             rightFailingContexts
     | Not (negatedGoal) ->
         determinismInferNot detInfo negatedGoal goalInfo instMap0 solutionContext rightFailingContexts
+    | Scope (scopeReason, scopeGoal) ->
+        let (scopeGoal', scopeGoalDeterminism, scopeFailingContexts) =
+            determinismInferGoal detInfo scopeGoal instMap0 solutionContext rightFailingContexts
+
+        (Scope (scopeReason, scopeGoal'), scopeGoalDeterminism, scopeFailingContexts)
+    | Switch (_, _, _) ->
+        failwith "switch not supported"
 
 and determinismInferNot detInfo goal goalInfo instMap0 solutionContext rightFailingContexts =
     let (goal', goalDeterminism, _) =
