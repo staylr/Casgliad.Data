@@ -21,6 +21,11 @@ type InstMap =
             | _ -> InstE.Free
         | Unreachable -> InstE.Bound BoundInstE.NotReached
 
+    member this.mappings() =
+        match this with
+        | Reachable m -> m
+        | Unreachable -> Map.empty
+
     member this.setVarBound v inst =
         match this with
         | Reachable m -> m.Add (v, inst) |> Reachable
@@ -39,7 +44,6 @@ type InstMap =
         | Unreachable -> Unreachable
 
     member this.hasOutputVars (instTable: InstTable) (varSet: VarSet) (instMap0: InstMap) (nonLocals: SetOfVar) =
-
         match this with
         | Unreachable -> true
         | Reachable m ->

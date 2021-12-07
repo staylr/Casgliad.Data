@@ -77,6 +77,39 @@ module QuotationTests =
           StartCol = 0
           EndCol = 0 }
 
+    let internal testGoalInfo
+        (info: ParserInfo)
+        goalInfo
+        (nonLocalNames: string list)
+        (determinism: Determinism)
+        (instMapDelta: (string * BoundInstE) list)
+        =
+        let nonLocals =
+            nonLocalNames
+            |> List.map (fun v -> info.varset.findByName(v).Id)
+            |> TagSet.ofList
+
+        test <@ goalInfo.NonLocals = nonLocals @>
+
+        let mappings = goalInfo.InstMapDelta.mappings ()
+
+        instMapDelta
+        |> List.iter
+            (fun (varName, expectedInst) ->
+                let var = info.varset.findByName(varName).Id
+                let mappingInst = mappings.[var]
+                test <@ mappingInst = expectedInst @>)
+
+        mappings
+        |> Map.iter
+            (fun varId _ ->
+                let var = info.varset.[varId]
+
+                if (not (List.exists (fun (varName, _) -> varName = var.Name) instMapDelta)) then
+                    failwith $"unexpected mapping for {var.Name}")
+
+        test <@ goalInfo.Determinism = determinism @>
+
     let internal newParserInfo (expr: Expr) =
         let varset = QuotationParser.getVars VarSet.init expr
 
@@ -160,12 +193,39 @@ module QuotationTests =
                | _ -> false @>
 
         match goal.Goal with
-        | Conjunction ([ { Goal = Unify (var1, Constructor (Constant (IntValue (arg1), _), [], _, _, _), _, _) }
-                         { Goal = Unify (var2, Constructor (Constant (IntValue (arg2), _), [], _, _, _), _, _) } ]) ->
+        | Conjunction ([ { Goal = Unify (var1, Constructor (Constant (IntValue (arg1), _), [], Construct, _, _), _, _)
+                           Info = var1Info }
+                         { Goal = Unify (var2, Constructor (Constant (IntValue (arg2), _), [], Construct, _, _), _, _)
+                           Info = var2Info } ]) ->
             test <@ testVarName info var1 "x" @>
             test <@ testVarName info var2 "y" @>
             test <@ arg1 = 4L @>
             test <@ arg2 = 2L @>
+
+            testGoalInfo
+                info
+                var1Info
+                [ "x" ]
+                Det
+                [ "x",
+                  BoundCtor
+                      { BoundInsts =
+                            [ { Constructor = Constant (IntValue 4, typeof<int32>)
+                                ArgInsts = [] } ]
+                        TestResults = InstTestResults.noResults } ]
+
+            testGoalInfo
+                info
+                var2Info
+                [ "y" ]
+                Det
+                [ "y",
+                  BoundCtor
+                      { BoundInsts =
+                            [ { Constructor = Constant (IntValue 2, typeof<int32>)
+                                ArgInsts = [] } ]
+                        TestResults = InstTestResults.noResults } ]
+
         | _ -> raise (Exception ($"invalid goal {goal.Goal}"))
 
     [<Test>]

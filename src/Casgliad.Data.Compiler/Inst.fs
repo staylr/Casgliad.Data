@@ -500,7 +500,7 @@ module internal Inst =
                     match inst2 with
                     | NotReached -> Some (NotReached, Determinism.Det)
 
-                    /// Test unification of higher-order values not supported.
+                    // Test unification of higher-order values not supported.
                     | BoundCtor _
                     | Ground
                     | HigherOrder _
@@ -884,6 +884,9 @@ module internal Inst =
                 [ { Constructor = ctor
                     ArgInsts = argInsts } ]
             )
+
+        member this.makeBoundConstantInst(value: ConstantValue, constType: System.Type) =
+            this.makeBoundInst (Constant (value, constType), [])
 
     let rec ofInst instTable (inst: Inst) : InstE =
         match inst with

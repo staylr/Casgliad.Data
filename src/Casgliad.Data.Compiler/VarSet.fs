@@ -5,7 +5,6 @@ type internal varIdMeasure
 
 type internal VarId = int<varIdMeasure>
 
-
 type internal SetOfVar = TagSet<varIdMeasure>
 
 type internal ProgVar =
@@ -61,5 +60,7 @@ type internal VarSet =
         let name = "kdc__" + nextVar.ToString ()
         v.newNamedVar (name, varType)
 
-    member this.Item
-        with get (index: VarId) = this.Vars.[index]
+    member v.Item
+        with get (index: VarId) = v.Vars.[index]
+
+    member v.findByName(name) = v.VarNames.[name]

@@ -212,7 +212,7 @@ and determinismInferIfThenElse
         else
             AllSolutions
 
-    let (condGoal', condDeterminism, condFailingContexts) =
+    let (condGoal', condDeterminism, _) =
         determinismInferGoal
             detInfo
             condGoal
@@ -285,7 +285,6 @@ and determinismInferUnify detInfo lhs rhs mode context goalInfo instMap0 solutio
     match maybeFailingGoal with
     | Some (failingGoal) -> (goal, determinismFromComponents OneSolution CanFail, [ failingGoal ])
     | None -> (goal, Det, [])
-
 
 and determinismInferDisjunction
     detInfo
