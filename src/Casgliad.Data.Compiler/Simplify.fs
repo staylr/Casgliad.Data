@@ -91,3 +91,51 @@ module internal Simplify =
                                         CaseGoal = simplifyGoal case.CaseGoal })
                               cases
                       ) }
+
+    let excessAssignsInConj goals nonLocals (varSet: VarSet) =
+        let rec findRenamedVar (substitution: Map<VarId, VarId>) (var: VarId) =
+            match Map.tryFind var substitution with
+            | Some var' -> findRenamedVar substitution var'
+            | None -> var
+
+        let goalIsExcessAssign (remainingGoals: ResizeArray<Goal>) substitution goal =
+            let addSubstitution eliminateVar replacementVar =
+                Map.add eliminateVar replacementVar substitution
+
+            match goal.Goal with
+            | Unify (lhs0, Var (rhs0, VarVarUnifyType.Assign), _, _) ->
+                let lhs = findRenamedVar substitution lhs0
+                let rhs = findRenamedVar substitution rhs0
+                let canEliminateLeft = not (TagSet.contains lhs nonLocals)
+                let canEliminateRight = not (TagSet.contains rhs nonLocals)
+
+                match canEliminateLeft, canEliminateRight with
+                | true, true ->
+                    if (varSet.varIsNamed (lhs)) then
+                        addSubstitution lhs rhs
+                    else
+                        addSubstitution rhs lhs
+                | true, false -> addSubstitution lhs rhs
+                | false, true -> addSubstitution rhs lhs
+                | false, false ->
+                    remainingGoals.Add (goal)
+                    substitution
+            | _ ->
+                remainingGoals.Add (goal)
+                substitution
+
+        let goalArray = ResizeArray<Goal> ()
+
+        let substitution =
+            goals
+            |> List.fold (goalIsExcessAssign goalArray) Map.empty
+
+        if (Map.isEmpty substitution) then
+            goals
+        else
+            let substitution' =
+                Map.map (fun _ v -> findRenamedVar substitution v) substitution
+
+            goalArray
+            |> Seq.map (renameVars substitution' false)
+            |> List.ofSeq

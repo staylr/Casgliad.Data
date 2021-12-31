@@ -100,8 +100,8 @@ module internal Quantification =
             let! (goal', possibleNonLocals) = quantifyGoalExpr goal.Goal goal.Info
             let! nonLocals = nonLocals
 
-            let localVars =
-                TagSet.difference possibleNonLocals nonLocals
+            //let localVars =
+            //    TagSet.difference possibleNonLocals nonLocals
             // let renameVars = TagSet.intersect initialSeen localVars
 
             // Rename apart local variables that we have seen elsewhere, e.g. in other disjuncts.

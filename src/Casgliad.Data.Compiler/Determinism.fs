@@ -138,6 +138,11 @@ module internal Determinism =
         | Erroneous -> Some Erroneous
         | Fail -> Some Det
 
+    let negationDeterminismThrow det =
+        match negationDeterminism det with
+        | Some result -> result
+        | None -> invalidOp $"invalid negated determinism {det}"
+
     type SolutionContext =
         | FirstSolution
         | AllSolutions

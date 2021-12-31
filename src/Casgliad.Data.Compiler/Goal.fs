@@ -312,3 +312,101 @@ module internal Goal =
         | Lambda (nonLocals, args, _, _, goal) ->
             TagSet.union vars (TagSet.union (TagSet.ofList nonLocals) (TagSet.ofList args))
             |> goalVars goal
+
+    let renameVars (substitution: Map<VarId, VarId>) (mustRename: bool) (goal: Goal) =
+        let renameVar var =
+            if (mustRename) then
+                substitution.[var]
+            else
+                substitution.TryFind (var)
+                |> Option.defaultValue var
+
+        let renameGoalInfoVars goalInfo =
+            { goalInfo with
+                  NonLocals = TagSet.map renameVar goalInfo.NonLocals }
+
+        let rec renameGoalVars goal =
+            { Goal = renameGoalExprVars goal.Goal
+              Info = renameGoalInfoVars goal.Info }
+
+        and renameGoalExprVars goal =
+            match goal with
+            | Call (a, args) -> Call (a, List.map renameVar args)
+            | FSharpCall (a, retValue, args) -> FSharpCall (a, Option.map renameVar retValue, List.map renameVar args)
+            | Unify (lhs, rhs, m, c) -> Unify (renameVar lhs, renameUnifyRhs rhs, m, c)
+            | Not (negGoal) -> Not (renameGoalVars negGoal)
+            | IfThenElse (condGoal, thenGoal, elseGoal) ->
+                IfThenElse (renameGoalVars condGoal, renameGoalVars thenGoal, renameGoalVars elseGoal)
+            | Conjunction (conjGoals) -> Conjunction (List.map renameGoalVars conjGoals)
+            | Disjunction (disjGoals) -> Disjunction (List.map renameGoalVars disjGoals)
+            | Scope (r, scopeGoal) -> Scope (r, renameGoalVars scopeGoal)
+            | Switch (var, canFail, cases) ->
+                Switch (
+                    renameVar var,
+                    canFail,
+                    cases
+                    |> List.map
+                        (fun c ->
+                            { Constructor = c.Constructor
+                              OtherConstructors = c.OtherConstructors
+                              CaseGoal = renameGoalVars c.CaseGoal })
+                )
+
+        and renameUnifyRhs rhs =
+            match rhs with
+            | Var (v, t) -> Var (renameVar v, t)
+            | Constructor (ctor, args, t, m, c) -> Constructor (ctor, List.map renameVar args, t, m, c)
+            | Lambda (nonLocals, args, m, det, goal) ->
+                Lambda (List.map renameVar nonLocals, List.map renameVar args, m, det, renameGoalVars goal)
+
+        renameGoalVars goal
+
+    let inline goalIsAtomic goal =
+        match goal.Goal with
+        | Call _
+        | FSharpCall _
+        | Unify _ -> true
+        | _ -> false
+
+    let rec containsRelationCall goal =
+        match goal.Goal with
+        | Call _ -> true
+        | FSharpCall _ -> false
+        | Unify _ -> false
+        | Conjunction goals -> List.exists containsRelationCall goals
+        | Disjunction goals -> List.exists containsRelationCall goals
+        | IfThenElse (condGoal, thenGoal, elseGoal) ->
+            containsRelationCall condGoal
+            || containsRelationCall thenGoal
+            || containsRelationCall elseGoal
+        | Scope (_, scopeGoal) -> containsRelationCall scopeGoal
+        | Not (negGoal) -> containsRelationCall negGoal
+        | Switch (_, _, cases) ->
+            cases
+            |> List.exists (fun case -> containsRelationCall case.CaseGoal)
+
+    let conjoinGoals goals parentInfo =
+        let nonLocals =
+            goals
+            |> List.fold (fun allNonLocals goal -> TagSet.union allNonLocals goal.Info.NonLocals) TagSet.empty
+            |> TagSet.intersect parentInfo.NonLocals
+
+        let instMapDelta =
+            goals
+            |> List.fold
+                (fun (delta: InstMapDelta) goal -> delta.applyInstMapDelta goal.Info.InstMapDelta)
+                InstMap.initReachable
+            |> (fun delta -> delta.restrict parentInfo.NonLocals)
+
+        let determinism =
+            goals
+            |> List.fold (fun det goal -> conjunctionDeterminism det goal.Info.Determinism) Det
+
+        let info =
+            { GoalInfo.init parentInfo.SourceInfo with
+                  NonLocals = nonLocals
+                  InstMapDelta = instMapDelta
+                  Determinism = determinism }
+
+        { Goal = Conjunction goals
+          Info = info }

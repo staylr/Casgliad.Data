@@ -55,6 +55,8 @@ type internal VarSet =
                    QVars = v'.QVars.Add (quotationVar, var) },
              var)
 
+    static member private introducedNamePrefix = "cdc__"
+
     member v.newVar(varType) =
         let nextVar = v.NextVar
         let name = "kdc__" + nextVar.ToString ()
@@ -64,3 +66,9 @@ type internal VarSet =
         with get (index: VarId) = v.Vars.[index]
 
     member v.findByName(name) = v.VarNames.[name]
+
+    member v.varIsNamed var =
+        not (
+            v.Vars.[var]
+                .Name.StartsWith (VarSet.introducedNamePrefix)
+        )

@@ -42,7 +42,7 @@ module internal ModuleInfoModule =
         | Ok modes ->
             { ProcId = procId
               SourceInfo = sourceInfo
-              Modes = List.map (fun (i1, i2) -> (ofInst instTable i1, ofBoundInst instTable i2)) mode.Modes
+              Modes = List.map (fun (i1, i2) -> (ofInst instTable i1, ofBoundInst instTable i2)) modes.Modes
               Determinism = mode.Determinism
               Args = args
               ProcGoal = goal
@@ -65,11 +65,11 @@ module internal ModuleInfoModule =
         =
         let sourceInfo = relationSourceInfo relAttr
 
-        let procs =
+        let procList =
             List.mapi (fun i -> initProc instTable relAttr args goal varset (i * 1<procIdMeasure>)) relation.Modes
 
         let procMap =
-            List.fold (fun map (proc: ProcInfo) -> Map.add proc.ProcId proc map) Map.empty procs
+            List.fold (fun map (proc: ProcInfo) -> Map.add proc.ProcId proc map) Map.empty procList
 
         { Name =
               { ModuleName = moduleName
@@ -92,11 +92,8 @@ module internal ModuleInfoModule =
             let processRelation (m: ModuleInfo) (_, r) =
                 let r' = f r m
 
-                let m' =
-                    { m with
-                          Relations = Map.add r.Name r m.Relations }
-
-                m'
+                { m with
+                      Relations = Map.add r'.Name r' m.Relations }
 
             Map.toSeq x.Relations
             |> Seq.fold processRelation x
