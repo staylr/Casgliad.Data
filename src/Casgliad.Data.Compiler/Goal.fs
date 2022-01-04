@@ -187,7 +187,7 @@ module internal Goal =
         // The argument says whether other compiler passes are allowed
         // to delete the scope.
         //
-        // A non-removable explicit quantification may be introduced
+        // A non-removable barrier may be introduced
         // to keep related goals together where optimizations that
         // separate the goals can only result in worse behaviour.
         //

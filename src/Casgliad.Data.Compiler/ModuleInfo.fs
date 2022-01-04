@@ -1,5 +1,7 @@
 namespace Casgliad.Data.Compiler
 
+open System.Collections.Generic
+
 open Casgliad.Data
 
 [<AutoOpen>]
@@ -78,22 +80,19 @@ module internal ModuleInfoModule =
           Procedures = procMap }
 
     type ModuleInfo =
-        { Relations: Map<RelationId, RelationInfo>
+        { Relations: Dictionary<RelationId, RelationInfo>
           InstTable: InstTable }
         static member init =
-            { Relations = Map.empty
+            { Relations = Dictionary ()
               InstTable = InstTable () }
 
         member x.addRelation(relation) =
-            { x with
-                  Relations = Map.add relation.Name relation x.Relations }
+            x.Relations.[relation.Name] = relation |> ignore
 
-        member x.processRelations(f: (RelationInfo -> ModuleInfo -> RelationInfo)) =
-            let processRelation (m: ModuleInfo) (_, r) =
-                let r' = f r m
+        member x.processRelations(f: (RelationInfo -> ModuleInfo -> RelationInfo)) : unit =
+            let processRelation (m: ModuleInfo) (r: KeyValuePair<RelationId, RelationInfo>) =
+                let r' = f r.Value m
 
-                { m with
-                      Relations = Map.add r'.Name r' m.Relations }
+                m.Relations.[r.Key] = r' |> ignore
 
-            Map.toSeq x.Relations
-            |> Seq.fold processRelation x
+            x.Relations |> Seq.iter (processRelation x)

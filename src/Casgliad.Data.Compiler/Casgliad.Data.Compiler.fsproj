@@ -37,6 +37,7 @@
     <Compile Include="DeterminismErrors.fs" />
     <Compile Include="DeterminismAnalysis.fs" />
     <Compile Include="DisjunctiveNormalForm.fs" />
+    <Compile Include="Magic.fs" />
     <Compile Include="Compile.fs" />
     <Compile Include="AssemblyInfo.fs" />
   </ItemGroup>

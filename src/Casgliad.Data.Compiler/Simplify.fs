@@ -27,70 +27,6 @@ module internal Simplify =
         | [ singleGoal ] -> singleGoal.Goal
         | _ -> Disjunction (flattenedGoals)
 
-    let rec internal simplifyGoal (goal: Goal) =
-        match goal.Goal with
-        | Unify _
-        | Call _
-        | FSharpCall _ -> goal
-        | Conjunction goals ->
-            let flattenedGoal = flattenConjunction goals
-
-            match flattenedGoal with
-            | Conjunction (goals) ->
-                { goal with
-                      Goal = Conjunction (goals |> List.map simplifyGoal) }
-            | _ -> simplifyGoal { goal with Goal = flattenedGoal }
-        | Disjunction goals ->
-            let flattenedGoal = flattenDisjunction goals
-
-            match flattenedGoal with
-            | Disjunction (goals) ->
-                { goal with
-                      Goal = Disjunction (goals |> List.map simplifyGoal) }
-            | _ -> simplifyGoal { goal with Goal = flattenedGoal }
-        | Not negGoal ->
-            { goal with
-                  Goal = Not (simplifyGoal negGoal) }
-        | Scope (reason, scopeGoal) ->
-            { goal with
-                  Goal = Scope (reason, simplifyGoal scopeGoal) }
-        | IfThenElse (condGoal, thenGoal, elseGoal) ->
-            let condGoal' = simplifyGoal condGoal
-            let thenGoal' = simplifyGoal thenGoal
-            let elseGoal' = simplifyGoal elseGoal
-
-            match elseGoal'.Goal with
-            | Fail _ ->
-                // TODO - sequential conjunction.
-                { goal with
-                      Goal = Conjunction ([ condGoal'; thenGoal' ]) }
-            | _ ->
-                match condGoal'.Goal with
-                | Fail _ ->
-                    // TODO: fix determinism of Not goal.
-                    { goal with
-                          Goal =
-                              Conjunction (
-                                  [ { Goal = Not (condGoal')
-                                      Info = condGoal'.Info }
-                                    elseGoal' ]
-                              ) }
-                | _ ->
-                    { goal with
-                          Goal = IfThenElse (condGoal', thenGoal', elseGoal') }
-
-        | Switch (var, canFail, cases) ->
-            { goal with
-                  Goal =
-                      Switch (
-                          var,
-                          canFail,
-                          List.map
-                              (fun case ->
-                                  { case with
-                                        CaseGoal = simplifyGoal case.CaseGoal })
-                              cases
-                      ) }
 
     let excessAssignsInConj goals nonLocals (varSet: VarSet) =
         let rec findRenamedVar (substitution: Map<VarId, VarId>) (var: VarId) =
@@ -139,3 +75,74 @@ module internal Simplify =
             goalArray
             |> Seq.map (renameVars substitution' false)
             |> List.ofSeq
+
+    let rec internal simplifyGoal (varSet: VarSet) (goal: Goal) =
+        match goal.Goal with
+        | Unify _
+        | Call _
+        | FSharpCall _ -> goal
+        | Conjunction goals ->
+            let flattenedGoal = flattenConjunction goals
+
+            match flattenedGoal with
+            | Conjunction (goals) ->
+                let goals' =
+                    excessAssignsInConj goals (goal.Info.NonLocals) varSet
+
+                match goals' with
+                | [ singleGoal ] -> { goal with Goal = singleGoal.Goal }
+                | _ ->
+                    { goal with
+                          Goal = Conjunction (goals |> List.map (simplifyGoal varSet)) }
+            | _ -> simplifyGoal varSet { goal with Goal = flattenedGoal }
+        | Disjunction goals ->
+            let flattenedGoal = flattenDisjunction goals
+
+            match flattenedGoal with
+            | Disjunction (goals) ->
+                { goal with
+                      Goal = Disjunction (goals |> List.map (simplifyGoal varSet)) }
+            | _ -> simplifyGoal varSet { goal with Goal = flattenedGoal }
+        | Not negGoal ->
+            { goal with
+                  Goal = Not (simplifyGoal varSet negGoal) }
+        | Scope (reason, scopeGoal) ->
+            { goal with
+                  Goal = Scope (reason, simplifyGoal varSet scopeGoal) }
+        | IfThenElse (condGoal, thenGoal, elseGoal) ->
+            let condGoal' = simplifyGoal varSet condGoal
+            let thenGoal' = simplifyGoal varSet thenGoal
+            let elseGoal' = simplifyGoal varSet elseGoal
+
+            match elseGoal'.Goal with
+            | Fail _ ->
+                // TODO - sequential conjunction.
+                { goal with
+                      Goal = Conjunction ([ condGoal'; thenGoal' ]) }
+            | _ ->
+                match condGoal'.Goal with
+                | Fail _ ->
+                    // TODO: fix determinism of Not goal.
+                    { goal with
+                          Goal =
+                              Conjunction (
+                                  [ { Goal = Not (condGoal')
+                                      Info = condGoal'.Info }
+                                    elseGoal' ]
+                              ) }
+                | _ ->
+                    { goal with
+                          Goal = IfThenElse (condGoal', thenGoal', elseGoal') }
+
+        | Switch (var, canFail, cases) ->
+            { goal with
+                  Goal =
+                      Switch (
+                          var,
+                          canFail,
+                          List.map
+                              (fun case ->
+                                  { case with
+                                        CaseGoal = simplifyGoal varSet case.CaseGoal })
+                              cases
+                      ) }

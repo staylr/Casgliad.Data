@@ -29,10 +29,11 @@ module Compile =
         let ((args, goal: Goal), parserInfo'') =
             State.run (QuotationParser.translateExpr relation.Body) parserInfo
 
-        let goal' = Simplify.simplifyGoal goal
+        let goal' =
+            Simplify.simplifyGoal (parserInfo''.varset) goal
 
         if (Error.maxSeverityOfList parserInfo''.errors = ErrorSeverity.Error) then
-            (moduleInfo, parserInfo''.errors)
+            parserInfo''.errors
         else
             let sourceInfo = relationSourceInfo rel
 
@@ -51,10 +52,16 @@ module Compile =
                         goal'
                         parserInfo''.varset
 
-                (moduleInfo.addRelation (relation), parserInfo''.errors)
-            | Error modeErrors -> (moduleInfo, List.concat (parserInfo''.errors :: modeErrors))
+                moduleInfo.addRelation (relation)
+                parserInfo''.errors
+            | Error modeErrors -> List.concat (parserInfo''.errors :: modeErrors)
 
-    let internal compileRelationMethod (instance: casgliadModule) (moduleInfo, errors) (property: PropertyInfo) =
+    let internal compileRelationMethod
+        (moduleInfo: ModuleInfo)
+        (instance: casgliadModule)
+        errors
+        (property: PropertyInfo)
+        =
         let relationAttribute =
             property.GetCustomAttribute (typeof<RelationAttribute>) :?> RelationAttribute
 
@@ -63,10 +70,10 @@ module Compile =
 
         do System.Console.WriteLine ($"{relation.Body}")
 
-        let (moduleInfo', errors') =
+        let errors' =
             parseRelation instance relationAttribute relation moduleInfo
 
-        (moduleInfo', errors' :: errors)
+        errors' :: errors
 
     let internal compileCasgliadModule (moduleType: System.Type) =
         let moduleInfo = ModuleInfo.init
@@ -88,6 +95,6 @@ module Compile =
             |> List.filter (fun (p: PropertyInfo) -> notNull (p.GetCustomAttribute typeof<RelationAttribute>))
 
         let result =
-            List.fold (compileRelationMethod instance) (moduleInfo, []) relationProperties
+            List.fold (compileRelationMethod moduleInfo instance) [] relationProperties
 
         (result, moduleType)
