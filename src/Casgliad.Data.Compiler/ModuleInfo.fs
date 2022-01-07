@@ -3,6 +3,7 @@ namespace Casgliad.Data.Compiler
 open System.Collections.Generic
 
 open Casgliad.Data
+open Casgliad.Data.Compiler
 
 [<AutoOpen>]
 module internal ModuleInfoModule =
@@ -29,17 +30,15 @@ module internal ModuleInfoModule =
           StartCol = 0
           EndCol = 0 }
 
-    let initProc
+    let initProcFromSource
         (instTable: InstTable)
-        (relAttr: RelationAttribute)
+        (sourceInfo: SourceInfo)
         (args: VarId list)
         (goal: Goal)
         (varset: VarSet)
         (procId: ProcId)
         (mode: RelationMode)
         =
-        let sourceInfo = relationSourceInfo relAttr
-
         match (parseModes sourceInfo args mode) with
         | Ok modes ->
             { ProcId = procId
@@ -51,6 +50,22 @@ module internal ModuleInfoModule =
               VarSet = varset }
         | Error _ -> raise (System.Exception ("invalid modes"))
 
+    let initProc
+        (sourceInfo: SourceInfo)
+        (args: VarId list)
+        (goal: Goal)
+        (varset: VarSet)
+        (procId: ProcId)
+        (modes: RelationModeE)
+        =
+        { ProcId = procId
+          SourceInfo = sourceInfo
+          Modes = modes.Modes
+          Determinism = modes.Determinism
+          Args = args
+          ProcGoal = goal
+          VarSet = varset }
+
     type RelationInfo =
         { Name: RelationId
           SourceInfo: SourceInfo
@@ -59,16 +74,16 @@ module internal ModuleInfoModule =
     let initRelation
         (instTable: InstTable)
         (moduleName: string)
-        (relAttr: RelationAttribute)
+        (sourceInfo: SourceInfo)
         (relation: RelationBase)
         (args: VarId list)
         (goal: Goal)
         (varset: VarSet)
         =
-        let sourceInfo = relationSourceInfo relAttr
-
         let procList =
-            List.mapi (fun i -> initProc instTable relAttr args goal varset (i * 1<procIdMeasure>)) relation.Modes
+            List.mapi
+                (fun i -> initProcFromSource instTable sourceInfo args goal varset (i * 1<procIdMeasure>))
+                relation.Modes
 
         let procMap =
             List.fold (fun map (proc: ProcInfo) -> Map.add proc.ProcId proc map) Map.empty procList
@@ -78,6 +93,34 @@ module internal ModuleInfoModule =
                 RelationName = relation.Name }
           SourceInfo = sourceInfo
           Procedures = procMap }
+
+    let relationOfGoal (name: RelationId) (goal: Goal) (args: VarId list) (instMap0: InstMap) (varSet: VarSet) =
+        let instMap =
+            instMap0.applyInstMapDelta (goal.Info.InstMapDelta)
+
+        let getArgMode arg =
+            let inst0 = instMap0.lookupVar (arg)
+            let inst = instMap.lookupVar (arg)
+
+            match inst with
+            | Free -> invalidOp $"unexpected unbound argument {arg}"
+            | Bound boundInst -> (inst0, boundInst)
+
+        let modes = List.map getArgMode args
+
+        let proc =
+            initProc
+                goal.Info.SourceInfo
+                args
+                goal
+                varSet
+                0<procIdMeasure>
+                { Modes = modes
+                  Determinism = goal.Info.Determinism }
+
+        { Name = name
+          SourceInfo = goal.Info.SourceInfo
+          Procedures = seq { proc.ProcId, proc } |> Map.ofSeq }
 
     type ModuleInfo =
         { Relations: Dictionary<RelationId, RelationInfo>

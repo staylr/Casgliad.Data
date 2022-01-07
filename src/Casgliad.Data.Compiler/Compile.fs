@@ -5,12 +5,7 @@ open Casgliad.Data
 
 module Compile =
 
-    let internal parseRelation
-        (sourceModule: casgliadModule)
-        (rel: RelationAttribute)
-        (relation: RelationBase)
-        (moduleInfo: ModuleInfo)
-        =
+    let internal parseRelation (sourceModule: casgliadModule) (relation: RelationBase) (moduleInfo: ModuleInfo) =
         let varset = VarSet.init
 
         let varset' =
@@ -35,8 +30,6 @@ module Compile =
         if (Error.maxSeverityOfList parserInfo''.errors = ErrorSeverity.Error) then
             parserInfo''.errors
         else
-            let sourceInfo = relationSourceInfo rel
-
             let modeResult =
                 List.map (parseModes sourceInfo args) relation.Modes
 
@@ -46,7 +39,7 @@ module Compile =
                     initRelation
                         moduleInfo.InstTable
                         sourceModule.moduleName
-                        rel
+                        sourceInfo
                         relation
                         args
                         goal'
@@ -71,7 +64,7 @@ module Compile =
         do System.Console.WriteLine ($"{relation.Body}")
 
         let errors' =
-            parseRelation instance relationAttribute relation moduleInfo
+            parseRelation instance relation moduleInfo
 
         errors' :: errors
 
