@@ -108,19 +108,28 @@ module internal ModuleInfoModule =
 
         let modes = List.map getArgMode args
 
+        let procId = 0<procIdMeasure>
+
         let proc =
             initProc
                 goal.Info.SourceInfo
                 args
                 goal
                 varSet
-                0<procIdMeasure>
+                procId
                 { Modes = modes
                   Determinism = goal.Info.Determinism }
 
-        { Name = name
-          SourceInfo = goal.Info.SourceInfo
-          Procedures = seq { proc.ProcId, proc } |> Map.ofSeq }
+        let newRelation =
+            { Name = name
+              SourceInfo = goal.Info.SourceInfo
+              Procedures = seq { proc.ProcId, proc } |> Map.ofSeq }
+
+        let goal =
+            { Goal = Call ((newRelation.Name, procId), args)
+              Info = goal.Info }
+
+        (newRelation, goal)
 
     type ModuleInfo =
         { Relations: Dictionary<RelationId, RelationInfo>
