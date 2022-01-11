@@ -15,17 +15,17 @@ group Build
     storage: none
     source https://www.nuget.org/api/v2
     source https://api.nuget.org/v3/index.json
-    nuget Fake.IO.FileSystem 5.21.0-alpha003
-    nuget Fake.Core.Target 5.21.0-alpha003
-    nuget Fake.Core.ReleaseNotes 5.21.0-alpha003
-    nuget FAKE.Core.Environment 5.21.0-alpha003
-    nuget Fake.DotNet.Cli 5.21.0-alpha003
-    nuget FAKE.Core.Process 5.21.0-alpha003
-    nuget Fake.DotNet.AssemblyInfoFile 5.21.0-alpha003
-    nuget Fake.Tools.Git 5.21.0-alpha003
-    nuget Fake.DotNet.Paket 5.21.0-alpha003
-    nuget Fake.Api.GitHub 5.21.0-alpha003
-    nuget Fake.BuildServer.GitHubActions 5.21.0-alpha003
+    nuget Fake.IO.FileSystem 5.21.0-alpha004
+    nuget Fake.Core.Target 5.21.0-alpha004
+    nuget Fake.Core.ReleaseNotes 5.21.0-alpha004
+    nuget FAKE.Core.Environment 5.21.0-alpha004
+    nuget Fake.DotNet.Cli 5.21.0-alpha004
+    nuget FAKE.Core.Process 5.21.0-alpha004
+    nuget Fake.DotNet.AssemblyInfoFile 5.21.0-alpha004
+    nuget Fake.Tools.Git 5.21.0-alpha004
+    nuget Fake.DotNet.Paket 5.21.0-alpha004
+    nuget Fake.Api.GitHub 5.21.0-alpha004
+    nuget Fake.BuildServer.GitHubActions 5.21.0-alpha004
     nuget Fantomas
     nuget Fantomas.Extras
     nuget Argu
