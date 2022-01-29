@@ -4,6 +4,7 @@
 	<s:Boolean x:Key="/Default/CodeStyle/CodeFormatting/FSharpFormat/SpaceBeforeParameter/@EntryValue">True</s:Boolean>
 	<s:Boolean x:Key="/Default/CodeStyle/CodeFormatting/FSharpFormat/SpaceBeforeUppercaseInvocation/@EntryValue">True</s:Boolean>
 	<s:String x:Key="/Default/FSharp/FSharpOptions/FSharpScriptOptions/LanguageVersion/@EntryValue">FSharp50</s:String>
+	<s:Boolean x:Key="/Default/UserDictionary/Words/=callees/@EntryIndexedValue">True</s:Boolean>
 	<s:Boolean x:Key="/Default/UserDictionary/Words/=Casgliad/@EntryIndexedValue">True</s:Boolean>
 	<s:Boolean x:Key="/Default/UserDictionary/Words/=ctors/@EntryIndexedValue">True</s:Boolean>
 	<s:Boolean x:Key="/Default/UserDictionary/Words/=Defn/@EntryIndexedValue">True</s:Boolean>

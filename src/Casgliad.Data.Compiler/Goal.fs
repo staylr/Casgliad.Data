@@ -289,6 +289,23 @@ module internal Goal =
         { Goal.Goal = Conjunction ([])
           Info = GoalInfo.init SourceInfo.empty }
 
+    let rec goalFold (f: 'State -> Goal -> 'State) (state: 'State) (goal: Goal) : 'State =
+        let state' = f state goal
+
+        match goal.Goal with
+        | Unify _
+        | Call _
+        | FSharpCall _ -> state'
+        | Conjunction (goals)
+        | Disjunction (goals) -> List.fold (goalFold f) state' goals
+        | Switch (_, _, cases) -> List.fold (fun state'' case -> goalFold f state'' case.CaseGoal) state' cases
+        | IfThenElse (condGoal, thenGoal, elseGoal) ->
+            goalFold f state condGoal
+            |> fun state' -> goalFold f state' thenGoal
+            |> fun state'' -> goalFold f state'' elseGoal
+        | Not (negGoal) -> goalFold f state negGoal
+        | Scope (_, scopeGoal) -> goalFold f state scopeGoal
+
     let rec goalExprVars goal (vars: SetOfVar) =
         match goal with
         | Unify (lhs, rhs, _, _) -> unifyRhsVars rhs (TagSet.add lhs vars)
@@ -410,3 +427,11 @@ module internal Goal =
 
         { Goal = Conjunction goals
           Info = info }
+
+    let rec stripTopLevelScopes goal =
+        match goal.Goal with
+        | Scope (_, scopeGoal) -> stripTopLevelScopes scopeGoal
+        | Not (negGoal) ->
+            { Goal = Not (stripTopLevelScopes negGoal)
+              Info = goal.Info }
+        | _ -> goal

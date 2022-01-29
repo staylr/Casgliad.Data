@@ -8,13 +8,30 @@ type DnfInfo =
       RelationProcId: RelationProcId
       VarSet: VarSet }
 
-let goalIsAtomicOrNonRelational goal =
+let rec goalIsAtomicOrNonRelational goal =
     goalIsAtomic goal
     || not (containsRelationCall goal)
     || match goal.Goal with
-       | Not negGoal -> goalIsAtomic negGoal
+       | Not negGoal when goalIsAtomic negGoal -> true
+       | Not ({ Goal = Conjunction ({ Goal = Call _ } :: conjGoals) }) when
+           List.forall (fun g -> not (containsRelationCall g)) conjGoals
+           ->
+           true
        | Scope (_, scopeGoal) -> goalIsAtomic scopeGoal
        | _ -> false
+
+let createRelation (dnfInfo: DnfInfo) instMap goal =
+    let newRelationName =
+        { ModuleName = (fst dnfInfo.RelationProcId).ModuleName
+          RelationName = $"dnfInfo.RelationProcId.RelationMame__p{dnfInfo.RelationProcId |> snd}__dnf{dnfInfo.Counter}" }
+
+    do dnfInfo.Counter <- dnfInfo.Counter + 1
+
+    let (newRelation, goal') =
+        relationOfGoal newRelationName goal (TagSet.toList (goal.Info.NonLocals)) instMap (dnfInfo.VarSet)
+
+    dnfInfo.NewRelations.Add (newRelation)
+    goal'
 
 let rec dnfProcessGoal dnfInfo instMap goal =
     if (goalIsAtomicOrNonRelational goal) then
@@ -60,28 +77,20 @@ and dnfProcessConjunction (dnfInfo: DnfInfo) instMap conjuncts =
     conjuncts
     |> List.mapFold
         (fun (instMap': InstMap) goal ->
-            let goal' =
+            let goal' = stripTopLevelScopes goal
+
+            let finalGoal =
                 if (goalIsAtomicOrNonRelational goal) then
-                    goal
+                    goal'
                 else
-                    let newRelationName =
-                        { ModuleName = (fst dnfInfo.RelationProcId).ModuleName
-                          RelationName =
-                              $"dnfInfo.RelationProcId.RelationMame__p{dnfInfo.RelationProcId |> snd}__dnf{dnfInfo.Counter}" }
+                    let goal'' = dnfProcessGoal dnfInfo instMap' goal'
 
-                    do dnfInfo.Counter <- dnfInfo.Counter + 1
+                    match goal''.Goal with
+                    | Not negGoal ->
+                        { Goal = Not (createRelation dnfInfo instMap negGoal)
+                          Info = goal.Info }
+                    | _ -> createRelation dnfInfo instMap goal''
 
-                    let (newRelation, goal'') =
-                        relationOfGoal
-                            newRelationName
-                            goal
-                            (TagSet.toList (goal.Info.NonLocals))
-                            instMap
-                            (dnfInfo.VarSet)
-
-                    dnfInfo.NewRelations.Add (newRelation)
-                    goal''
-
-            (dnfProcessGoal dnfInfo instMap' goal, instMap'.applyInstMapDelta (goal.Info.InstMapDelta)))
+            (finalGoal, instMap'.applyInstMapDelta (goal.Info.InstMapDelta)))
         instMap
     |> fst

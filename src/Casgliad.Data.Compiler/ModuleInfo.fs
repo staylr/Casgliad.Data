@@ -2,6 +2,7 @@ namespace Casgliad.Data.Compiler
 
 open System.Collections.Generic
 
+
 open Casgliad.Data
 open Casgliad.Data.Compiler
 
@@ -148,3 +149,41 @@ module internal ModuleInfoModule =
                 m.Relations.[r.Key] = r' |> ignore
 
             x.Relations |> Seq.iter (processRelation x)
+
+        member x.StronglyConnectedComponents() =
+            let goalCallee (callees: Set<RelationProcId>) goal =
+                match goal.Goal with
+                | Call (callee, _) -> callees.Add callee
+                | _ -> callees
+
+            let graph =
+                QuikGraph.AdjacencyGraph<RelationProcId, QuikGraph.Edge<RelationProcId>> ()
+
+            x.Relations
+            |> Seq.iter
+                (fun r ->
+                    r.Value.Procedures
+                    |> Seq.iter (fun p -> graph.AddVertex (r.Key, p.Key) |> ignore))
+
+            x.Relations
+            |> Seq.iter
+                (fun r ->
+                    r.Value.Procedures
+                    |> Seq.iter
+                        (fun p ->
+                            p.Value.ProcGoal
+                            |> goalFold goalCallee Set.empty
+                            |> Set.iter
+                                (fun callee ->
+                                    graph.AddEdge (QuikGraph.Edge ((r.Key, p.Key), callee))
+                                    |> ignore)))
+
+
+            let components = Dictionary<RelationProcId, int> ()
+
+            QuikGraph.Algorithms.AlgorithmExtensions.StronglyConnectedComponents (graph, components)
+            |> ignore
+
+            components
+            |> Seq.groupBy (fun kv -> kv.Value)
+            |> Seq.map (fun (comp, vertices) -> comp, vertices |> Seq.map (fun kv -> kv.Key))
