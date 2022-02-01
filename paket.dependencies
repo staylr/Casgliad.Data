@@ -3,7 +3,7 @@ source https://api.nuget.org/v3/index.json
 storage: none
 nuget FSharp.Core
 nuget Microsoft.SourceLink.GitHub 1.1.1 copy_local: true
-nuget Microsoft.NET.Test.Sdk
+nuget Microsoft.NET.Test.Sdk Microsoft.NET.Test.Sdk 17.1.0-preview-20211109-03
 nuget altcover
 nuget NUnit
 nuget NUnit3TestAdapter
