@@ -23,7 +23,8 @@ let rec goalIsAtomicOrNonRelational goal =
 let createRelation (dnfInfo: DnfInfo) instMap goal =
     let newRelationName =
         { ModuleName = (fst dnfInfo.RelationProcId).ModuleName
-          RelationName = $"dnfInfo.RelationProcId.RelationMame__p{dnfInfo.RelationProcId |> snd}__dnf{dnfInfo.Counter}" }
+          RelationName =
+              $"{(fst dnfInfo.RelationProcId).RelationName}__p{dnfInfo.RelationProcId |> snd}__dnf{dnfInfo.Counter}" }
 
     do dnfInfo.Counter <- dnfInfo.Counter + 1
 

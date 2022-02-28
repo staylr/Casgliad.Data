@@ -132,6 +132,12 @@ module internal ModuleInfoModule =
 
         (newRelation, goal)
 
+
+    type StronglyConnectedComponent =
+        { Number: int
+          Members: RelationProcId list
+          EntryPoints: RelationProcId list }
+
     type ModuleInfo =
         { Relations: Dictionary<RelationId, RelationInfo>
           InstTable: InstTable }
@@ -157,7 +163,7 @@ module internal ModuleInfoModule =
                 | _ -> callees
 
             let graph =
-                QuikGraph.AdjacencyGraph<RelationProcId, QuikGraph.Edge<RelationProcId>> ()
+                QuikGraph.BidirectionalGraph<RelationProcId, QuikGraph.Edge<RelationProcId>> ()
 
             x.Relations
             |> Seq.iter
@@ -184,6 +190,18 @@ module internal ModuleInfoModule =
             QuikGraph.Algorithms.AlgorithmExtensions.StronglyConnectedComponents (graph, components)
             |> ignore
 
+            // Convert to lists of procedures.
             components
             |> Seq.groupBy (fun kv -> kv.Value)
             |> Seq.map (fun (comp, vertices) -> comp, vertices |> Seq.map (fun kv -> kv.Key))
+            |> Seq.map
+                (fun (comp, vertices) ->
+                    { Number = comp
+                      Members = List.ofSeq vertices
+                      EntryPoints =
+                          vertices
+                          |> Seq.filter
+                              (fun v ->
+                                  graph.InEdges (v)
+                                  |> Seq.exists (fun e -> not (Seq.contains e.Source vertices)))
+                          |> List.ofSeq })

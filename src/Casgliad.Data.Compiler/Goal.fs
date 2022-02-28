@@ -116,6 +116,7 @@ module internal Goal =
 
     type RelationProcId = RelationId * ProcId
 
+    // F# functions, e.g. +, can have multiple modes.
     type FSharpProcId = System.Reflection.MethodInfo * ProcId
 
     type GoalInfo =
@@ -305,6 +306,23 @@ module internal Goal =
             |> fun state'' -> goalFold f state'' elseGoal
         | Not (negGoal) -> goalFold f state negGoal
         | Scope (_, scopeGoal) -> goalFold f state scopeGoal
+
+
+    // Find all relations called by the given goal.
+    let goalCallees goal =
+        let processGoal (callees: Set<RelationProcId>) goal =
+            match goal.Goal with
+            | Call (callee, _) -> callees.Add callee
+            | _ -> callees
+
+        goalFold processGoal Set.empty goal
+
+    // Succeeds if the goal calls any of the listed goals.
+    let goalIsRecursive (stronglyConnectedComponent: List<RelationProcId>) goal =
+        let callees = goalCallees goal
+
+        stronglyConnectedComponent
+        |> List.exists (fun c -> Set.contains c callees)
 
     let rec goalExprVars goal (vars: SetOfVar) =
         match goal with

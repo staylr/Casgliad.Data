@@ -20,16 +20,37 @@ type Atom =
         IsRecursive *
         IsNegated *
         input: RelationProcId *
-        VarId list *
-        selectProjectCondition: Goal
+        args: VarId list *
+        selectProjectCondition: Goal *
+        selectProjectOutputs: VarId list
 // | Aggregate
 
-type RuleDefinition =
-    { PreCondition: Goal list
-      Atoms: Atom list }
+type RuleDefinition = Atom list
 
-type Rule =
-    | ExitRule of RuleDefinition
-    | RecursiveRule of IsLinear * RuleDefinition
+type RelationInRuleForm =
+    { RelationId: RelationId
+      OriginalRelationProcId: RelationProcId Option
+      Args: VarId list
+      ExitRules: RuleDefinition list
+      RecursiveRules: RuleDefinition list }
 
-let magicTransformGoal goal = goal
+type TransformMethod =
+    | Magic
+    | Context
+
+let magicTransformRule scc conjuncts = []
+
+
+let magicTransformRules scc disjuncts =
+    let (recursiveRules, exitRules) =
+        List.partition (goalIsRecursive scc) disjuncts
+
+
+
+    []
+
+
+let magicTransformGoal scc goal =
+    match goal.Goal with
+    | Disjunction (disjuncts) -> magicTransformRules scc disjuncts
+    | _ -> magicTransformRules scc [ goal ]
