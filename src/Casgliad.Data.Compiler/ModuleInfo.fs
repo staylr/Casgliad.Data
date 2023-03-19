@@ -91,7 +91,7 @@ module internal ModuleInfoModule =
 
         { Name =
               { ModuleName = moduleName
-                RelationName = relation.Name }
+                RelationName = UserRelation relation.Name }
           SourceInfo = sourceInfo
           Procedures = procMap }
 

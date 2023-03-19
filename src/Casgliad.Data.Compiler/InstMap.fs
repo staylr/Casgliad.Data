@@ -1,4 +1,4 @@
-﻿[<AutoOpen>]
+[<AutoOpen>]
 module internal Casgliad.Data.Compiler.InstMap
 
 open Casgliad.Data.Compiler.InstMatch
@@ -52,7 +52,7 @@ type InstMap =
 
                 match m.TryFind var with
                 | Some newInst ->
-                    let progVar = varSet.Vars.[var]
+                    let progVar = varSet.[var]
 
                     instMatchesBinding instTable (Bound newInst) oldInst (Some progVar.VarType) AnyMatchesAny
                     || instTable.instContainsAny (oldInst)

@@ -1,9 +1,50 @@
-﻿module internal Casgliad.Data.Compiler.DisjunctiveNormalForm
+module internal Casgliad.Data.Compiler.DisjunctiveNormalForm
+
+type IsLinear =
+    | NonLinear
+    | LeftLinear
+    | RightLinear
+    | MultiLinear
+
+type IsRecursive =
+    | Recursive
+    | NotRecursive
+
+type IsNegated =
+    | Negated
+    | Positive
+
+type AtomCallee =
+    | Relation of RelationProcId * IsRecursive * IsNegated * input: RelationProcId option
+    | Input
+
+type AtomExpr =
+    | True
+    | RelationCall of
+        callee: AtomCallee *
+        args: VarId list *
+        selectProjectCondition: Goal *
+        selectProjectOutputs: VarId list
+// | Aggregate
+
+type Atom = { Atom: AtomExpr; Info: GoalInfo }
+
+type RuleDefinition = Atom list
+
+type RulesRelation =
+    { RelationId: RelationProcId
+      OriginalRelationProcId: RelationProcId Option
+      SourceInfo: SourceInfo
+      Args: VarId list
+      Modes: (InstE * BoundInstE) list
+      Determinism: Casgliad.Data.Determinism
+      ExitRules: RuleDefinition list
+      RecursiveRules: RuleDefinition list }
 
 let replaceGoal goal goal' = { goal with Goal = goal' }
 
 type DnfInfo =
-    { NewRelations: ResizeArray<RelationInfo>
+    { NewRelations: ResizeArray<RulesRelation>
       mutable Counter: int
       RelationProcId: RelationProcId
       VarSet: VarSet }
@@ -20,16 +61,44 @@ let rec goalIsAtomicOrNonRelational goal =
        | Scope (_, scopeGoal) -> goalIsAtomic scopeGoal
        | _ -> false
 
+let rulesRelationOfGoal (origName: RelationProcId) (name: RelationId) (goal: Goal) (args: VarId list) (instMap0: InstMap) (varSet: VarSet) : (RulesRelation * Atom) =
+    let instMap =
+        instMap0.applyInstMapDelta (goal.Info.InstMapDelta)
+
+    let getArgMode arg =
+        let inst0 = instMap0.lookupVar (arg)
+        let inst = instMap.lookupVar (arg)
+
+        match inst with
+        | Free -> invalidOp $"unexpected unbound argument {arg}"
+        | Bound boundInst -> (inst0, boundInst)
+
+    let modes = List.map getArgMode args
+
+    let relationProcId = (name, invalidProcId)
+    let newRelation =
+        { RulesRelation.RelationId = relationProcId; OriginalRelationProcId = Some origName; Args = args; Modes = modes; Determinism = goal.Info.Determinism; SourceInfo = goal.Info.SourceInfo;
+            ExitRules = []; RecursiveRules = [] } 
+
+    let callee = Relation (relationProcId, IsRecursive.NotRecursive, IsNegated.Positive, None)
+    let selectProjectCondition = succeedGoal
+    let selectProjectOutputs = []
+    let goal =
+        { Atom = RelationCall (callee, args, selectProjectCondition, selectProjectOutputs);
+            Info = goal.Info }
+
+    (newRelation, goal)
+
 let createRelation (dnfInfo: DnfInfo) instMap goal =
     let newRelationName =
         { ModuleName = (fst dnfInfo.RelationProcId).ModuleName
-          RelationName =
-              $"{(fst dnfInfo.RelationProcId).RelationName}__p{dnfInfo.RelationProcId |> snd}__dnf{dnfInfo.Counter}" }
+          RelationName = TransformedRelation(dnfInfo.RelationProcId, DisjunctiveNormalFormSubgoal dnfInfo.Counter)
+          }
 
     do dnfInfo.Counter <- dnfInfo.Counter + 1
 
     let (newRelation, goal') =
-        relationOfGoal newRelationName goal (TagSet.toList (goal.Info.NonLocals)) instMap (dnfInfo.VarSet)
+        rulesRelationOfGoal dnfInfo.RelationProcId newRelationName goal (TagSet.toList (goal.Info.NonLocals)) instMap (dnfInfo.VarSet)
 
     dnfInfo.NewRelations.Add (newRelation)
     goal'
@@ -41,7 +110,7 @@ let rec dnfProcessGoal dnfInfo instMap goal =
         match goal.Goal with
         | Conjunction conjuncts ->
             dnfProcessConjunction dnfInfo instMap conjuncts
-            |> Disjunction
+            |> Conjunction
             |> replaceGoal goal
         | Disjunction disjuncts ->
             disjuncts
@@ -76,22 +145,23 @@ let rec dnfProcessGoal dnfInfo instMap goal =
 
 and dnfProcessConjunction (dnfInfo: DnfInfo) instMap conjuncts =
     conjuncts
-    |> List.mapFold
-        (fun (instMap': InstMap) goal ->
-            let goal' = stripTopLevelScopes goal
+    //|> List.mapFold
+    //    (fun (instMap': InstMap) goal ->
+    //        let goal' = stripTopLevelScopes goal
 
-            let finalGoal =
-                if (goalIsAtomicOrNonRelational goal) then
-                    goal'
-                else
-                    let goal'' = dnfProcessGoal dnfInfo instMap' goal'
+    //        let finalGoal =
+    //            if (goalIsAtomicOrNonRelational goal) then
+    //                goal'
+    //            else
+    //                let goal'' = dnfProcessGoal dnfInfo instMap' goal'
 
-                    match goal''.Goal with
-                    | Not negGoal ->
-                        { Goal = Not (createRelation dnfInfo instMap negGoal)
-                          Info = goal.Info }
-                    | _ -> createRelation dnfInfo instMap goal''
+    //                match goal''.Goal with
+    //                | Not negGoal ->
+    //                    { Goal = Not (createRelation dnfInfo instMap negGoal)
+    //                      Info = goal.Info }
+    //                | _ -> createRelation dnfInfo instMap goal''
 
-            (finalGoal, instMap'.applyInstMapDelta (goal.Info.InstMapDelta)))
-        instMap
-    |> fst
+    //        (finalGoal, instMap'.applyInstMapDelta (goal.Info.InstMapDelta)))
+    //    instMap
+    //|> fst
+

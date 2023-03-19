@@ -270,7 +270,7 @@ module internal QuotationParser =
 
                     let calledRelationId =
                         { ModuleName = calledModule.moduleName
-                          RelationName = calledRelation.Name }
+                          RelationName = UserRelation calledRelation.Name }
 
                     let! (argVars, extraGoals) =
                         translateCallArgs

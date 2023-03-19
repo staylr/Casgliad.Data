@@ -100,24 +100,33 @@ module internal Goal =
 
     let emptySetOfVar = TagSet.empty<varIdMeasure>
 
-    type RelationId =
+    type TransformedRelationName =
+        | DisjunctiveNormalForm
+        | DisjunctiveNormalFormSubgoal of int
+        | Magic of int
+
+    type RelationName =
+        | UserRelation of string
+        | TransformedRelation of wourceRelation: RelationProcId * transformation: TransformedRelationName
+
+    and RelationId =
         { ModuleName: string
-          RelationName: string }
+          RelationName: RelationName }
         override this.ToString() =
             $"{this.ModuleName}.{this.RelationName}"
 
-    [<Measure>]
-    type procIdMeasure
+    and [<Measure>]
+    procIdMeasure
 
     // The ID of a specific mode for a relation.
-    type ProcId = int<procIdMeasure>
+    and ProcId = int<procIdMeasure>
 
-    let invalidProcId = -1<procIdMeasure>
-
-    type RelationProcId = RelationId * ProcId
+    and RelationProcId = RelationId * ProcId
 
     // F# functions, e.g. +, can have multiple modes.
     type FSharpProcId = System.Reflection.MethodInfo * ProcId
+
+    let invalidProcId = -1<procIdMeasure>
 
     type GoalInfo =
         { NonLocals: SetOfVar

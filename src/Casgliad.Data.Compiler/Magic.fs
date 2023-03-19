@@ -1,38 +1,5 @@
 ﻿module internal Casgliad.Data.Compiler.Magic
 
-type IsRecursive =
-    | Recursive
-    | NotRecursive
-
-type IsNegated =
-    | Negated
-    | Positive
-
-type IsLinear =
-    | NonLinear
-    | LeftLinear
-    | RightLinear
-    | MultiLinear
-
-type Atom =
-    | Call of
-        callee: RelationProcId *
-        IsRecursive *
-        IsNegated *
-        input: RelationProcId *
-        args: VarId list *
-        selectProjectCondition: Goal *
-        selectProjectOutputs: VarId list
-// | Aggregate
-
-type RuleDefinition = Atom list
-
-type RelationInRuleForm =
-    { RelationId: RelationId
-      OriginalRelationProcId: RelationProcId Option
-      Args: VarId list
-      ExitRules: RuleDefinition list
-      RecursiveRules: RuleDefinition list }
 
 type TransformMethod =
     | Magic

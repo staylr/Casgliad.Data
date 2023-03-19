@@ -125,7 +125,7 @@ module QuotationTests =
 
     let internal lookupRelationModes (relationId: RelationId) : (ModeInfo.RelationModeInfo list) =
         match relationId.RelationName with
-        | "rel2" ->
+        | UserRelation "rel2" ->
             [ { Modes =
                     { Modes = [ (Free, Ground); (Free, Ground) ]
                       Determinism = Nondet }
@@ -150,7 +150,7 @@ module QuotationTests =
 
         let relationProcId =
             ({ RelationId.ModuleName = "mod"
-               RelationId.RelationName = "pred" },
+               RelationId.RelationName = UserRelation "pred" },
              0<procIdMeasure>)
 
         let (goal'', errors, _, _, varset') =
