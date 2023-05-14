@@ -32,15 +32,15 @@ module internal GoalWriter =
             fun (b: GoalToStringInfo) ->
                 match vs with
                 | v :: vs' ->
-                    b |> __.Yield ("(")
-                    b |> __.Yield (v)
+                    b |> __.Yield("(")
+                    b |> __.Yield(v)
 
                     for v' in vs' do
-                        b |> __.Yield (", ")
-                        b |> __.Yield (v')
+                        b |> __.Yield(", ")
+                        b |> __.Yield(v')
 
-                    b |> __.Yield (')')
-                | _ -> b |> __.Yield (')')
+                    b |> __.Yield(')')
+                | _ -> b |> __.Yield(')')
 
         member inline __.Yield(strings: #seq<string>) =
             fun (b: GoalToStringInfo) ->
@@ -59,9 +59,9 @@ module internal GoalWriter =
 
         member __.For(xs: 'a seq, f: 'a -> GoalToStringFunc) =
             fun (b: GoalToStringInfo) ->
-                let e = xs.GetEnumerator ()
+                let e = xs.GetEnumerator()
 
-                while e.MoveNext () do
+                while e.MoveNext() do
                     (f e.Current) b
 
         member __.While(p: unit -> bool, f: GoalToStringFunc) =
@@ -71,14 +71,14 @@ module internal GoalWriter =
 
         member __.Run(f: GoalToStringFunc) = f
 
-    let gts = new GoalToStringBuilder ()
+    let gts = new GoalToStringBuilder()
 
     let indent (f: GoalToStringFunc) (info: GoalToStringInfo) =
         do info.Writer.Indent <- info.Writer.Indent + 4
-        do info.Writer.WriteLine ()
+        do info.Writer.WriteLine()
         do f info
         do info.Writer.Indent <- info.Writer.Indent - 4
-        do info.Writer.WriteLine ()
+        do info.Writer.WriteLine()
         ()
 
     let rec listToString l f (sep: string) =
@@ -112,11 +112,11 @@ module internal Goal =
     and RelationId =
         { ModuleName: string
           RelationName: RelationName }
+
         override this.ToString() =
             $"{this.ModuleName}.{this.RelationName}"
 
-    and [<Measure>]
-    procIdMeasure
+    and [<Measure>] procIdMeasure
 
     // The ID of a specific mode for a relation.
     and ProcId = int<procIdMeasure>
@@ -132,12 +132,15 @@ module internal Goal =
         { NonLocals: SetOfVar
           InstMapDelta: InstMapDelta
           Determinism: Determinism
-          SourceInfo: SourceInfo }
+          SourceInfo: SourceInfo
+          ContainsRelationCall: bool Option }
+
         static member init sourceInfo =
             { NonLocals = TagSet.empty<varIdMeasure>
               InstMapDelta = InstMap.initUnreachable
               Determinism = Determinism.Det
-              SourceInfo = sourceInfo }
+              SourceInfo = sourceInfo
+              ContainsRelationCall = None }
 
     type VarVarUnifyType =
         | Assign
@@ -225,30 +228,31 @@ module internal Goal =
         | IfThenElse of condGoal: Goal * thenGoal: Goal * elseGoal: Goal
         | Not of Goal
         | Scope of ScopeReason * Goal
+
         member x.Dump() : GoalToStringFunc =
             gts {
                 match x with
-                | Unify (lhs, rhs, _, _) ->
+                | Unify(lhs, rhs, _, _) ->
                     yield lhs
                     yield " = "
-                    yield! rhs.Dump ()
-                | Call (callee, args) ->
-                    yield callee.ToString ()
+                    yield! rhs.Dump()
+                | Call(callee, args) ->
+                    yield callee.ToString()
                     yield args
-                | FSharpCall (method, returnValue, args) ->
-                    yield returnValue.ToString ()
+                | FSharpCall(method, returnValue, args) ->
+                    yield returnValue.ToString()
                     yield " = F#"
                     yield (fst method).Name
                     yield args
-                | Conjunction (goals) -> yield! indent (listToString goals (fun goal -> goal.Dump ()) ",\n")
-                | Disjunction (goals) ->
+                | Conjunction(goals) -> yield! indent (listToString goals (fun goal -> goal.Dump()) ",\n")
+                | Disjunction(goals) ->
                     yield "("
-                    yield! indent (listToString goals (fun goal -> goal.Dump ()) ";\n")
-                | Switch (var, canFail, cases) -> yield ""
-                | IfThenElse (condGoal, thenGoal, elseGoal) -> yield ""
-                | Not (negGoal) ->
+                    yield! indent (listToString goals (fun goal -> goal.Dump()) ";\n")
+                | Switch(var, canFail, cases) -> yield ""
+                | IfThenElse(condGoal, thenGoal, elseGoal) -> yield ""
+                | Not(negGoal) ->
                     yield " not ("
-                    yield! indent (negGoal.Dump ())
+                    yield! indent (negGoal.Dump())
                     yield ")"
                 | Scope _ -> yield ""
             }
@@ -256,7 +260,8 @@ module internal Goal =
     and Goal =
         { Goal: GoalExpr
           Info: GoalInfo }
-        member x.Dump() = gts { yield! x.Goal.Dump () }
+
+        member x.Dump() = gts { yield! x.Goal.Dump() }
 
     and Case =
         { Constructor: Constructor
@@ -272,31 +277,32 @@ module internal Goal =
             ArgModes: ModeE list *
             CanFail: CanFail
         | Lambda of NonLocals: VarId list * Args: VarId list * Modes: Mode list * Detism: Determinism * Goal: Goal
+
         member x.Dump() : GoalToStringFunc =
             gts {
                 match x with
-                | Var (v, _) -> yield v
-                | Constructor (ctor, args, _, _, _) ->
-                    yield ctor.ToString ()
+                | Var(v, _) -> yield v
+                | Constructor(ctor, args, _, _, _) ->
+                    yield ctor.ToString()
 
                     match args with
                     | _ :: _ -> yield args
                     | [] -> yield ""
-                | Lambda (_, _, _, _, _) -> yield ("lambda")
+                | Lambda(_, _, _, _, _) -> yield ("lambda")
             }
 
     let (|Fail|_|) goalExpr =
         match goalExpr with
-        | Disjunction ([]) -> Some ()
+        | Disjunction([]) -> Some()
         | _ -> None
 
     let (|Succeed|_|) goalExpr =
         match goalExpr with
-        | Conjunction ([]) -> Some ()
+        | Conjunction([]) -> Some()
         | _ -> None
 
     let succeedGoal =
-        { Goal.Goal = Conjunction ([])
+        { Goal.Goal = Conjunction([])
           Info = GoalInfo.init SourceInfo.empty }
 
     let rec goalFold (f: 'State -> Goal -> 'State) (state: 'State) (goal: Goal) : 'State =
@@ -306,22 +312,22 @@ module internal Goal =
         | Unify _
         | Call _
         | FSharpCall _ -> state'
-        | Conjunction (goals)
-        | Disjunction (goals) -> List.fold (goalFold f) state' goals
-        | Switch (_, _, cases) -> List.fold (fun state'' case -> goalFold f state'' case.CaseGoal) state' cases
-        | IfThenElse (condGoal, thenGoal, elseGoal) ->
+        | Conjunction(goals)
+        | Disjunction(goals) -> List.fold (goalFold f) state' goals
+        | Switch(_, _, cases) -> List.fold (fun state'' case -> goalFold f state'' case.CaseGoal) state' cases
+        | IfThenElse(condGoal, thenGoal, elseGoal) ->
             goalFold f state condGoal
             |> fun state' -> goalFold f state' thenGoal
             |> fun state'' -> goalFold f state'' elseGoal
-        | Not (negGoal) -> goalFold f state negGoal
-        | Scope (_, scopeGoal) -> goalFold f state scopeGoal
+        | Not(negGoal) -> goalFold f state negGoal
+        | Scope(_, scopeGoal) -> goalFold f state scopeGoal
 
 
     // Find all relations called by the given goal.
     let goalCallees goal =
         let processGoal (callees: Set<RelationProcId>) goal =
             match goal.Goal with
-            | Call (callee, _) -> callees.Add callee
+            | Call(callee, _) -> callees.Add callee
             | _ -> callees
 
         goalFold processGoal Set.empty goal
@@ -330,30 +336,29 @@ module internal Goal =
     let goalIsRecursive (stronglyConnectedComponent: List<RelationProcId>) goal =
         let callees = goalCallees goal
 
-        stronglyConnectedComponent
-        |> List.exists (fun c -> Set.contains c callees)
+        stronglyConnectedComponent |> List.exists (fun c -> Set.contains c callees)
 
     let rec goalExprVars goal (vars: SetOfVar) =
         match goal with
-        | Unify (lhs, rhs, _, _) -> unifyRhsVars rhs (TagSet.add lhs vars)
-        | Call (_, args) -> List.fold (flip TagSet.add) vars args
-        | FSharpCall (_, ret, args) -> List.fold (flip TagSet.add) vars (consOption ret args)
-        | Conjunction (goals)
-        | Disjunction (goals) -> List.fold (flip goalVars) vars goals
-        | Switch (var, _, cases) ->
+        | Unify(lhs, rhs, _, _) -> unifyRhsVars rhs (TagSet.add lhs vars)
+        | Call(_, args) -> List.fold (flip TagSet.add) vars args
+        | FSharpCall(_, ret, args) -> List.fold (flip TagSet.add) vars (consOption ret args)
+        | Conjunction(goals)
+        | Disjunction(goals) -> List.fold (flip goalVars) vars goals
+        | Switch(var, _, cases) ->
             let vars' = TagSet.add var vars
             List.fold (fun vars'' case -> goalVars case.CaseGoal vars'') vars' cases
-        | IfThenElse (condGoal, thenGoal, elseGoal) -> List.fold (flip goalVars) vars [ condGoal; thenGoal; elseGoal ]
-        | Not (negGoal) -> goalVars negGoal vars
-        | Scope (_, subGoal) -> goalVars subGoal vars
+        | IfThenElse(condGoal, thenGoal, elseGoal) -> List.fold (flip goalVars) vars [ condGoal; thenGoal; elseGoal ]
+        | Not(negGoal) -> goalVars negGoal vars
+        | Scope(_, subGoal) -> goalVars subGoal vars
 
     and goalVars (goal: Goal) vars = goalExprVars goal.Goal vars
 
     and unifyRhsVars rhs (vars: SetOfVar) =
         match rhs with
-        | Var (var, _) -> TagSet.add var vars
-        | Constructor (_, args, _, _, _) -> List.fold (flip TagSet.add) vars args
-        | Lambda (nonLocals, args, _, _, goal) ->
+        | Var(var, _) -> TagSet.add var vars
+        | Constructor(_, args, _, _, _) -> List.fold (flip TagSet.add) vars args
+        | Lambda(nonLocals, args, _, _, goal) ->
             TagSet.union vars (TagSet.union (TagSet.ofList nonLocals) (TagSet.ofList args))
             |> goalVars goal
 
@@ -362,12 +367,11 @@ module internal Goal =
             if (mustRename) then
                 substitution.[var]
             else
-                substitution.TryFind (var)
-                |> Option.defaultValue var
+                substitution.TryFind(var) |> Option.defaultValue var
 
         let renameGoalInfoVars goalInfo =
             { goalInfo with
-                  NonLocals = TagSet.map renameVar goalInfo.NonLocals }
+                NonLocals = TagSet.map renameVar goalInfo.NonLocals }
 
         let rec renameGoalVars goal =
             { Goal = renameGoalExprVars goal.Goal
@@ -375,33 +379,32 @@ module internal Goal =
 
         and renameGoalExprVars goal =
             match goal with
-            | Call (a, args) -> Call (a, List.map renameVar args)
-            | FSharpCall (a, retValue, args) -> FSharpCall (a, Option.map renameVar retValue, List.map renameVar args)
-            | Unify (lhs, rhs, m, c) -> Unify (renameVar lhs, renameUnifyRhs rhs, m, c)
-            | Not (negGoal) -> Not (renameGoalVars negGoal)
-            | IfThenElse (condGoal, thenGoal, elseGoal) ->
-                IfThenElse (renameGoalVars condGoal, renameGoalVars thenGoal, renameGoalVars elseGoal)
-            | Conjunction (conjGoals) -> Conjunction (List.map renameGoalVars conjGoals)
-            | Disjunction (disjGoals) -> Disjunction (List.map renameGoalVars disjGoals)
-            | Scope (r, scopeGoal) -> Scope (r, renameGoalVars scopeGoal)
-            | Switch (var, canFail, cases) ->
-                Switch (
+            | Call(a, args) -> Call(a, List.map renameVar args)
+            | FSharpCall(a, retValue, args) -> FSharpCall(a, Option.map renameVar retValue, List.map renameVar args)
+            | Unify(lhs, rhs, m, c) -> Unify(renameVar lhs, renameUnifyRhs rhs, m, c)
+            | Not(negGoal) -> Not(renameGoalVars negGoal)
+            | IfThenElse(condGoal, thenGoal, elseGoal) ->
+                IfThenElse(renameGoalVars condGoal, renameGoalVars thenGoal, renameGoalVars elseGoal)
+            | Conjunction(conjGoals) -> Conjunction(List.map renameGoalVars conjGoals)
+            | Disjunction(disjGoals) -> Disjunction(List.map renameGoalVars disjGoals)
+            | Scope(r, scopeGoal) -> Scope(r, renameGoalVars scopeGoal)
+            | Switch(var, canFail, cases) ->
+                Switch(
                     renameVar var,
                     canFail,
                     cases
-                    |> List.map
-                        (fun c ->
-                            { Constructor = c.Constructor
-                              OtherConstructors = c.OtherConstructors
-                              CaseGoal = renameGoalVars c.CaseGoal })
+                    |> List.map (fun c ->
+                        { Constructor = c.Constructor
+                          OtherConstructors = c.OtherConstructors
+                          CaseGoal = renameGoalVars c.CaseGoal })
                 )
 
         and renameUnifyRhs rhs =
             match rhs with
-            | Var (v, t) -> Var (renameVar v, t)
-            | Constructor (ctor, args, t, m, c) -> Constructor (ctor, List.map renameVar args, t, m, c)
-            | Lambda (nonLocals, args, m, det, goal) ->
-                Lambda (List.map renameVar nonLocals, List.map renameVar args, m, det, renameGoalVars goal)
+            | Var(v, t) -> Var(renameVar v, t)
+            | Constructor(ctor, args, t, m, c) -> Constructor(ctor, List.map renameVar args, t, m, c)
+            | Lambda(nonLocals, args, m, det, goal) ->
+                Lambda(List.map renameVar nonLocals, List.map renameVar args, m, det, renameGoalVars goal)
 
         renameGoalVars goal
 
@@ -419,15 +422,13 @@ module internal Goal =
         | Unify _ -> false
         | Conjunction goals -> List.exists containsRelationCall goals
         | Disjunction goals -> List.exists containsRelationCall goals
-        | IfThenElse (condGoal, thenGoal, elseGoal) ->
+        | IfThenElse(condGoal, thenGoal, elseGoal) ->
             containsRelationCall condGoal
             || containsRelationCall thenGoal
             || containsRelationCall elseGoal
-        | Scope (_, scopeGoal) -> containsRelationCall scopeGoal
-        | Not (negGoal) -> containsRelationCall negGoal
-        | Switch (_, _, cases) ->
-            cases
-            |> List.exists (fun case -> containsRelationCall case.CaseGoal)
+        | Scope(_, scopeGoal) -> containsRelationCall scopeGoal
+        | Not(negGoal) -> containsRelationCall negGoal
+        | Switch(_, _, cases) -> cases |> List.exists (fun case -> containsRelationCall case.CaseGoal)
 
     let conjoinGoals goals parentInfo =
         let nonLocals =
@@ -448,17 +449,17 @@ module internal Goal =
 
         let info =
             { GoalInfo.init parentInfo.SourceInfo with
-                  NonLocals = nonLocals
-                  InstMapDelta = instMapDelta
-                  Determinism = determinism }
+                NonLocals = nonLocals
+                InstMapDelta = instMapDelta
+                Determinism = determinism }
 
         { Goal = Conjunction goals
           Info = info }
 
     let rec stripTopLevelScopes goal =
         match goal.Goal with
-        | Scope (_, scopeGoal) -> stripTopLevelScopes scopeGoal
-        | Not (negGoal) ->
-            { Goal = Not (stripTopLevelScopes negGoal)
+        | Scope(_, scopeGoal) -> stripTopLevelScopes scopeGoal
+        | Not(negGoal) ->
+            { Goal = Not(stripTopLevelScopes negGoal)
               Info = goal.Info }
         | _ -> goal
