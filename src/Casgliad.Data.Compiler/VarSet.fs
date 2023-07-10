@@ -18,6 +18,7 @@ type internal VarSet =
           Vars: Map<VarId, ProgVar>
           VarNames: Map<string, ProgVar>
           QVars: Map<Quotations.Var, ProgVar> }
+
     static member init =
         { NextVar = 0<varIdMeasure>
           Vars = Map.empty
@@ -28,7 +29,7 @@ type internal VarSet =
         let varId = v.NextVar
 
         let rec makeUniqueName name =
-            if (v.VarNames.ContainsKey (name)) then
+            if (v.VarNames.ContainsKey(name)) then
                 makeUniqueName $"{name}__{varId}"
             else
                 name
@@ -39,27 +40,26 @@ type internal VarSet =
               VarType = varType }
 
         ({ NextVar = v.NextVar + 1<varIdMeasure>
-           Vars = v.Vars.Add (varId, progVar)
-           VarNames = v.VarNames.Add (progVar.Name, progVar)
+           Vars = v.Vars.Add(varId, progVar)
+           VarNames = v.VarNames.Add(progVar.Name, progVar)
            QVars = v.QVars },
          progVar)
 
     member v.addQuotationVar(quotationVar) =
-        if (v.QVars.ContainsKey (quotationVar)) then
+        if (v.QVars.ContainsKey(quotationVar)) then
             (v, v.QVars.[quotationVar])
         else
-            let (v', var) =
-                v.newNamedVar (quotationVar.Name, quotationVar.Type)
+            let (v', var) = v.newNamedVar (quotationVar.Name, quotationVar.Type)
 
             ({ v' with
-                   QVars = v'.QVars.Add (quotationVar, var) },
+                QVars = v'.QVars.Add(quotationVar, var) },
              var)
 
     static member private introducedNamePrefix = "cdc__"
 
     member v.newVar(varType) =
         let nextVar = v.NextVar
-        let name = "kdc__" + nextVar.ToString ()
+        let name = "kdc__" + nextVar.ToString()
         v.newNamedVar (name, varType)
 
     member v.Item
@@ -68,7 +68,4 @@ type internal VarSet =
     member v.findByName(name) = v.VarNames.[name]
 
     member v.varIsNamed var =
-        not (
-            v.Vars.[var]
-                .Name.StartsWith (VarSet.introducedNamePrefix)
-        )
+        not (v.Vars.[var].Name.StartsWith(VarSet.introducedNamePrefix))

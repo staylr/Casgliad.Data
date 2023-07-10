@@ -9,14 +9,15 @@ type InstMap =
     private
     | Reachable of InstMapping
     | Unreachable
-    static member initReachable = Reachable (Map.empty)
+
+    static member initReachable = Reachable(Map.empty)
     static member initUnreachable = Unreachable
     member this.isReachable() = this <> Unreachable
 
     member this.lookupVar v =
         match this with
         | Reachable m ->
-            match m.TryGetValue (v) with
+            match m.TryGetValue(v) with
             | true, inst -> InstE.Bound inst
             | _ -> InstE.Free
         | Unreachable -> InstE.Bound BoundInstE.NotReached
@@ -28,7 +29,7 @@ type InstMap =
 
     member this.setVarBound v inst =
         match this with
-        | Reachable m -> m.Add (v, inst) |> Reachable
+        | Reachable m -> m.Add(v, inst) |> Reachable
         | Unreachable -> this
 
     member this.setVar v inst =
@@ -38,9 +39,7 @@ type InstMap =
 
     member this.restrict vars =
         match this with
-        | Reachable m ->
-            Map.filter (fun v _ -> TagSet.contains v vars) m
-            |> Reachable
+        | Reachable m -> Map.filter (fun v _ -> TagSet.contains v vars) m |> Reachable
         | Unreachable -> Unreachable
 
     member this.hasOutputVars (instTable: InstTable) (varSet: VarSet) (instMap0: InstMap) (nonLocals: SetOfVar) =
@@ -65,11 +64,17 @@ type InstMap =
         match this with
         | Reachable m ->
             match delta with
-            | Reachable deltaM ->
-                deltaM
-                |> Map.fold (fun (m': InstMapping) k v -> m'.Add (k, v)) m
-                |> Reachable
+            | Reachable deltaM -> deltaM |> Map.fold (fun (m': InstMapping) k v -> m'.Add(k, v)) m |> Reachable
             | Unreachable -> Unreachable
+        | Unreachable -> Unreachable
+
+    member this.renameVars(substitution: Map<VarId, VarId>, mustRename: bool) : InstMap =
+        match this with
+        | Reachable m ->
+            let renameElement (rm: InstMapping) (v1: VarId) (inst: BoundInstE) =
+                Map.add (applyRenaming substitution mustRename v1) inst rm
+
+            Map.fold renameElement Map.empty m |> Reachable
         | Unreachable -> Unreachable
 
     static member computeInstMapDelta instMapA instMapB nonLocals =
@@ -90,9 +95,7 @@ type InstMap =
                         | InstE.Bound boundInstB -> Map.add v boundInstB instMapDelta
                         | InstE.Free -> instMapDelta
 
-                nonLocals
-                |> TagSet.fold addVarToInstMapDelta Map.empty
-                |> Reachable
+                nonLocals |> TagSet.fold addVarToInstMapDelta Map.empty |> Reachable
 
     static member ofInitialArgModes args argModes =
         List.fold2

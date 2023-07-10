@@ -6,6 +6,7 @@ type SourceInfo =
       StartCol: int
       EndLine: int
       EndCol: int }
+
     static member empty =
         { File = ""
           StartLine = 0
@@ -54,19 +55,18 @@ module internal Util =
     let memoize f =
         // Create (mutable) cache that is used for storing results of
         // for function arguments that were already calculated.
-        let cache =
-            new System.Collections.Generic.Dictionary<_, _> ()
+        let cache = new System.Collections.Generic.Dictionary<_, _>()
 
         (fun x ->
             // The returned function first performs a cache lookup
-            let succ, v = cache.TryGetValue (x)
+            let succ, v = cache.TryGetValue(x)
 
             if succ then
                 v
             else
                 // If value was not found, calculate & cache it
                 let v = f (x)
-                cache.Add (x, v)
+                cache.Add(x, v)
                 v)
 
     let rec mapOption (f: 'T -> 'U option) (list: 'T list) : ('U list) option =
@@ -74,10 +74,7 @@ module internal Util =
         | [] -> Some []
         | x :: xs ->
             f x
-            |> Option.bind
-                (fun x' ->
-                    mapOption f xs
-                    |> Option.map (fun xs' -> x' :: xs'))
+            |> Option.bind (fun x' -> mapOption f xs |> Option.map (fun xs' -> x' :: xs'))
 
     let rec foldOption (f: 'S -> 'T -> 'S option) (state: 'S) (list: 'T list) : 'S option =
         match list with
@@ -99,13 +96,11 @@ module internal Util =
 
     let rec mapFoldOption (f: 'S -> 'T -> ('U * 'S) option) (state: 'S) (list: 'T list) : ('U list * 'S) option =
         match list with
-        | [] -> Some ([], state)
+        | [] -> Some([], state)
         | x :: xs ->
             match f state x with
             | None -> None
-            | Some (x', state') ->
-                mapFoldOption f state' xs
-                |> Option.map (fun res -> (x' :: fst res, snd res))
+            | Some(x', state') -> mapFoldOption f state' xs |> Option.map (fun res -> (x' :: fst res, snd res))
 
 
     let consOption (o: 'T option) (l: 'T list) : 'T list = Option.fold (fun l' o' -> o' :: l') l o
@@ -118,7 +113,7 @@ module internal Util =
 
 
     let rec mapWithState f list =
-        Casgliad.Data.Compiler.State.StateBuilder () {
+        Casgliad.Data.Compiler.State.StateBuilder() {
             match list with
             | [] -> return []
             | x :: xs ->
@@ -128,7 +123,7 @@ module internal Util =
         }
 
     let rec iterWithState f list =
-        Casgliad.Data.Compiler.State.StateBuilder () {
+        Casgliad.Data.Compiler.State.StateBuilder() {
             match list with
             | [] -> return ()
             | x :: xs ->
@@ -137,7 +132,7 @@ module internal Util =
         }
 
     let rec foldWithState2 f state list =
-        Casgliad.Data.Compiler.State.StateBuilder () {
+        Casgliad.Data.Compiler.State.StateBuilder() {
             match list with
             | [] -> return state
             | x :: xs ->
@@ -146,7 +141,7 @@ module internal Util =
         }
 
     let rec iterWithState2 f list1 list2 =
-        Casgliad.Data.Compiler.State.StateBuilder () {
+        Casgliad.Data.Compiler.State.StateBuilder() {
             match (list1, list2) with
             | ([], []) -> return ()
             | (x :: xs, y :: ys) ->
@@ -154,3 +149,9 @@ module internal Util =
                 return! iterWithState2 f xs ys
             | _ -> failwith "iterWithState2: mismatching lengths"
         }
+
+    let applyRenaming (substitution: Map<'T, 'T>) (mustRename: bool) (var: 'T) =
+        if (mustRename) then
+            substitution.[var]
+        else
+            substitution.TryFind(var) |> Option.defaultValue var

@@ -12,7 +12,7 @@ module internal Quantification =
           Quantified: SetOfVar
           NonLocals: SetOfVar }
 
-    let state = new StateBuilder ()
+    let state = new StateBuilder()
 
     let seen info = (info.Seen, info)
     let quantVars info = (info.Quantified, info)
@@ -29,12 +29,12 @@ module internal Quantification =
     let updateSeenVars vars info =
         ((),
          { info with
-               Seen = TagSet.ofList vars |> TagSet.union info.Seen })
+             Seen = TagSet.ofList vars |> TagSet.union info.Seen })
 
     let updateSeenVarsSet vars info =
         ((),
          { info with
-               Seen = TagSet.union info.Seen vars })
+             Seen = TagSet.union info.Seen vars })
 
 
     let rec goalVarsBoth goal =
@@ -42,25 +42,23 @@ module internal Quantification =
 
     and goalExprVarsBoth goal set lambdaSet =
         match goal with
-        | Unify (lhs, rhs, _, _) -> unifyRhsVarsBoth rhs (TagSet.add lhs set) lambdaSet
-        | Call (_, args) -> (TagSet.union set (TagSet.ofList args), lambdaSet)
-        | FSharpCall (_, ret, args) -> (TagSet.union set (TagSet.ofList (consOption ret args)), lambdaSet)
-        | Conjunction (goals)
-        | Disjunction (goals) -> goalListVarsBoth goals set lambdaSet
-        | Not (goal) -> goalExprVarsBoth goal.Goal set lambdaSet
-        | Scope (_, goal) -> goalExprVarsBoth goal.Goal set lambdaSet
-        | Switch (var, _, cases) -> caseListVarsBoth cases (TagSet.add var set) lambdaSet
-        | IfThenElse (condGoal, thenGoal, elseGoal) ->
+        | Unify(lhs, rhs, _, _) -> unifyRhsVarsBoth rhs (TagSet.add lhs set) lambdaSet
+        | Call(_, args) -> (TagSet.union set (TagSet.ofList args), lambdaSet)
+        | FSharpCall(_, ret, args) -> (TagSet.union set (TagSet.ofList (consOption ret args)), lambdaSet)
+        | Conjunction(goals)
+        | Disjunction(goals) -> goalListVarsBoth goals set lambdaSet
+        | Not(goal) -> goalExprVarsBoth goal.Goal set lambdaSet
+        | Scope(_, goal) -> goalExprVarsBoth goal.Goal set lambdaSet
+        | Switch(var, _, cases) -> caseListVarsBoth cases (TagSet.add var set) lambdaSet
+        | IfThenElse(condGoal, thenGoal, elseGoal) ->
             let (condSet, condLambdaSet) = goalVarsBoth condGoal
             let (thenSet, thenLambdaSet) = goalVarsBoth thenGoal
             let (elseSet, elseLambdaSet) = goalVarsBoth elseGoal
             let condThenSet = TagSet.union condSet thenSet
             let condThenLambdaSet = TagSet.union condLambdaSet thenLambdaSet
 
-            (TagSet.union set condThenSet
-             |> TagSet.union elseSet,
-             TagSet.union set condThenLambdaSet
-             |> TagSet.union elseLambdaSet)
+            (TagSet.union set condThenSet |> TagSet.union elseSet,
+             TagSet.union set condThenLambdaSet |> TagSet.union elseLambdaSet)
 
     and goalListVarsBoth goals set lambdaSet =
         let goalInListVars (set, lambdaSet) goal =
@@ -76,9 +74,9 @@ module internal Quantification =
 
     and unifyRhsVarsBoth rhs set lambdaSet =
         match rhs with
-        | Var (var, _) -> (TagSet.add var set, lambdaSet)
-        | Constructor (ctor, args, _, _, _) -> (TagSet.ofList args |> TagSet.union set, lambdaSet)
-        | Lambda (_, lambdaVars, _, _, goal) ->
+        | Var(var, _) -> (TagSet.add var set, lambdaSet)
+        | Constructor(ctor, args, _, _, _) -> (TagSet.ofList args |> TagSet.union set, lambdaSet)
+        | Lambda(_, lambdaVars, _, _, goal) ->
             let (goalSet, goalLambdaSet) = goalVarsBoth goal
 
             let goalVars =
@@ -94,46 +92,50 @@ module internal Quantification =
         List.scanBack goalFollowingVars goals (emptySetOfVar, emptySetOfVar)
         |> List.tail
 
+
+    // TODO
+    let renameApart vars goal info = (goal, info)
+
     let rec quantifyGoal goal =
         state {
             let! initialSeen = seen
             let! (goal', possibleNonLocals) = quantifyGoalExpr goal.Goal goal.Info
             let! nonLocals = nonLocals
 
-            //let localVars =
-            //    TagSet.difference possibleNonLocals nonLocals
-            // let renameVars = TagSet.intersect initialSeen localVars
+            let localVars = TagSet.difference possibleNonLocals nonLocals
+            let renameVars = TagSet.intersect initialSeen localVars
 
             // Rename apart local variables that we have seen elsewhere, e.g. in other disjuncts.
-            //let! goal'' =
-            //    if (TagSet.isEmpty renameVars) then
-            //        goal'
-            //    else
-            //        renameApart renameVars goal'
+            let! goal'' =
+                if (TagSet.isEmpty renameVars) then
+                    state { return goal' }
+                else
+                    renameApart renameVars goal'
+
             return
-                ({ Goal = goal'
+                ({ Goal = goal''
                    Info = { goal.Info with NonLocals = nonLocals } })
         }
 
     and quantifyGoalExpr goalExpr goalInfo =
         state {
             match goalExpr with
-            | Unify (lhs, rhs, mode, context) -> return! quantifyUnify lhs rhs mode context goalInfo
-            | Call (_, args) -> return! quantifyPrimitiveGoal goalExpr args
-            | FSharpCall (_, returnArg, args) -> return! quantifyPrimitiveGoal goalExpr (consOption returnArg args)
-            | Conjunction (goals) -> return! quantifyConj goals
-            | Disjunction (goals) -> return! quantifyDisj goals
-            | Not (negGoal) -> return! quantifyNegation negGoal
-            | Scope (reason, scopeGoal) -> return! quantifyScope reason scopeGoal
-            | IfThenElse (condGoal, thenGoal, elseGoal) -> return! quantifyIfThenElse condGoal thenGoal elseGoal
-            | Switch (var, canFail, cases) -> return! quantifySwitch var canFail cases
+            | Unify(lhs, rhs, mode, context) -> return! quantifyUnify lhs rhs mode context goalInfo
+            | Call(_, args) -> return! quantifyPrimitiveGoal goalExpr args
+            | FSharpCall(_, returnArg, args) -> return! quantifyPrimitiveGoal goalExpr (consOption returnArg args)
+            | Conjunction(goals) -> return! quantifyConj goals
+            | Disjunction(goals) -> return! quantifyDisj goals
+            | Not(negGoal) -> return! quantifyNegation negGoal
+            | Scope(reason, scopeGoal) -> return! quantifyScope reason scopeGoal
+            | IfThenElse(condGoal, thenGoal, elseGoal) -> return! quantifyIfThenElse condGoal thenGoal elseGoal
+            | Switch(var, canFail, cases) -> return! quantifySwitch var canFail cases
         }
 
     and quantifyScope reason scopeGoal =
         state {
             let! scopeGoal' = quantifyGoal scopeGoal
-            let scope = Scope (reason, scopeGoal')
-            return (scope, (goalExprVars (Scope (reason, scopeGoal)) emptySetOfVar))
+            let scope = Scope(reason, scopeGoal')
+            return (scope, (goalExprVars (Scope(reason, scopeGoal)) emptySetOfVar))
         }
 
     and quantifySwitch var canFail cases =
@@ -148,8 +150,8 @@ module internal Quantification =
                 cases' <- { case with CaseGoal = goal' } :: cases'
 
             do! setNonLocals (TagSet.add var nonLocalVars)
-            let switch = Switch (var, canFail, cases')
-            return (switch, (goalExprVars (Switch (var, canFail, cases)) emptySetOfVar))
+            let switch = Switch(var, canFail, cases')
+            return (switch, (goalExprVars (Switch(var, canFail, cases)) emptySetOfVar))
         }
 
     and quantifyNegation negGoal =
@@ -165,7 +167,7 @@ module internal Quantification =
             let! negGoal' = quantifyGoal negGoal
             do! setOutside outside
             do! setQuantVars qvars
-            return (Not (negGoal'), goalVars negGoal' emptySetOfVar)
+            return (Not(negGoal'), goalVars negGoal' emptySetOfVar)
         }
 
     and quantifyIfThenElse condGoal thenGoal elseGoal =
@@ -200,13 +202,11 @@ module internal Quantification =
 
             let nonLocalsOutside = TagSet.intersect outside nonLocalsIte
 
-            let nonLocalsLambdaOutside =
-                TagSet.intersect lambdaOutside nonLocalsIte
+            let nonLocalsLambdaOutside = TagSet.intersect lambdaOutside nonLocalsIte
 
             do! setNonLocals (TagSet.union nonLocalsOutside nonLocalsLambdaOutside)
 
-            let goalExpr =
-                IfThenElse (condGoal', thenGoal', elseGoal')
+            let goalExpr = IfThenElse(condGoal', thenGoal', elseGoal')
 
             return (goalExpr, goalExprVars goalExpr emptySetOfVar)
         }
@@ -216,11 +216,10 @@ module internal Quantification =
             let followingVars = getFollowingVars goals
             let combineFollowingVars vars (f, lf) = TagSet.union vars f |> TagSet.union lf
 
-            let possibleNonLocals =
-                List.fold combineFollowingVars emptySetOfVar followingVars
+            let possibleNonLocals = List.fold combineFollowingVars emptySetOfVar followingVars
 
             let! goals = quantifyConjWithFollowing (List.zip goals followingVars)
-            return (Conjunction (goals), possibleNonLocals)
+            return (Conjunction(goals), possibleNonLocals)
         }
 
     and quantifyConjWithFollowing followingVarPairs =
@@ -265,7 +264,7 @@ module internal Quantification =
                 nonLocalVars <- TagSet.union nonLocalVars goalNonlocals
                 goals' <- goal' :: goals'
 
-            return (Disjunction (List.rev goals'), (goalExprVars (Disjunction (goals')) emptySetOfVar))
+            return (Disjunction(List.rev goals'), (goalExprVars (Disjunction(goals')) emptySetOfVar))
         }
 
     and quantifyPrimitiveGoal goalExpr args =
@@ -287,14 +286,13 @@ module internal Quantification =
             let! (rhs', rhsVars) = quantifyUnifyRhs rhs goalInfo
             let! outside = outside
             let! lambdaOutside = lambdaOutside
-            let goalExpr = Unify (lhs, rhs', mode, context)
+            let goalExpr = Unify(lhs, rhs', mode, context)
             let goalVars = TagSet.add lhs rhsVars
             do! updateSeenVarsSet goalVars
             let outsideNonLocals = TagSet.intersect goalVars outside
             let lambdaOutsideNonLocals = TagSet.intersect goalVars lambdaOutside
 
-            let nonLocals =
-                TagSet.union outsideNonLocals lambdaOutsideNonLocals
+            let nonLocals = TagSet.union outsideNonLocals lambdaOutsideNonLocals
 
             do! setNonLocals nonLocals
             return (goalExpr, goalVars)
@@ -303,9 +301,9 @@ module internal Quantification =
     and quantifyUnifyRhs rhs goalInfo =
         state {
             match rhs with
-            | Var (rhsVar, uType) -> return (rhs, TagSet.singleton rhsVar)
-            | Constructor (_, args, _, _, _) -> return (rhs, TagSet.ofList args)
-            | Lambda (lambdaNonLocals, lambdaVars, modes, det, goal) ->
+            | Var(rhsVar, uType) -> return (rhs, TagSet.singleton rhsVar)
+            | Constructor(_, args, _, _, _) -> return (rhs, TagSet.ofList args)
+            | Lambda(lambdaNonLocals, lambdaVars, modes, det, goal) ->
                 let! outside = outside
                 let! qvars = quantVars
                 let! lambdaOutside = lambdaOutside
@@ -317,11 +315,7 @@ module internal Quantification =
                 // and initialize the new quantified vars set to be empty.
                 do! setQuantVars TagSet.empty
 
-                do!
-                    setOutside (
-                        TagSet.union outside qvars
-                        |> TagSet.union lambdaVarsSet
-                    )
+                do! setOutside (TagSet.union outside qvars |> TagSet.union lambdaVarsSet)
 
                 // Set the LambdaOutsideVars set to empty, because variables that occur
                 // outside this lambda expression only in other lambda expressions
@@ -332,8 +326,7 @@ module internal Quantification =
 
                 let! rhsNonLocals = nonLocals
 
-                let rhsNonLocals' =
-                    TagSet.difference rhsNonLocals lambdaVarsSet
+                let rhsNonLocals' = TagSet.difference rhsNonLocals lambdaVarsSet
 
                 do! setQuantVars qvars
                 do! setOutside outside

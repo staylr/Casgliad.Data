@@ -128,12 +128,17 @@ module internal Goal =
 
     let invalidProcId = -1<procIdMeasure>
 
+    type ContainsRelationCall =
+        | NoRelationCall
+        | BaseRelationCall
+        | DerivedRelationCall
+
     type GoalInfo =
         { NonLocals: SetOfVar
           InstMapDelta: InstMapDelta
           Determinism: Determinism
           SourceInfo: SourceInfo
-          ContainsRelationCall: bool Option }
+          ContainsRelationCall: ContainsRelationCall option }
 
         static member init sourceInfo =
             { NonLocals = TagSet.empty<varIdMeasure>
@@ -363,15 +368,12 @@ module internal Goal =
             |> goalVars goal
 
     let renameVars (substitution: Map<VarId, VarId>) (mustRename: bool) (goal: Goal) =
-        let renameVar var =
-            if (mustRename) then
-                substitution.[var]
-            else
-                substitution.TryFind(var) |> Option.defaultValue var
+        let renameVar = applyRenaming substitution mustRename
 
         let renameGoalInfoVars goalInfo =
             { goalInfo with
-                NonLocals = TagSet.map renameVar goalInfo.NonLocals }
+                NonLocals = TagSet.map (applyRenaming substitution mustRename) goalInfo.NonLocals
+                InstMapDelta = goalInfo.InstMapDelta.renameVars (substitution, mustRename) }
 
         let rec renameGoalVars goal =
             { Goal = renameGoalExprVars goal.Goal
@@ -415,20 +417,30 @@ module internal Goal =
         | Unify _ -> true
         | _ -> false
 
+    let combineContainsRelationCall call1 call2 =
+        match call1 with
+        | NoRelationCall -> call2
+        | BaseRelationCall ->
+            if (call2 = DerivedRelationCall) then
+                DerivedRelationCall
+            else
+                BaseRelationCall
+        | DerivedRelationCall -> call1
+
     let rec containsRelationCall goal =
         match goal.Goal with
-        | Call _ -> true
-        | FSharpCall _ -> false
-        | Unify _ -> false
-        | Conjunction goals -> List.exists containsRelationCall goals
-        | Disjunction goals -> List.exists containsRelationCall goals
-        | IfThenElse(condGoal, thenGoal, elseGoal) ->
-            containsRelationCall condGoal
-            || containsRelationCall thenGoal
-            || containsRelationCall elseGoal
+        | Call _ -> BaseRelationCall
+        | FSharpCall _ -> NoRelationCall
+        | Unify _ -> NoRelationCall
+        | Conjunction goals -> containsRelationCallList goals
+        | Disjunction goals -> containsRelationCallList goals
+        | IfThenElse(condGoal, thenGoal, elseGoal) -> containsRelationCallList [ condGoal; thenGoal; elseGoal ]
         | Scope(_, scopeGoal) -> containsRelationCall scopeGoal
         | Not(negGoal) -> containsRelationCall negGoal
-        | Switch(_, _, cases) -> cases |> List.exists (fun case -> containsRelationCall case.CaseGoal)
+        | Switch(_, _, cases) -> cases |> List.map (fun c -> c.CaseGoal) |> containsRelationCallList
+
+    and containsRelationCallList (goals: Goal seq) =
+        Seq.fold (fun c g -> containsRelationCall g |> combineContainsRelationCall c) NoRelationCall goals
 
     let conjoinGoals goals parentInfo =
         let nonLocals =
