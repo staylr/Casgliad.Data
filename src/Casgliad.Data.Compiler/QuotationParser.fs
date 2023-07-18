@@ -358,10 +358,10 @@ module internal QuotationParser =
         | Patterns.IfThenElse(Patterns.UnionCaseTest(caseExprToTest, case), thenExpr, elseExpr) when
             exprToTest = caseExprToTest
             ->
-            let unionMatchResult = unionMatch (case :: seenCases) exprToTest expr
+            let unionMatchResult = unionMatch (case :: seenCases) exprToTest elseExpr
 
             match unionMatchResult with
-            | Some _ -> unionMatchResult
+            | Some result -> Some((UnionCase(case), thenExpr) :: fst result, snd result)
             | None ->
                 match elseExpr with
                 | False' _ ->

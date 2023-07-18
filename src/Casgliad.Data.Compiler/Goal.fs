@@ -128,6 +128,8 @@ module internal Goal =
 
     let invalidProcId = -1<procIdMeasure>
 
+    let initialProcId = 0<procIdMeasure>
+
     type ContainsRelationCall =
         | NoRelationCall
         | BaseRelationCall

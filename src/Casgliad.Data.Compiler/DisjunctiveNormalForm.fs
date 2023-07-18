@@ -15,7 +15,7 @@ type IsNegated =
     | Positive
 
 type AtomCallee =
-    | Relation of RelationProcId * IsRecursive * input: RelationProcId option
+    | Relation of RelationProcId * input: RelationProcId option
     | Input
     | True
     | False
@@ -28,11 +28,14 @@ type BaseRelationQuery =
     | BaseRelationDisjunction of BaseRelationQuery list
 
 and AtomExpr =
-    | RelationCall of callee: AtomCallee * args: VarId list * selectProjectCondition: Goal * isNegated: IsNegated
+    | RelationCall of callee: AtomCallee * args: VarId list * isNegated: IsNegated
     | Query of BaseRelationQuery
 // | Aggregate
 
-and Atom = { Atom: AtomExpr; Info: GoalInfo }
+and Atom =
+    { Atom: AtomExpr
+      SelectProjectCondition: Goal
+      Info: GoalInfo }
 
 type RuleDefinition = Atom list
 
@@ -43,8 +46,7 @@ type RulesRelation =
       Args: VarId list
       Modes: (InstE * BoundInstE) list
       Determinism: Casgliad.Data.Determinism
-      ExitRules: RuleDefinition list
-      RecursiveRules: RuleDefinition list }
+      Rules: RuleDefinition list }
 
 let replaceGoal goal goal' = { goal with Goal = goal' }
 
@@ -74,10 +76,9 @@ let rulesRelationOfGoal
     (rules: RuleDefinition list)
     (args: VarId list)
     (instMap0: InstMap)
-    (selectProjectCondition: Goal)
     (isNegated: IsNegated)
     (varSet: VarSet)
-    : (RulesRelation * Atom) =
+    : (RulesRelation * AtomExpr) =
     let instMap = instMap0.applyInstMapDelta (goal.Info.InstMapDelta)
 
     let getArgMode arg =
@@ -90,7 +91,7 @@ let rulesRelationOfGoal
 
     let modes = List.map getArgMode args
 
-    let relationProcId = (name, invalidProcId)
+    let relationProcId = (name, initialProcId)
 
     let newRelation =
         { RulesRelation.RelationId = relationProcId
@@ -99,17 +100,13 @@ let rulesRelationOfGoal
           Modes = modes
           Determinism = goal.Info.Determinism
           SourceInfo = goal.Info.SourceInfo
-          ExitRules = []
-          RecursiveRules = rules }
+          Rules = rules }
 
-    let callee = Relation(relationProcId, IsRecursive.NotRecursive, None)
+    let callee = Relation(relationProcId, None)
 
-    let atom =
-        { Atom = RelationCall(callee, args, selectProjectCondition, isNegated)
-          Info = goal.Info }
+    let atom = RelationCall(callee, args, isNegated)
 
     (newRelation, atom)
-
 
 let populateContainsRelationCall (goal: GoalExpr) (goalInfo: GoalInfo) (subGoals: Goal seq) =
     let containsCall = Some(containsRelationCallList subGoals)
@@ -182,8 +179,9 @@ let rec dnfPreprocessGoal dnfInfo goal =
 
 let negateAtom (a: Atom) negationCondition =
     match a.Atom with
-    | AtomExpr.RelationCall(callee, args, cond, isNegated) ->
-        { Atom = AtomExpr.RelationCall(callee, args, cond, IsNegated.Negated negationCondition)
+    | AtomExpr.RelationCall(callee, args, isNegated) ->
+        { Atom = AtomExpr.RelationCall(callee, args, IsNegated.Negated negationCondition)
+          SelectProjectCondition = a.SelectProjectCondition
           Info = a.Info }
 
 // Convert the goal into a disjunction of conjunctions.
@@ -209,18 +207,16 @@ and dnfProcessConjunction (dnfInfo: DnfInfo) instMap conjuncts conjInfo : Atom l
         instMap
         conjuncts
         conjInfo
-        AtomCallee.True
-        []
+        (AtomExpr.RelationCall(AtomCallee.True, [], IsNegated.Positive))
         Goal.succeedGoal.Info
-        IsNegated.Positive
         []
-    |> List.rev
 
-and dnfProcessRelationalGoal (goal: Goal) : (AtomCallee * VarId list * IsNegated) =
+and dnfProcessRelationalGoal (dnfInfo: DnfInfo) (goal: Goal) (instMap: InstMap) : AtomExpr =
     let goal' = stripTopLevelScopes goal
-    failwith "NYI"
-//match goal' with
-//| Call ()
+
+    match goal'.Goal with
+    | Call(callee, args) -> AtomExpr.RelationCall(AtomCallee.Relation(callee, None), args, IsNegated.Positive)
+    | _ -> createRelation dnfInfo instMap goal' IsNegated.Positive
 
 //let finalGoal =
 //    if (goalIsAtomicOrNonRelational goal') then
@@ -230,17 +226,7 @@ and dnfProcessRelationalGoal (goal: Goal) : (AtomCallee * VarId list * IsNegated
 //        | Not negGoal -> createRelation dnfInfo instMap negGoal |> negateAtom
 //        | _ -> createRelation dnfInfo instMap goal'
 
-and dnfProcessConjunction2
-    dnfInfo
-    (instMap: InstMap)
-    conjuncts
-    conjInfo
-    currentCallee
-    currentCallArgs
-    currentCallInfo
-    isNegated
-    revAtoms
-    =
+and dnfProcessConjunction2 dnfInfo (instMap: InstMap) conjuncts conjInfo currentCallee currentCallInfo revAtoms =
     let nonRelational = List.takeWhile goalIsAtomicOrNonRelational conjuncts
     let nonRelationalConj = conjoinGoals nonRelational conjInfo
 
@@ -248,7 +234,8 @@ and dnfProcessConjunction2
     let instMap'' = instMap'.applyInstMapDelta (nonRelationalConj.Info.InstMapDelta)
 
     let atom =
-        { Atom = RelationCall(currentCallee, currentCallArgs, nonRelationalConj, isNegated)
+        { Atom = currentCallee
+          SelectProjectCondition = nonRelationalConj
           Info = conjInfo }
 
     let revAtoms' = atom :: revAtoms
@@ -256,22 +243,13 @@ and dnfProcessConjunction2
     let remainingConjuncts = List.skip (List.length nonRelational) conjuncts
 
     match remainingConjuncts with
-    | [] -> revAtoms'
+    | [] -> revAtoms' |> List.rev
     | nextCall :: remainingConjuncts' ->
-        let (nextCallee, nextArgs, nextIsNegated) = dnfProcessRelationalGoal nextCall
+        let nextCallee = dnfProcessRelationalGoal dnfInfo nextCall instMap
 
-        dnfProcessConjunction2
-            dnfInfo
-            instMap'
-            remainingConjuncts'
-            conjInfo
-            nextCallee
-            nextArgs
-            (nextCall.Info)
-            nextIsNegated
-            revAtoms'
+        dnfProcessConjunction2 dnfInfo instMap'' remainingConjuncts' conjInfo nextCallee (nextCall.Info) revAtoms'
 
-and createRelation (dnfInfo: DnfInfo) instMap goal selectProjectCondition isNegated =
+and createRelation (dnfInfo: DnfInfo) instMap goal isNegated =
     let newRelationName =
         { ModuleName = (fst dnfInfo.RelationProcId).ModuleName
           RelationName = TransformedRelation(dnfInfo.RelationProcId, DisjunctiveNormalFormSubgoal dnfInfo.Counter) }
@@ -280,7 +258,7 @@ and createRelation (dnfInfo: DnfInfo) instMap goal selectProjectCondition isNega
 
     let rules = dnfProcessGoal dnfInfo instMap goal
 
-    let (newRelation, callAtom) =
+    let (newRelation, callExpr) =
         rulesRelationOfGoal
             dnfInfo.RelationProcId
             newRelationName
@@ -289,9 +267,8 @@ and createRelation (dnfInfo: DnfInfo) instMap goal selectProjectCondition isNega
             (TagSet.toList (goal.Info.NonLocals))
             instMap
             isNegated
-            selectProjectCondition
             (dnfInfo.VarSet)
 
     dnfInfo.NewRelations.Add(newRelation)
 
-    callAtom
+    callExpr

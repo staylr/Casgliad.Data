@@ -36,6 +36,16 @@ module internal Quantification =
          { info with
              Seen = TagSet.union info.Seen vars })
 
+    let cloneVars (vars: SetOfVar) info =
+        let (mapping, varSet') =
+            vars
+            |> TagSet.fold
+                (fun ((m: Map<VarId, VarId>), (varSet: VarSet)) var ->
+                    let (varSet', var') = varSet.cloneVar (var)
+                    (m.Add(var, var'.Id), varSet'))
+                (Map.empty, info.VarSet)
+
+        (mapping, { info with VarSet = varSet' })
 
     let rec goalVarsBoth goal =
         goalExprVarsBoth goal.Goal emptySetOfVar emptySetOfVar
@@ -93,8 +103,14 @@ module internal Quantification =
         |> List.tail
 
 
-    // TODO
-    let renameApart vars goal info = (goal, info)
+    let renameApart vars goal =
+        if (TagSet.isEmpty vars) then
+            state { return goal }
+        else
+            state {
+                let! mapping = cloneVars vars
+                return Goal.renameVars mapping false goal
+            }
 
     let rec quantifyGoal goal =
         state {
@@ -105,16 +121,12 @@ module internal Quantification =
             let localVars = TagSet.difference possibleNonLocals nonLocals
             let renameVars = TagSet.intersect initialSeen localVars
 
-            // Rename apart local variables that we have seen elsewhere, e.g. in other disjuncts.
-            let! goal'' =
-                if (TagSet.isEmpty renameVars) then
-                    state { return goal' }
-                else
-                    renameApart renameVars goal'
+            let goal'' =
+                { Goal = goal'
+                  Info = { goal.Info with NonLocals = nonLocals } }
 
-            return
-                ({ Goal = goal''
-                   Info = { goal.Info with NonLocals = nonLocals } })
+            // Rename apart local variables that we have seen elsewhere, e.g. in other disjuncts.
+            return! renameApart renameVars goal''
         }
 
     and quantifyGoalExpr goalExpr goalInfo =

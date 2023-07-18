@@ -55,6 +55,10 @@ type internal VarSet =
                 QVars = v'.QVars.Add(quotationVar, var) },
              var)
 
+    member v.cloneVar(varId) =
+        let var = v[varId]
+        v.newNamedVar (var.Name, var.VarType)
+
     static member private introducedNamePrefix = "cdc__"
 
     member v.newVar(varType) =
