@@ -7,8 +7,7 @@ open Casgliad.Data.Compiler.State
 module internal Modecheck =
     let getModeOfArgs (argInitialInsts: InstE list) (finalInst: BoundInstE) =
         let pairWithFinalInst argInitialInsts finalInst =
-            argInitialInsts
-            |> List.map (fun initInst -> (initInst, finalInst))
+            argInitialInsts |> List.map (fun initInst -> (initInst, finalInst))
 
         match finalInst with
         | NotReached
@@ -26,33 +25,32 @@ module internal Modecheck =
 
         let modeInfo' =
             { modeInfo with
-                  Errors = []
-                  DelayInfo = modeInfo.DelayInfo.enterConj () }
+                Errors = []
+                DelayInfo = modeInfo.DelayInfo.enterConj () }
 
         let (res, modeInfo'') = f modeInfo'
         let (delayedGoals, delayInfo') = modeInfo''.DelayInfo.leaveConj ()
 
         ((res, delayedGoals),
          { modeInfo'' with
-               Errors = List.append errors0 modeInfo''.Errors
-               DelayInfo = delayInfo' })
+             Errors = List.append errors0 modeInfo''.Errors
+             DelayInfo = delayInfo' })
 
     let createVarVarUnify (arg: VarId) (var: VarId) modeContext (sourceInfo: SourceInfo) : Goal =
         let unifyGoalInfo =
             { GoalInfo.init sourceInfo with
-                  NonLocals =
-                      seq {
-                          arg
-                          var
-                      }
-                      |> TagSet.ofSeq }
+                NonLocals =
+                    seq {
+                        arg
+                        var
+                    }
+                    |> TagSet.ofSeq }
 
-        let unifyMode =
-            ((Bound NotReached, NotReached), (Bound NotReached, NotReached))
+        let unifyMode = ((Bound NotReached, NotReached), (Bound NotReached, NotReached))
 
         let unifyContext = unifyContextOfModeContext modeContext
 
-        { Goal = Unify (arg, Var (var, VarVarUnifyType.Test), unifyMode, unifyContext)
+        { Goal = Unify(arg, Var(var, VarVarUnifyType.Test), unifyMode, unifyContext)
           Info = unifyGoalInfo }
 
     let handleImpliedMode var (varInst0: InstE) (initialInst0: InstE) (extraGoals: ExtraGoals) =
@@ -75,10 +73,9 @@ module internal Modecheck =
                 let! modeContext = getModeContext
                 let! sourceInfo = getContext
 
-                let unifyGoal =
-                    createVarVarUnify var'.Id var modeContext sourceInfo
+                let unifyGoal = createVarVarUnify var'.Id var modeContext sourceInfo
 
-                extraGoals.AfterGoals.Add (unifyGoal)
+                extraGoals.AfterGoals.Add(unifyGoal)
                 return var'.Id
         }
 
@@ -120,22 +117,22 @@ module internal Modecheck =
     and modecheckGoalExpr goal =
         state {
             match goal.Goal with
-            | Unify (lhs, rhs, _, unifyContext) ->
+            | Unify(lhs, rhs, _, unifyContext) ->
                 // set context
                 return! modecheckUnify lhs rhs unifyContext goal.Info
-            | Conjunction (goals) ->
+            | Conjunction(goals) ->
                 let! goals' = modecheckConjList goals
-                return Conjunction (goals')
-            | Disjunction (goals) -> return! modecheckDisjunction goals goal.Info
-            | Call (relationId, args) -> return! modecheckCall relationId args goal.Info
-            | FSharpCall (callee, retVal, args) -> return! modecheckFSharpCall callee retVal args goal.Info
-            | IfThenElse (condGoal, thenGoal, elseGoal) ->
+                return Conjunction(goals')
+            | Disjunction(goals) -> return! modecheckDisjunction goals goal.Info
+            | Call(relationId, args) -> return! modecheckCall relationId args goal.Info
+            | FSharpCall(callee, retVal, args) -> return! modecheckFSharpCall callee retVal args goal.Info
+            | IfThenElse(condGoal, thenGoal, elseGoal) ->
                 return! modecheckIfThenElse condGoal thenGoal elseGoal goal.Info
-            | Not (negGoal) -> return! modecheckNegation negGoal goal.Info
-            | Scope (reason, scopeGoal) ->
+            | Not(negGoal) -> return! modecheckNegation negGoal goal.Info
+            | Scope(reason, scopeGoal) ->
                 let! scopeGoal' = modecheckGoal scopeGoal
-                return Scope (reason, scopeGoal')
-            | Switch (_, _, _) -> return goal.Goal
+                return Scope(reason, scopeGoal')
+            | Switch(_, _, _) -> return goal.Goal
         }
 
     and modecheckNegation negGoal goalInfo =
@@ -145,7 +142,7 @@ module internal Modecheck =
             // variables within a negation is not allowed.
             let! negGoal' = withLockedVars VarLockReason.VarLockNegation goalInfo.NonLocals (modecheckGoal negGoal)
             do! setInstMap instMap0
-            return Not (negGoal')
+            return Not(negGoal')
         }
 
     and modecheckIfThenElse condGoal thenGoal elseGoal goalInfo =
@@ -173,14 +170,14 @@ module internal Modecheck =
                   (elseGoal.Info.SourceInfo, elseInstMap) ]
 
             do! instMapMerge goalInfo.NonLocals armInstMaps MergeContext.MergeIfThenElse
-            return IfThenElse (condGoal', thenGoal', elseGoal')
+            return IfThenElse(condGoal', thenGoal', elseGoal')
         }
 
     and modecheckCall callee args goalInfo =
         state {
             let! instMap0 = getInstMap
             let! modes = getCalledRelationModeInfo callee
-            do! setCallContext (RelationCallee (fst callee))
+            do! setCallContext (RelationCallee(fst callee))
 
             match modes with
             | [] -> return invalidOp "unexpected - no modes in modecheckCall"
@@ -189,8 +186,7 @@ module internal Modecheck =
                 let finalInsts = (List.map snd singleMode.Modes.Modes)
                 do! varHasInstListNoExactMatch args initialInsts
 
-                let buildCall =
-                    (fun a -> Call ((fst callee, singleMode.ProcId), a))
+                let buildCall = (fun a -> Call((fst callee, singleMode.ProcId), a))
 
                 return!
                     modecheckEndOfCall
@@ -211,14 +207,14 @@ module internal Modecheck =
         state {
             let! instMap0 = getInstMap
             let! modes = getCalledFunctionModeInfo callee
-            do! setCallContext (FSharpCallee (fst callee))
+            do! setCallContext (FSharpCallee(fst callee))
 
             match modes with
             | [] -> return invalidOp "unexpected - no modes in modecheckCall"
             | [ singleMode ] ->
                 let (allArgs, allModes) =
                     match ret with
-                    | Some (retArg) ->
+                    | Some(retArg) ->
                         (List.append args [ retArg ], List.append singleMode.Modes.Modes [ singleMode.ResultMode ])
                     | None -> (args, singleMode.Modes.Modes)
 
@@ -228,8 +224,8 @@ module internal Modecheck =
 
                 let buildCall a =
                     match ret with
-                    | Some _ -> FSharpCall ((fst callee, singleMode.ProcId), Some (List.head a), List.tail a)
-                    | None -> FSharpCall ((fst callee, singleMode.ProcId), None, a)
+                    | Some _ -> FSharpCall((fst callee, singleMode.ProcId), Some(List.head a), List.tail a)
+                    | None -> FSharpCall((fst callee, singleMode.ProcId), None, a)
 
                 return!
                     modecheckEndOfCall
@@ -264,9 +260,9 @@ module internal Modecheck =
     and modecheckUnify lhs rhs context goalInfo =
         state {
             match rhs with
-            | Var (var, _) -> return! modecheckUnifyVar lhs var context goalInfo
-            | Constructor (ctor, args, _, _, _) -> return! modecheckUnifyVarCtor lhs ctor args context goalInfo
-            | Lambda _ -> return raise (System.Exception ("NYI: modecheckUnify of Lambda"))
+            | Var(var, _) -> return! modecheckUnifyVar lhs var context goalInfo
+            | Constructor(ctor, args, _, _, _) -> return! modecheckUnifyVarCtor lhs ctor args context goalInfo
+            | Lambda _ -> return raise (System.Exception("NYI: modecheckUnify of Lambda"))
         }
 
     and modecheckUnifyVar lhs rhs context goalInfo =
@@ -278,41 +274,35 @@ module internal Modecheck =
             let rhsInst = instMap.lookupVar rhs
 
             match instTable.unifyInst (lhsInst, rhsInst) with
-            | Some (inst, det) ->
+            | Some(inst, det) ->
 
                 do! setVarInst lhs (Bound inst) (Some lhsInst)
                 do! setVarInst rhs (Bound inst) (Some rhsInst)
 
                 if (initialFinalInstsIsOutput lhsInst (Bound inst)) then
                     return
-                        Unify (
+                        Unify(
                             lhs,
-                            Var (rhs, VarVarUnifyType.Assign),
-                            UnifyMode ((lhsInst, inst), (rhsInst, inst)),
+                            Var(rhs, VarVarUnifyType.Assign),
+                            UnifyMode((lhsInst, inst), (rhsInst, inst)),
                             context
                         )
                 elif (initialFinalInstsIsOutput rhsInst (Bound inst)) then
                     return
-                        Unify (
+                        Unify(
                             rhs,
-                            Var (lhs, VarVarUnifyType.Assign),
-                            UnifyMode ((rhsInst, inst), (lhsInst, inst)),
+                            Var(lhs, VarVarUnifyType.Assign),
+                            UnifyMode((rhsInst, inst), (lhsInst, inst)),
                             context
                         )
                 else
                     return
-                        Unify (
-                            lhs,
-                            Var (rhs, VarVarUnifyType.Test),
-                            UnifyMode ((lhsInst, inst), (rhsInst, inst)),
-                            context
-                        )
+                        Unify(lhs, Var(rhs, VarVarUnifyType.Test), UnifyMode((lhsInst, inst), (rhsInst, inst)), context)
 
             | None ->
                 let waitingVars = TagSet.ofList [ lhs; rhs ]
 
-                let error =
-                    ModeErrorUnifyVarVar (lhs, rhs, lhsInst, rhsInst)
+                let error = ModeErrorUnifyVarVar(lhs, rhs, lhsInst, rhsInst)
 
                 do! modeError waitingVars error
 
@@ -322,10 +312,10 @@ module internal Modecheck =
                 do! setVarInst rhs unifiedInst None
 
                 return
-                    Unify (
+                    Unify(
                         lhs,
-                        Var (rhs, VarVarUnifyType.Test),
-                        UnifyMode ((lhsInst, NotReached), (rhsInst, NotReached)),
+                        Var(rhs, VarVarUnifyType.Test),
+                        UnifyMode((lhsInst, NotReached), (rhsInst, NotReached)),
                         context
                     )
         }
@@ -348,7 +338,7 @@ module internal Modecheck =
                         let unifyGoal =
                             createVarVarUnify arg var.Id (ModeContextUnify context) goalInfo.SourceInfo
 
-                        do extraGoals.AfterGoals.Add (unifyGoal)
+                        do extraGoals.AfterGoals.Add(unifyGoal)
                         return! splitComplicatedSubUnifies args1 modes1 (var.Id :: argsRes) extraGoals
                     else
                         return! splitComplicatedSubUnifies args1 modes1 (arg :: argsRes) extraGoals
@@ -366,10 +356,9 @@ module internal Modecheck =
                 instTable.unifyInstFunctor (initialLhsInst, ctor, initialArgInsts, lhsVar.VarType)
 
             match instDet with
-            | Some (unifiedInst, det) ->
+            | Some(unifiedInst, det) ->
                 // TODO Fix Free here. Hopefully will be able to remove unifyMode altogether.
-                let unifyMode =
-                    ((initialLhsInst, unifiedInst), (Free, unifiedInst))
+                let unifyMode = ((initialLhsInst, unifiedInst), (Free, unifiedInst))
 
                 let unifyType =
                     if (initialLhsInst = Free) then
@@ -377,14 +366,12 @@ module internal Modecheck =
                     else
                         VarCtorUnifyType.Deconstruct
 
-                let argFromToInsts =
-                    getModeOfArgs initialArgInsts unifiedInst
+                let argFromToInsts = getModeOfArgs initialArgInsts unifiedInst
 
                 let initInstOfLhsArgs =
                     instTable.getArgInsts (initialLhsInst, ctor, (List.length argFromToInsts))
 
-                let modeOfLhsArgs =
-                    getModeOfArgs initInstOfLhsArgs unifiedInst
+                let modeOfLhsArgs = getModeOfArgs initInstOfLhsArgs unifiedInst
 
                 let unifyModes = List.zip modeOfLhsArgs argFromToInsts
 
@@ -393,9 +380,9 @@ module internal Modecheck =
                     do! setVarInst lhs (Bound unifiedInst) (Some Free)
 
                     return
-                        Unify (
+                        Unify(
                             lhs,
-                            Constructor (ctor, args, unifyType, modeOfLhsArgs, Casgliad.Data.CannotFail),
+                            Constructor(ctor, args, unifyType, modeOfLhsArgs, Casgliad.Data.CannotFail),
                             unifyMode,
                             context
                         )
@@ -405,25 +392,21 @@ module internal Modecheck =
 
                     let canFail =
                         match instTable.expand (initialLhsInst) with
-                        | Bound (BoundCtor { BoundInsts = [ _ ]; TestResults = _ }) -> Casgliad.Data.CannotFail
+                        | Bound(BoundCtor { BoundInsts = [ _ ]; TestResults = _ }) -> Casgliad.Data.CannotFail
                         | _ -> Casgliad.Data.CanFail
 
                     do! setVarInst lhs (Bound unifiedInst) (Some initialLhsInst)
                     do! bindArgs (Bound unifiedInst) args' initialArgInsts
 
                     let expr =
-                        Unify (lhs, Constructor (ctor, args', unifyType, modeOfLhsArgs, canFail), unifyMode, context)
+                        Unify(lhs, Constructor(ctor, args', unifyType, modeOfLhsArgs, canFail), unifyMode, context)
 
                     return! handleExtraGoals args args' goalInfo expr instMap extraGoals
             | None ->
-                let waitingVars =
-                    args
-                    |> Seq.ofList
-                    |> Seq.append [ lhs ]
-                    |> TagSet.ofSeq
+                let waitingVars = args |> Seq.ofList |> Seq.append [ lhs ] |> TagSet.ofSeq
 
                 let error =
-                    ModeErrorUnifyVarFunctor (lhs, ctor, args, initialLhsInst, initialArgInsts)
+                    ModeErrorUnifyVarFunctor(lhs, ctor, args, initialLhsInst, initialArgInsts)
 
                 do! modeError waitingVars error
 
@@ -432,7 +415,7 @@ module internal Modecheck =
                 do! setVarInst lhs unifiedInst None
                 do! bindArgs unifiedInst args initialArgInsts
 
-                return Disjunction ([])
+                return Disjunction([])
         }
 
     and handleExtraGoals
@@ -447,9 +430,11 @@ module internal Modecheck =
             let! haveErrors = haveErrors
             let! checkingExtraGoals = checkingExtraGoals
 
-            if (not haveErrors
-                && not (extraGoals.isEmpty ())
-                && not (initialInstMap.isReachable ())) then
+            if
+                (not haveErrors
+                 && not (extraGoals.isEmpty ())
+                 && not (initialInstMap.isReachable ()))
+            then
                 if (checkingExtraGoals) then
                     invalidOp "handleExtraGoals called recursively"
 
@@ -458,20 +443,18 @@ module internal Modecheck =
                 let introducedVars = TagSet.difference newArgVars oldArgVars
 
                 let nonLocals =
-                    TagSet.union goalInfo0.NonLocals introducedVars
-                    |> TagSet.intersect newArgVars
+                    TagSet.union goalInfo0.NonLocals introducedVars |> TagSet.intersect newArgVars
 
                 let goalInfo = { goalInfo0 with NonLocals = nonLocals }
 
                 let goalList =
                     List.append
                         (List.ofSeq extraGoals.BeforeGoals)
-                        ({ Goal = goalExpr; Info = goalInfo }
-                         :: List.ofSeq extraGoals.AfterGoals)
+                        ({ Goal = goalExpr; Info = goalInfo } :: List.ofSeq extraGoals.AfterGoals)
 
-                let goalArray = ResizeArray<Goal> ()
+                let goalArray = ResizeArray<Goal>()
                 let! _ = withNoDelayOrExtraGoals (modecheckConjListNoDelay goalList goalArray)
-                return Conjunction (List.ofSeq goalArray)
+                return Conjunction(List.ofSeq goalArray)
             else
                 return goalExpr
         }
@@ -485,38 +468,34 @@ module internal Modecheck =
                 let! instMap = getInstMap
 
                 if (instMap.isReachable ()) then
-                    do goalArray.Add (goal')
+                    do goalArray.Add(goal')
                     return! modecheckConjListNoDelay goals' goalArray
                 else
-                    do goalArray.Add (goal)
+                    do goalArray.Add(goal)
                     return ()
         }
 
     and modecheckConjList (goals: Goal list) =
         state {
-            let scheduledGoals = ResizeArray<Goal> ()
+            let scheduledGoals = ResizeArray<Goal>()
             let! (_, delayedGoals) = processConj (modecheckConjListFlattenAndSchedule goals scheduledGoals)
 
-            let scheduledDelayedGoals = ResizeArray<Goal> ()
+            let scheduledDelayedGoals = ResizeArray<Goal>()
             let! delayedGoals' = modecheckDelayedGoals delayedGoals scheduledDelayedGoals
-            do scheduledGoals.AddRange (scheduledDelayedGoals)
+            do scheduledGoals.AddRange(scheduledDelayedGoals)
 
             match delayedGoals' with
             | [] -> ()
             | [ delayedGoal ] -> do! modeErrorWithInfo delayedGoal.ErrorInfo
             | _ :: _ ->
-                let error =
-                    ModeErrorUnschedulableConjuncts delayedGoals
+                let error = ModeErrorUnschedulableConjuncts delayedGoals
 
                 let waitingVars =
-                    delayedGoals
-                    |> List.fold (fun vs g -> TagSet.union vs g.Vars) TagSet.empty
+                    delayedGoals |> List.fold (fun vs g -> TagSet.union vs g.Vars) TagSet.empty
 
                 do! modeError waitingVars error
 
-            return
-                Seq.append scheduledGoals scheduledDelayedGoals
-                |> List.ofSeq
+            return Seq.append scheduledGoals scheduledDelayedGoals |> List.ofSeq
         }
 
     and modecheckConjListFlattenAndSchedule goals scheduledGoals : StateFunc<ModeInfo, unit> =
@@ -525,7 +504,7 @@ module internal Modecheck =
             | [] -> return ()
             | goal :: goals' ->
                 match goal.Goal with
-                | Conjunction (subGoals) ->
+                | Conjunction(subGoals) ->
                     return! modecheckConjListFlattenAndSchedule (List.append subGoals goals') scheduledGoals
                 | _ ->
                     let! instMap0 = getInstMap
@@ -537,8 +516,8 @@ module internal Modecheck =
                     match goalErrors with
                     | [] ->
                         match goal'.Goal with
-                        | Conjunction (subGoals) -> do scheduledGoals.AddRange (subGoals)
-                        | _ -> do scheduledGoals.Add (goal')
+                        | Conjunction(subGoals) -> do scheduledGoals.AddRange(subGoals)
+                        | _ -> do scheduledGoals.Add(goal')
                     | firstError :: _ -> do! delayConjunct firstError goal instMap0 delayInfo0
 
                     let! wokenGoals = wakeupGoals
@@ -560,10 +539,9 @@ module internal Modecheck =
             match delayedGoals with
             | [] -> return []
             | _ :: _ ->
-                let goalsToProcess =
-                    delayedGoals |> List.map (fun dg -> dg.Goal)
+                let goalsToProcess = delayedGoals |> List.map (fun dg -> dg.Goal)
 
-                let scheduledGoals = ResizeArray<Goal> ()
+                let scheduledGoals = ResizeArray<Goal>()
 
                 let! (_, delayedGoals') =
                     processConj (modecheckConjListFlattenAndSchedule goalsToProcess scheduledGoals)
@@ -581,7 +559,7 @@ module internal Modecheck =
             match goals with
             | [] ->
                 do! setInstMap InstMap.initUnreachable
-                return Disjunction ([])
+                return Disjunction([])
             | _ :: _ ->
                 let! instMap0 = getInstMap
                 let! (goals', armInstMaps) = modecheckDisjuncts instMap0 goals
@@ -628,3 +606,51 @@ module internal Modecheck =
 
         let (goal', modeInfo') = run (modecheckGoal goal) modeInfo
         (goal', modeInfo'.Errors, modeInfo'.Warnings, modeInfo'.InstMap, modeInfo'.VarSet)
+
+    let modecheckProcedure
+        instTable
+        lookupRelationModes
+        lookupFunctionModes
+        (relationProcId: RelationProcId)
+        (relationInfo: RelationInfo)
+        (procInfo: ProcInfo)
+        (moduleInfo: ModuleInfo)
+        =
+        let (goal, errors, warnings, instMap, varSet) =
+            modecheckBodyGoal
+                relationProcId
+                procInfo.VarSet
+                procInfo.Args
+                procInfo.Modes
+                instTable
+                lookupRelationModes
+                lookupFunctionModes
+                procInfo.ProcGoal
+
+        { procInfo with
+            ProcGoal = goal
+            VarSet = varSet }
+
+    let lookupArgModesInModuleInfo (moduleInfo: ModuleInfo) relationId =
+        let relation = moduleInfo.getRelation (relationId)
+
+        relation.Procedures
+        |> Map.fold
+            (fun modes procId procInfo ->
+                let mode =
+                    { ProcId = procId
+                      Modes =
+                        { Modes = procInfo.Modes
+                          Determinism = procInfo.Determinism } }
+
+                mode :: modes)
+            []
+        |> List.rev
+
+    let modecheckModule (moduleInfo: ModuleInfo) =
+        moduleInfo.processProcedures (
+            modecheckProcedure
+                moduleInfo.InstTable
+                (lookupArgModesInModuleInfo moduleInfo)
+                Casgliad.Data.Compiler.Builtins.lookupFSharpFunctionModes
+        )

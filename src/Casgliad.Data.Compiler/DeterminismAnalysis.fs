@@ -1,4 +1,4 @@
-﻿module internal Casgliad.Data.Compiler.DeterminismAnalysis
+module internal Casgliad.Data.Compiler.DeterminismAnalysis
 
 open Casgliad.Data
 open Casgliad.Data.Compiler.DeterminismErrors
@@ -34,7 +34,7 @@ let rec determinismInferGoal detInfo (goal: Goal) (instMap0: InstMap) solutionCo
 
     let addPruning' =
         match goal.Goal with
-        | Scope (Commit, _) -> true
+        | Scope(Commit, _) -> true
         | _ -> addPruning
 
     let (goalExpr', internalDeterminism0, goalFailingContexts) =
@@ -50,19 +50,20 @@ let rec determinismInferGoal detInfo (goal: Goal) (instMap0: InstMap) solutionCo
             internalMaxSolutions0
 
     let maxSolutions =
-        if (addPruning'
-            && (internalMaxSolutions = MoreThanOneSolution
-                || internalMaxSolutions = CommittedChoice)) then
+        if
+            (addPruning'
+             && (internalMaxSolutions = MoreThanOneSolution
+                 || internalMaxSolutions = CommittedChoice))
+        then
             OneSolution
         else
             internalMaxSolutions
 
-    let determinism =
-        determinismFromComponents maxSolutions internalCanFail
+    let determinism = determinismFromComponents maxSolutions internalCanFail
 
     let goalInfo' =
         { goal.Info with
-              Determinism = determinism }
+            Determinism = determinism }
 
 
     // The code generator assumes that conjunctions containing multi or nondet
@@ -70,18 +71,16 @@ let rec determinismInferGoal detInfo (goal: Goal) (instMap0: InstMap) solutionCo
     // occur inside other multi or nondet goals.
     let finalInternalSolutions =
         match goalExpr' with
-        | IfThenElse ({ Goal = _; Info = condInfo }, _, _) when
+        | IfThenElse({ Goal = _; Info = condInfo }, _, _) when
             maxSolutions <> MoreThanOneSolution
             && (determinismComponents condInfo.Determinism |> fst) = MoreThanOneSolution
             ->
             MoreThanOneSolution
-        | Conjunction (conjGoals) when
+        | Conjunction(conjGoals) when
             maxSolutions = NoSolutions
             && conjGoals
-               |> List.exists
-                   (fun conjGoal ->
-                       (determinismComponents conjGoal.Info.Determinism
-                        |> fst) = MoreThanOneSolution)
+               |> List.exists (fun conjGoal ->
+                   (determinismComponents conjGoal.Info.Determinism |> fst) = MoreThanOneSolution)
             ->
             MoreThanOneSolution
         | _ -> internalMaxSolutions
@@ -104,8 +103,8 @@ let rec determinismInferGoal detInfo (goal: Goal) (instMap0: InstMap) solutionCo
                 Commit,
                 { Goal = goalExpr'
                   Info =
-                      { goal.Info with
-                            Determinism = finalInternalDeterminism } }
+                    { goal.Info with
+                        Determinism = finalInternalDeterminism } }
             )
         else
             goalExpr'
@@ -121,12 +120,12 @@ and determinismInferGoalExpr
     rightFailingContexts
     : GoalExpr * Determinism * FailingContext list =
     match goalExpr with
-    | Conjunction (conjGoals) ->
+    | Conjunction(conjGoals) ->
         let (conjGoals', determinism, conjFailingContexts) =
             determinismInferConjunction detInfo conjGoals instMap0 solutionContext rightFailingContexts []
 
         (Conjunction(conjGoals'), determinism, conjFailingContexts)
-    | Disjunction (disjGoals) ->
+    | Disjunction(disjGoals) ->
         let (disjGoals, determinism, failingContexts) =
             determinismInferDisjunction
                 detInfo
@@ -146,12 +145,12 @@ and determinismInferGoalExpr
                Goal = FailGoal }
              :: failingContexts)
         | _ :: _ -> (Disjunction(disjGoals), determinism, failingContexts)
-    | Call (callee, args) -> determinismInferCall detInfo callee args goalInfo solutionContext rightFailingContexts
-    | FSharpCall (callee, args, retVal) ->
+    | Call(callee, args) -> determinismInferCall detInfo callee args goalInfo solutionContext rightFailingContexts
+    | FSharpCall(callee, args, retVal) ->
         determinismInferFSharpCall detInfo callee args retVal goalInfo solutionContext rightFailingContexts
-    | Unify (lhs, rhs, mode, context) ->
+    | Unify(lhs, rhs, mode, context) ->
         determinismInferUnify detInfo lhs rhs mode context goalInfo instMap0 solutionContext rightFailingContexts
-    | IfThenElse (condGoal, thenGoal, elseGoal) ->
+    | IfThenElse(condGoal, thenGoal, elseGoal) ->
         determinismInferIfThenElse
             detInfo
             condGoal
@@ -161,22 +160,20 @@ and determinismInferGoalExpr
             instMap0
             solutionContext
             rightFailingContexts
-    | Not (negatedGoal) ->
-        determinismInferNot detInfo negatedGoal goalInfo instMap0 solutionContext rightFailingContexts
-    | Scope (scopeReason, scopeGoal) ->
+    | Not(negatedGoal) -> determinismInferNot detInfo negatedGoal goalInfo instMap0 solutionContext rightFailingContexts
+    | Scope(scopeReason, scopeGoal) ->
         let (scopeGoal', scopeGoalDeterminism, scopeFailingContexts) =
             determinismInferGoal detInfo scopeGoal instMap0 solutionContext rightFailingContexts
 
-        (Scope (scopeReason, scopeGoal'), scopeGoalDeterminism, scopeFailingContexts)
-    | Switch (_, _, _) ->
-        failwith "switch not supported"
+        (Scope(scopeReason, scopeGoal'), scopeGoalDeterminism, scopeFailingContexts)
+    | Switch(_, _, _) -> failwith "switch not supported"
 
 and determinismInferNot detInfo goal goalInfo instMap0 solutionContext rightFailingContexts =
     let (goal', goalDeterminism, _) =
         determinismInferGoal detInfo goal instMap0 FirstSolution []
 
     match negationDeterminism goalDeterminism with
-    | Some (negatedDeterminism) ->
+    | Some(negatedDeterminism) ->
         let goalFailingContexts =
             match determinismComponents negatedDeterminism |> snd with
             | CanFail ->
@@ -197,8 +194,7 @@ and determinismInferIfThenElse
     solutionContext
     rightFailingContexts
     =
-    let instMap1 =
-        instMap0.applyInstMapDelta condGoal.Info.InstMapDelta
+    let instMap1 = instMap0.applyInstMapDelta condGoal.Info.InstMapDelta
 
     let (thenGoal', thenDeterminism, thenFailingContexts) =
         determinismInferGoal detInfo thenGoal instMap1 solutionContext rightFailingContexts
@@ -206,8 +202,7 @@ and determinismInferIfThenElse
     let (thenMaxSolutions, thenCanFail) = determinismComponents thenDeterminism
 
     let condSolutionContext =
-        if thenCanFail = CannotFail
-           && solutionContext = FirstSolution then
+        if thenCanFail = CannotFail && solutionContext = FirstSolution then
             FirstSolution
         else
             AllSolutions
@@ -237,37 +232,34 @@ and determinismInferIfThenElse
             match condMaxSolutions with
             | NoSolutions ->
                 match negationDeterminism condDeterminism with
-                | Some (negDeterminism) ->
+                | Some(negDeterminism) ->
                     // Ignore the then part, it can't be reached.
                     conjunctionDeterminism negDeterminism elseDeterminism
                 | None -> failwith "cannot find determinism of negated condition"
             | OneSolution
             | MoreThanOneSolution
             | CommittedChoice ->
-                let condThenMaxSolutions =
-                    detConjunctionMaxSoln condMaxSolutions thenMaxSolutions
+                let condThenMaxSolutions = detConjunctionMaxSoln condMaxSolutions thenMaxSolutions
 
-                let maxSolutions =
-                    detSwitchMaxSoln condThenMaxSolutions elseMaxSolutions
+                let maxSolutions = detSwitchMaxSoln condThenMaxSolutions elseMaxSolutions
 
                 let canFail = detSwitchCanFail thenCanFail elseCanFail
                 determinismFromComponents maxSolutions canFail
 
-    let goal =
-        IfThenElse(condGoal', thenGoal', elseGoal')
+    let goal = IfThenElse(condGoal', thenGoal', elseGoal')
 
     (goal, determinism, List.append thenFailingContexts elseFailingContexts)
 
 and determinismInferUnify detInfo lhs rhs mode context goalInfo instMap0 solutionContext rightFailingContexts =
     let inferUnifyFailingGoal lhs rhs =
         match rhs with
-        | Var (_, Assign) -> None
-        | Var (rhsVar, Test) ->
+        | Var(_, Assign) -> None
+        | Var(rhsVar, Test) ->
             Some(
                 { Context = goalInfo.SourceInfo
                   Goal = TestGoal(lhs, rhsVar) }
             )
-        | Constructor (ctor, _, _, _, canFail) ->
+        | Constructor(ctor, _, _, _, canFail) ->
             match canFail with
             | CanFail ->
                 Some(
@@ -283,7 +275,7 @@ and determinismInferUnify detInfo lhs rhs mode context goalInfo instMap0 solutio
     let maybeFailingGoal = inferUnifyFailingGoal lhs rhs
 
     match maybeFailingGoal with
-    | Some (failingGoal) -> (goal, determinismFromComponents OneSolution CanFail, [ failingGoal ])
+    | Some(failingGoal) -> (goal, determinismFromComponents OneSolution CanFail, [ failingGoal ])
     | None -> (goal, Det, [])
 
 and determinismInferDisjunction
@@ -304,15 +296,12 @@ and determinismInferDisjunction
 
         let (firstNumSolutions, firstCanFail) = determinismComponents goalDeterminism
 
-        let canFail' =
-            detDisjunctionCanFail canFail firstCanFail
+        let canFail' = detDisjunctionCanFail canFail firstCanFail
 
-        let numSolutions' =
-            detDisjunctionMaxSoln numSolutions firstNumSolutions
+        let numSolutions' = detDisjunctionMaxSoln numSolutions firstNumSolutions
 
         let numSolutions'' =
-            if (solutionContext = FirstSolution
-                && numSolutions' = MoreThanOneSolution) then
+            if (solutionContext = FirstSolution && numSolutions' = MoreThanOneSolution) then
                 CommittedChoice
             else
                 numSolutions'
@@ -335,11 +324,9 @@ and determinismInferFSharpCall detInfo callee args retVal goalInfo solutionConte
         detInfo.LookupFSharpFunctionModes(fst callee)
         |> List.find (fun m -> m.ProcId = snd callee)
 
-    let (numSolutions, canFail) =
-        determinismComponents modes.Modes.Determinism
+    let (numSolutions, canFail) = determinismComponents modes.Modes.Determinism
 
-    if (numSolutions = CommittedChoice
-        && solutionContext = AllSolutions) then
+    if (numSolutions = CommittedChoice && solutionContext = AllSolutions) then
         failwith
             $"Error: call to {callee} with determinism {modes.Modes.Determinism} occurs in a context which requires all solutions"
 
@@ -357,11 +344,9 @@ and determinismInferCall detInfo callee args goalInfo solutionContext rightFaili
         detInfo.LookupRelationModes(fst callee)
         |> List.find (fun m -> m.ProcId = snd callee)
 
-    let (numSolutions, canFail) =
-        determinismComponents modes.Modes.Determinism
+    let (numSolutions, canFail) = determinismComponents modes.Modes.Determinism
 
-    if (numSolutions = CommittedChoice
-        && solutionContext = AllSolutions) then
+    if (numSolutions = CommittedChoice && solutionContext = AllSolutions) then
         detInfo.Errors.Add(
             { SourceInfo = goalInfo.SourceInfo
               Relation = detInfo.CurrentRelation
@@ -381,8 +366,7 @@ and determinismInferCall detInfo callee args goalInfo solutionContext rightFaili
 and determinismInferConjunction detInfo conjGoals instMap0 solutionContext rightFailingContexts conjFailingContexts =
     match conjGoals with
     | headGoal :: tailGoals ->
-        let instMap1 =
-            instMap0.applyInstMapDelta headGoal.Info.InstMapDelta
+        let instMap1 = instMap0.applyInstMapDelta headGoal.Info.InstMapDelta
 
         let (tailGoals', tailDeterminism, conjFailingContexts') =
             determinismInferConjunction
@@ -393,12 +377,10 @@ and determinismInferConjunction detInfo conjGoals instMap0 solutionContext right
                 rightFailingContexts
                 conjFailingContexts
 
-        let tailCanFail =
-            determinismComponents tailDeterminism |> snd
+        let tailCanFail = determinismComponents tailDeterminism |> snd
 
         let headSolutionContext =
-            if (tailCanFail = CannotFail
-                && solutionContext = FirstSolution) then
+            if (tailCanFail = CannotFail && solutionContext = FirstSolution) then
                 FirstSolution
             else
                 AllSolutions
@@ -411,11 +393,9 @@ and determinismInferConjunction detInfo conjGoals instMap0 solutionContext right
                 headSolutionContext
                 (List.append conjFailingContexts' rightFailingContexts)
 
-        let determinism =
-            conjunctionDeterminism headDeterminism tailDeterminism
+        let determinism = conjunctionDeterminism headDeterminism tailDeterminism
 
-        let conjFailingContexts'' =
-            List.append headFailingContexts conjFailingContexts'
+        let conjFailingContexts'' = List.append headFailingContexts conjFailingContexts'
 
         (headGoal' :: tailGoals', determinism, conjFailingContexts'')
     | [] -> ([], Det, conjFailingContexts)
@@ -442,14 +422,12 @@ let determinismInferProcedureBody
 
     let instMap = InstMap.ofInitialArgModes args argModes
 
-    let solutionContext =
-        SolutionContext.ofDeterminism declaredDet
+    let solutionContext = SolutionContext.ofDeterminism declaredDet
 
     let (goal', inferredDet, _) =
         determinismInferGoal detInfo goal instMap solutionContext []
 
-    let compareDeterminism =
-        compareDeterminisms declaredDet inferredDet
+    let compareDeterminism = compareDeterminisms declaredDet inferredDet
 
     match compareDeterminism with
     | DeterminismComparison.FirstSameAs -> ()
@@ -469,3 +447,33 @@ let determinismInferProcedureBody
         )
 
     (goal', detInfo.Errors, detInfo.Warnings, inferredDet)
+
+let determinismInferProcedure
+    lookupRelationModes
+    lookupFunctionModes
+    (relationProcId: RelationProcId)
+    (relationInfo: RelationInfo)
+    (procInfo: ProcInfo)
+    (moduleInfo: ModuleInfo)
+    =
+    let (goal, errors, warnings, inferredDet) =
+        determinismInferProcedureBody
+            moduleInfo.InstTable
+            relationProcId
+            procInfo.Args
+            procInfo.Modes
+            procInfo.Determinism
+            procInfo.VarSet
+            procInfo.ProcGoal
+            lookupRelationModes
+            lookupFunctionModes
+
+    { procInfo with
+        InferredDeterminism = Some inferredDet }
+
+let determinismInferModule (moduleInfo: ModuleInfo) =
+    moduleInfo.processProcedures (
+        determinismInferProcedure
+            (Modecheck.lookupArgModesInModuleInfo moduleInfo)
+            Casgliad.Data.Compiler.Builtins.lookupFSharpFunctionModes
+    )

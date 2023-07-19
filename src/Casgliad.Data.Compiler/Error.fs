@@ -37,10 +37,9 @@ module internal Error =
           Context = ErrorContext.Expr expr
           Severity = ErrorSeverity.Error }
 
-
     let unsupportedUnifyRhsError sourceInfo expr =
         { Error.Location = Some sourceInfo
-          Text = "Unsupported unify RHS"
+          Text = "Unsupported unify right-hand-side"
           Context = ErrorContext.Expr expr
           Severity = ErrorSeverity.Error }
 

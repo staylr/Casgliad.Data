@@ -8,8 +8,7 @@ module Compile =
     let internal parseRelation (sourceModule: casgliadModule) (relation: RelationBase) (moduleInfo: ModuleInfo) =
         let varset = VarSet.init
 
-        let varset' =
-            QuotationParser.getVars varset relation.Body
+        let varset' = QuotationParser.getVars varset relation.Body
 
         let sourceInfo =
             { SourceInfo.File = relation.Path
@@ -18,20 +17,17 @@ module Compile =
               StartCol = 0
               EndCol = 0 }
 
-        let parserInfo =
-            ParserInfo.init sourceModule varset' sourceInfo
+        let parserInfo = ParserInfo.init sourceModule varset' sourceInfo
 
         let ((args, goal: Goal), parserInfo'') =
             State.run (QuotationParser.translateExpr relation.Body) parserInfo
 
-        let goal' =
-            Simplify.simplifyGoal (parserInfo''.varset) goal
+        let goal' = Simplify.simplifyGoal (parserInfo''.varset) goal
 
         if (Error.maxSeverityOfList parserInfo''.errors = ErrorSeverity.Error) then
             parserInfo''.errors
         else
-            let modeResult =
-                List.map (parseModes sourceInfo args) relation.Modes
+            let modeResult = List.map (parseModes sourceInfo args) relation.Modes
 
             match combineResults modeResult with
             | Ok _ ->
@@ -49,45 +45,38 @@ module Compile =
                 parserInfo''.errors
             | Error modeErrors -> List.concat (parserInfo''.errors :: modeErrors)
 
-    let internal compileRelationMethod
+    let internal parseRelationMethod
         (moduleInfo: ModuleInfo)
         (instance: casgliadModule)
         errors
         (property: PropertyInfo)
         =
         let relationAttribute =
-            property.GetCustomAttribute (typeof<RelationAttribute>) :?> RelationAttribute
+            property.GetCustomAttribute(typeof<RelationAttribute>) :?> RelationAttribute
 
-        let relation =
-            property.GetValue (instance) :?> RelationBase
+        let relation = property.GetValue(instance) :?> RelationBase
 
-        do System.Console.WriteLine ($"{relation.Body}")
+        do System.Console.WriteLine($"{relation.Body}")
 
-        let errors' =
-            parseRelation instance relation moduleInfo
+        let errors' = parseRelation instance relation moduleInfo
 
         errors' :: errors
 
     let internal compileCasgliadModule (moduleType: System.Type) =
         let moduleInfo = ModuleInfo.init
 
-        let instance =
-            System.Activator.CreateInstance (moduleType) :?> casgliadModule
+        let instance = System.Activator.CreateInstance(moduleType) :?> casgliadModule
 
         let bindingFlags =
-            BindingFlags.Public
-            ||| BindingFlags.NonPublic
-            ||| BindingFlags.Instance
+            BindingFlags.Public ||| BindingFlags.NonPublic ||| BindingFlags.Instance
 
-        let properties =
-            moduleType.GetProperties (bindingFlags)
-            |> Array.toList
+        let properties = moduleType.GetProperties(bindingFlags) |> Array.toList
 
         let relationProperties =
             properties
             |> List.filter (fun (p: PropertyInfo) -> notNull (p.GetCustomAttribute typeof<RelationAttribute>))
 
         let result =
-            List.fold (compileRelationMethod moduleInfo instance) [] relationProperties
+            List.fold (parseRelationMethod moduleInfo instance) [] relationProperties
 
         (result, moduleType)
