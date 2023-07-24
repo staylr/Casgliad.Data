@@ -1,4 +1,4 @@
-﻿module internal Casgliad.Data.Compiler.DeterminismErrors
+module internal Casgliad.Data.Compiler.DeterminismErrors
 
 open Casgliad.Data
 
@@ -12,8 +12,14 @@ type DeterminismDiagnosis =
     | GoalCanSucceed
     | GoalCanFail
 
+type DeterminismmDiagnosisContext =
+    | DeterminismDiagnosisContextNone
+    | DeterminismDiagnosisContextCall of RelationProcId
+    | DeterminismDiagnosisContextUnify of VarId * UnifyRhs * UnifyContext
+
 type DeterminismDiagnosisInfo =
     { Diagnosis: DeterminismDiagnosis
+      Context: DeterminismmDiagnosisContext
       SourceInfo: SourceInfo }
 
 type DeterminismError =

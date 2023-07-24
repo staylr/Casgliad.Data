@@ -25,6 +25,86 @@ type DeterminismInfo =
       Errors: ResizeArray<DeterminismErrorInfo>
       Warnings: ResizeArray<DeterminismWarningInfo> }
 
+let rec determinismDiagnoseGoal
+    detInfo
+    (goal: Goal)
+    (instMap0: InstMap)
+    (desired: Determinism)
+    : DeterminismDiagnosisInfo list =
+    let comparisonResult = compareDeterminisms desired goal.Info.Determinism
+
+    match comparisonResult with
+    | DeterminismComparison.Incomparable
+    | DeterminismComparison.FirstTighterThan ->
+        determinismDiagnoseGoalExpr detInfo goal instMap0 desired goal.Info.Determinism
+    | DeterminismComparison.FirstLooserThan
+    | DeterminismComparison.Incomparable -> []
+
+and determinismDiagnoseGoalExpr
+    detInfo
+    (goal: Goal)
+    (instMap0: InstMap)
+    (desired: Determinism)
+    (actual: Determinism)
+    : DeterminismDiagnosisInfo list =
+    match goal.Goal with
+    | Conjunction conjuncts -> determinismDiagnoseConjunction detInfo conjuncts instMap0 desired
+    | Disjunction disjuncts ->
+        let msgs = determinismDiagnoseDisjunction detInfo disjuncts instMap0 desired actual
+
+        let desiredMaxSoln = determinismComponents goal.Info.Determinism |> fst
+
+        if (desiredMaxSoln <> MoreThanOneSolution && desiredMaxSoln <> CommittedChoice) then
+
+            let disjunctsWithSolution =
+                disjuncts
+                |> Seq.filter (fun disjunct -> disjunct.Info.Determinism |> determinismComponents |> fst <> NoSolutions)
+                |> Seq.length
+
+            if (disjunctsWithSolution > 1) then
+                { Diagnosis = DisjunctionHasMultipleClausesWithSolutions
+                  Context = DeterminismDiagnosisContextNone
+                  SourceInfo = goal.Info.SourceInfo }
+                :: msgs
+            else
+                msgs
+        else
+            msgs
+
+and determinismDiagnoseConjunction
+    detInfo
+    (goals: Goal list)
+    (instMap0: InstMap)
+    (desired: Determinism)
+    : DeterminismDiagnosisInfo list =
+    match goals with
+    | [] -> []
+    | goal :: goals ->
+        let instMap1 = instMap0.applyInstMapDelta goal.Info.InstMapDelta
+
+        List.append
+            (determinismDiagnoseGoal detInfo goal instMap0 desired)
+            (determinismDiagnoseConjunction detInfo goals instMap1 desired)
+
+and determinismDiagnoseDisjunction detInfo goals instMap0 desired actual =
+    match goals with
+    | [] -> []
+    | goal :: goals' ->
+        let (_, actualCanFail) = determinismComponents actual
+        let (desiredMaxSoln, desiredCanFail) = determinismComponents desired
+
+        let clauseCanFail =
+            if (desiredCanFail = CannotFail && actualCanFail = CanFail) then
+                CannotFail
+            else
+                CanFail
+
+        let clauseDesired = determinismFromComponents desiredMaxSoln clauseCanFail
+
+        List.append
+            (determinismDiagnoseGoal detInfo goal instMap0 clauseDesired)
+            (determinismDiagnoseDisjunction detInfo goals' instMap0 desired actual)
+
 let rec determinismInferGoal detInfo (goal: Goal) (instMap0: InstMap) solutionContext rightFailingContexts =
     let (solutionContext', addPruning) =
         if (instMap0.hasOutputVars detInfo.InstTable detInfo.VarSet instMap0 goal.Info.NonLocals) then
@@ -362,7 +442,6 @@ and determinismInferCall detInfo callee args goalInfo solutionContext rightFaili
 
     (Call(callee, args), modes.Modes.Determinism, goalFailingContexts)
 
-
 and determinismInferConjunction detInfo conjGoals instMap0 solutionContext rightFailingContexts conjFailingContexts =
     match conjGoals with
     | headGoal :: tailGoals ->
@@ -469,7 +548,8 @@ let determinismInferProcedure
             lookupFunctionModes
 
     { procInfo with
-        InferredDeterminism = Some inferredDet }
+        InferredDeterminism = Some inferredDet
+        ProcGoal = goal }
 
 let determinismInferModule (moduleInfo: ModuleInfo) =
     moduleInfo.processProcedures (
