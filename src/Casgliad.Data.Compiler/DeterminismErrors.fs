@@ -3,22 +3,34 @@ module internal Casgliad.Data.Compiler.DeterminismErrors
 open Casgliad.Data
 
 type DeterminismDiagnosis =
-    | DisjunctionHasMultipleClausesWithSolutions
-    | IncompleteSwitch of VarId * Constructor list
-    | SwitchCanFail of VarId
-    | NegatedGoalCanSucceed
-    | NegatedGoalCanFail
-    | GoalCanSucceedMoreThanOnce
-    | GoalCanSucceed
-    | GoalCanFail
+    | DiagnosisDisjunctionHasMultipleClausesWithSolutions
+    | DiagnosisIncompleteSwitch of VarId * Constructor list
+    | DiagnosisSwitchCanFail of VarId
+    | DiagnosisNegatedGoalCanSucceed
+    | DiagnosisNegatedGoalCanFail
+    | DiagnosisGoalCanSucceedMoreThanOnce
+    | DiagnosisGoalCanSucceed
+    | DiagnosisGoalCanFail
+    | DiagnosisUnknown of desired: Determinism * actual: Determinism
 
 type DeterminismmDiagnosisContext =
     | DeterminismDiagnosisContextNone
-    | DeterminismDiagnosisContextCall of RelationProcId
+    | DeterminismDiagnosisContextCall of RelationProcId * VarId list
+    | DeterminismDiagnosisContextFSharpCall of FSharpProcId * VarId list
     | DeterminismDiagnosisContextUnify of VarId * UnifyRhs * UnifyContext
+
+type DeterminismSwitchMatch =
+    { MatchConstructor: Constructor
+      MatchArgs: (VarId list) option }
+
+type DeterminismSwitchContext =
+    { SwitchVar: VarId
+      FirstMatch: DeterminismSwitchMatch
+      OtherMatches: DeterminismSwitchMatch list }
 
 type DeterminismDiagnosisInfo =
     { Diagnosis: DeterminismDiagnosis
+      SwitchContext: DeterminismSwitchContext list
       Context: DeterminismmDiagnosisContext
       SourceInfo: SourceInfo }
 

@@ -30,13 +30,14 @@ let rec determinismDiagnoseGoal
     (goal: Goal)
     (instMap0: InstMap)
     (desired: Determinism)
+    (switchContext: DeterminismSwitchContext list)
     : DeterminismDiagnosisInfo list =
     let comparisonResult = compareDeterminisms desired goal.Info.Determinism
 
     match comparisonResult with
     | DeterminismComparison.Incomparable
     | DeterminismComparison.FirstTighterThan ->
-        determinismDiagnoseGoalExpr detInfo goal instMap0 desired goal.Info.Determinism
+        determinismDiagnoseGoalExpr detInfo goal instMap0 desired goal.Info.Determinism switchContext
     | DeterminismComparison.FirstLooserThan
     | DeterminismComparison.Incomparable -> []
 
@@ -46,11 +47,13 @@ and determinismDiagnoseGoalExpr
     (instMap0: InstMap)
     (desired: Determinism)
     (actual: Determinism)
+    (switchContext: DeterminismSwitchContext list)
     : DeterminismDiagnosisInfo list =
     match goal.Goal with
-    | Conjunction conjuncts -> determinismDiagnoseConjunction detInfo conjuncts instMap0 desired
+    | Conjunction conjuncts -> determinismDiagnoseConjunction detInfo conjuncts instMap0 desired switchContext
     | Disjunction disjuncts ->
-        let msgs = determinismDiagnoseDisjunction detInfo disjuncts instMap0 desired actual
+        let msgs =
+            determinismDiagnoseDisjunction detInfo disjuncts instMap0 desired actual switchContext
 
         let desiredMaxSoln = determinismComponents goal.Info.Determinism |> fst
 
@@ -62,20 +65,91 @@ and determinismDiagnoseGoalExpr
                 |> Seq.length
 
             if (disjunctsWithSolution > 1) then
-                { Diagnosis = DisjunctionHasMultipleClausesWithSolutions
+                { Diagnosis = DiagnosisDisjunctionHasMultipleClausesWithSolutions
                   Context = DeterminismDiagnosisContextNone
+                  SwitchContext = switchContext
                   SourceInfo = goal.Info.SourceInfo }
                 :: msgs
             else
                 msgs
         else
             msgs
+    | Unify(lhs, rhs, _, context) ->
+        determinismDiagnosePrimitiveGoal
+            desired
+            actual
+            goal.Info.SourceInfo
+            (DeterminismDiagnosisContextUnify(lhs, rhs, context))
+            switchContext
+    | Call(callee, args) ->
+        determinismDiagnosePrimitiveGoal
+            desired
+            actual
+            goal.Info.SourceInfo
+            (DeterminismDiagnosisContextCall(callee, args))
+            switchContext
+    | FSharpCall(callee, _, args) ->
+        determinismDiagnosePrimitiveGoal
+            desired
+            actual
+            goal.Info.SourceInfo
+            (DeterminismDiagnosisContextFSharpCall(callee, args))
+            switchContext
+
+and determinismDiagnosePrimitiveGoal
+    (desired: Determinism)
+    (actual: Determinism)
+    sourceInfo
+    diagnosisContext
+    switchContext
+    =
+
+    let (desiredSolutions, desiredCanFail) = determinismComponents desired
+    let (actualSolutions, actualCanFail) = determinismComponents actual
+
+    let canFailMessages =
+        match (compareCanFails desiredCanFail actualCanFail) with
+        | FirstTighterThan ->
+            [ { Diagnosis = DiagnosisGoalCanFail
+                Context = diagnosisContext
+                SwitchContext = switchContext
+                SourceInfo = sourceInfo } ]
+        | FirstSameAs
+        | FirstLooserThan -> []
+
+    let solutionsMessages =
+        match (compareSolutionCount desiredSolutions actualSolutions) with
+        | FirstTighterThan ->
+            let diagnosis =
+                match desiredSolutions with
+                | OneSolution -> DiagnosisGoalCanSucceedMoreThanOnce
+                | NoSolutions
+                | MoreThanOneSolution
+                | CommittedChoice -> DiagnosisGoalCanSucceed
+
+            [ { Diagnosis = diagnosis
+                Context = diagnosisContext
+                SwitchContext = switchContext
+                SourceInfo = sourceInfo } ]
+        | FirstSameAs
+        | FirstLooserThan -> []
+
+    let diagnoses = List.append canFailMessages solutionsMessages
+
+    if (diagnoses <> []) then
+        diagnoses
+    else
+        [ { Diagnosis = DiagnosisUnknown(desired, actual)
+            Context = diagnosisContext
+            SwitchContext = switchContext
+            SourceInfo = sourceInfo } ]
 
 and determinismDiagnoseConjunction
     detInfo
     (goals: Goal list)
     (instMap0: InstMap)
     (desired: Determinism)
+    (switchContext: DeterminismSwitchContext list)
     : DeterminismDiagnosisInfo list =
     match goals with
     | [] -> []
@@ -83,10 +157,10 @@ and determinismDiagnoseConjunction
         let instMap1 = instMap0.applyInstMapDelta goal.Info.InstMapDelta
 
         List.append
-            (determinismDiagnoseGoal detInfo goal instMap0 desired)
-            (determinismDiagnoseConjunction detInfo goals instMap1 desired)
+            (determinismDiagnoseGoal detInfo goal instMap0 desired switchContext)
+            (determinismDiagnoseConjunction detInfo goals instMap1 desired switchContext)
 
-and determinismDiagnoseDisjunction detInfo goals instMap0 desired actual =
+and determinismDiagnoseDisjunction detInfo goals instMap0 desired actual switchContext =
     match goals with
     | [] -> []
     | goal :: goals' ->
@@ -102,8 +176,8 @@ and determinismDiagnoseDisjunction detInfo goals instMap0 desired actual =
         let clauseDesired = determinismFromComponents desiredMaxSoln clauseCanFail
 
         List.append
-            (determinismDiagnoseGoal detInfo goal instMap0 clauseDesired)
-            (determinismDiagnoseDisjunction detInfo goals' instMap0 desired actual)
+            (determinismDiagnoseGoal detInfo goal instMap0 clauseDesired switchContext)
+            (determinismDiagnoseDisjunction detInfo goals' instMap0 desired actual switchContext)
 
 let rec determinismInferGoal detInfo (goal: Goal) (instMap0: InstMap) solutionContext rightFailingContexts =
     let (solutionContext', addPruning) =
