@@ -39,7 +39,7 @@ let rec determinismDiagnoseGoal
     | DeterminismComparison.FirstTighterThan ->
         determinismDiagnoseGoalExpr detInfo goal instMap0 desired goal.Info.Determinism switchContext
     | DeterminismComparison.FirstLooserThan
-    | DeterminismComparison.Incomparable -> []
+    | DeterminismComparison.FirstSameAs -> []
 
 and determinismDiagnoseGoalExpr
     detInfo
@@ -74,6 +74,53 @@ and determinismDiagnoseGoalExpr
                 msgs
         else
             msgs
+    | IfThenElse(condGoal, thenGoal, elseGoal) ->
+        let desiredMaxSoln = determinismComponents goal.Info.Determinism |> fst
+        let condMaxSoln = determinismComponents condGoal.Info.Determinism |> fst
+
+        let condMsgs =
+            if (condMaxSoln = MoreThanOneSolution && desiredMaxSoln <> MoreThanOneSolution) then
+                let desiredCond = determinismFromComponents desiredMaxSoln CanFail
+                determinismDiagnoseGoal detInfo condGoal instMap0 desiredCond switchContext
+            else
+                []
+
+        let instMap1 = instMap0.applyInstMapDelta (condGoal.Info.InstMapDelta)
+
+        let thenMsgs =
+            determinismDiagnoseGoal detInfo thenGoal instMap1 desired switchContext
+
+        let elseMsgs =
+            determinismDiagnoseGoal detInfo elseGoal instMap0 desired switchContext
+
+        List.concat [ condMsgs; thenMsgs; elseMsgs ]
+    | Not(negGoal) ->
+        let (desiredMaxSoln, desiredCanFail) = determinismComponents desired
+        let (actualMaxSoln, actualCanFail) = determinismComponents actual
+
+        if (desiredCanFail = CannotFail && actualCanFail = CanFail) then
+            [ { Diagnosis = DiagnosisNegatedGoalCanSucceed
+                Context = DeterminismDiagnosisContextNone
+                SwitchContext = switchContext
+                SourceInfo = goal.Info.SourceInfo } ]
+        else if (desiredMaxSoln = NoSolutions && actualMaxSoln <> NoSolutions) then
+            [ { Diagnosis = DiagnosisNegatedGoalCanFail
+                Context = DeterminismDiagnosisContextNone
+                SwitchContext = switchContext
+                SourceInfo = goal.Info.SourceInfo } ]
+        else
+            []
+    | Scope(_, scopeGoal) ->
+        let internalDesired =
+            if (actual = scopeGoal.Info.Determinism) then
+                desired
+            else
+                // The scope is a commit.
+                let desiredCanFail = determinismComponents desired |> snd
+                determinismFromComponents MoreThanOneSolution desiredCanFail
+
+        determinismDiagnoseGoal detInfo scopeGoal instMap0 internalDesired switchContext
+
     | Unify(lhs, rhs, _, context) ->
         determinismDiagnosePrimitiveGoal
             desired
@@ -587,16 +634,17 @@ let determinismInferProcedureBody
     | DeterminismComparison.FirstTighterThan ->
         detInfo.Warnings.Add(
             { Relation = relationProcId
-              SourceInfo = goal.Info.SourceInfo
+              SourceInfo = goal'.Info.SourceInfo
               Warning = DeterminismWarning.DeclarationTooLax(declaredDet, inferredDet) }
         )
     | DeterminismComparison.FirstLooserThan
     | DeterminismComparison.Incomparable ->
-        // TODO: diagnose error.
+        let diagnoses = determinismDiagnoseGoal detInfo goal' instMap declaredDet []
+
         detInfo.Errors.Add(
             { Relation = relationProcId
-              SourceInfo = goal.Info.SourceInfo
-              Error = DeterminismError.DeclarationNotSatisfied(declaredDet, inferredDet, []) }
+              SourceInfo = goal'.Info.SourceInfo
+              Error = DeterminismError.DeclarationNotSatisfied(declaredDet, inferredDet, diagnoses) }
         )
 
     (goal', detInfo.Errors, detInfo.Warnings, inferredDet)

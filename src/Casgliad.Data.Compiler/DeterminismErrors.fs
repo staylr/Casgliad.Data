@@ -36,7 +36,10 @@ type DeterminismDiagnosisInfo =
 
 type DeterminismError =
     | CallMustBeInSingleSolutionContext of callee: RelationProcId
-    | DeclarationNotSatisfied of declared: Determinism * inferred: Determinism * diagnosis: DeterminismDiagnosis list
+    | DeclarationNotSatisfied of
+        declared: Determinism *
+        inferred: Determinism *
+        diagnosis: DeterminismDiagnosisInfo list
 
 type DeterminismWarning = DeclarationTooLax of declared: Determinism * inferred: Determinism
 
