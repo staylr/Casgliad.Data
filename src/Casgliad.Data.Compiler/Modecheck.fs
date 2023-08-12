@@ -616,7 +616,7 @@ module internal Modecheck =
         (procInfo: ProcInfo)
         (moduleInfo: ModuleInfo)
         =
-        let (goal, errors, warnings, instMap, varSet) =
+        let (goal, errors, warnings, _instMap, varSet) =
             modecheckBodyGoal
                 relationProcId
                 procInfo.VarSet
@@ -627,9 +627,11 @@ module internal Modecheck =
                 lookupFunctionModes
                 procInfo.ProcGoal
 
-        { procInfo with
-            ProcGoal = goal
-            VarSet = varSet }
+        (errors,
+         warnings,
+         { procInfo with
+             ProcGoal = goal
+             VarSet = varSet })
 
     let lookupArgModesInModuleInfo (moduleInfo: ModuleInfo) relationId =
         let relation = moduleInfo.getRelation (relationId)
@@ -648,9 +650,24 @@ module internal Modecheck =
         |> List.rev
 
     let modecheckModule (moduleInfo: ModuleInfo) =
+        let modeErrors = ResizeArray()
+        let modeWarnings = ResizeArray()
+
         moduleInfo.processProcedures (
-            modecheckProcedure
-                moduleInfo.InstTable
-                (lookupArgModesInModuleInfo moduleInfo)
-                Casgliad.Data.Compiler.Builtins.lookupFSharpFunctionModes
+            (fun procId relInfo procInfo moduleInfo ->
+                let (procErrors, procWarnings, procInfo') =
+                    modecheckProcedure
+                        moduleInfo.InstTable
+                        (lookupArgModesInModuleInfo moduleInfo)
+                        Casgliad.Data.Compiler.Builtins.lookupFSharpFunctionModes
+                        procId
+                        relInfo
+                        procInfo
+                        moduleInfo
+
+                modeErrors.AddRange(procErrors)
+                modeWarnings.AddRange(procWarnings)
+                procInfo')
         )
+
+        (modeErrors |> List.ofSeq, modeWarnings |> List.ofSeq)

@@ -669,13 +669,29 @@ let determinismInferProcedure
             lookupRelationModes
             lookupFunctionModes
 
-    { procInfo with
-        InferredDeterminism = Some inferredDet
-        ProcGoal = goal }
+    (errors,
+     warnings,
+     { procInfo with
+         InferredDeterminism = Some inferredDet
+         ProcGoal = goal })
 
 let determinismInferModule (moduleInfo: ModuleInfo) =
-    moduleInfo.processProcedures (
-        determinismInferProcedure
-            (Modecheck.lookupArgModesInModuleInfo moduleInfo)
-            Casgliad.Data.Compiler.Builtins.lookupFSharpFunctionModes
-    )
+    let detErrors = ResizeArray()
+    let detWarnings = ResizeArray()
+
+
+    moduleInfo.processProcedures (fun relProcId relInfo procInfo moduleInfo ->
+        let procErrors, procWarnings, procInfo' =
+            determinismInferProcedure
+                (Modecheck.lookupArgModesInModuleInfo moduleInfo)
+                Casgliad.Data.Compiler.Builtins.lookupFSharpFunctionModes
+                relProcId
+                relInfo
+                procInfo
+                moduleInfo
+
+        detErrors.AddRange(procErrors)
+        detWarnings.AddRange(procWarnings)
+        procInfo')
+
+    (detErrors |> List.ofSeq, detWarnings |> List.ofSeq)

@@ -388,7 +388,7 @@ module internal QuotationParser =
         | Patterns.IfThenElse(Patterns.UnionCaseTest(exprToTest, _), _, _) ->
             match (unionMatch [] exprToTest expr) with
             | Some(cases, canFail) -> Some(exprToTest, cases, canFail)
-            | _ -> None
+            | None -> None
         | _ -> None
 
     // More dumpster diving to recognise chains of tuple, record or union case deconstruction.

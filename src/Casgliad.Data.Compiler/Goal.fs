@@ -283,7 +283,7 @@ module internal Goal =
             UnifyType: VarCtorUnifyType *
             ArgModes: ModeE list *
             CanFail: CanFail
-        | Lambda of NonLocals: VarId list * Args: VarId list * Modes: Mode list * Detism: Determinism * Goal: Goal
+        | Lambda of NonLocals: VarId list * Args: VarId list * Modes: ModeE list * Detism: Determinism * Goal: Goal
 
         member x.Dump() : GoalToStringFunc =
             gts {

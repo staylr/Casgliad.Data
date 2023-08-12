@@ -58,8 +58,10 @@ let internal parseRelationMethod (moduleInfo: ModuleInfo) (instance: casgliadMod
 
 type CompilationErrors =
     { ParseErrors: Error list
-      ModeErrors: ModeErrors.ModeError list
-      DeterminismErrors: DeterminismErrors.DeterminismError list }
+      ModeErrors: ModeErrors.ModeErrorInfo list
+      ModeWarnings: ModeErrors.ModeWarningInfo list
+      DeterminismErrors: DeterminismErrors.DeterminismErrorInfo list
+      DeterminismWarnings: DeterminismErrors.DeterminismWarningInfo list }
 
 let internal compileModule (moduleType: System.Type) =
     let moduleInfo = ModuleInfo.init
@@ -74,11 +76,23 @@ let internal compileModule (moduleType: System.Type) =
         Seq.fold (parseRelationMethod moduleInfo instance) [] relationProperties
         |> List.concat
 
-    let errors =
+    let (modeErrors, modeWarnings) =
         if (parseErrors = []) then
             Modecheck.modecheckModule moduleInfo
-            (parseErrors, [], [])
         else
-            (parseErrors, [], [])
+            ([], [])
+
+    let (determinismErrors, determinismWarnings) =
+        if (parseErrors = [] && modeErrors = []) then
+            DeterminismAnalysis.determinismInferModule moduleInfo
+        else
+            ([], [])
+
+    let errors =
+        { ParseErrors = parseErrors
+          ModeErrors = modeErrors
+          ModeWarnings = modeWarnings
+          DeterminismErrors = determinismErrors
+          DeterminismWarnings = determinismWarnings }
 
     (errors, moduleInfo)
