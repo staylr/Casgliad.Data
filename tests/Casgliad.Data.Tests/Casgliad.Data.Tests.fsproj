@@ -11,6 +11,7 @@
     <ProjectReference Include="..\..\src\Casgliad.Data.Compiler\Casgliad.Data.Compiler.fsproj" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="CompileTest.fs" />
     <Compile Include="TestHelpers.fs" />
     <Compile Include="IntSetTests.fs" />
     <Compile Include="AssemblyInfo.fs" />

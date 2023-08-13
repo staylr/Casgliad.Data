@@ -627,8 +627,8 @@ module internal Modecheck =
                 lookupFunctionModes
                 procInfo.ProcGoal
 
-        (errors,
-         warnings,
+        (errors |> List.ofSeq,
+         warnings |> List.ofSeq,
          { procInfo with
              ProcGoal = goal
              VarSet = varSet })

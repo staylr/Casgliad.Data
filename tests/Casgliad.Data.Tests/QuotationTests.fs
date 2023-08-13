@@ -1,10 +1,10 @@
 namespace Casgliad.Data.Tests
 
-open FSharp.Quotations
 open System
 open Swensen.Unquote
 open Casgliad.Data
 open Casgliad.Data.Compiler
+open Casgliad.Data.Tests.CompileTest
 open NUnit.Framework
 
 module QuotationTests =
@@ -66,54 +66,6 @@ module QuotationTests =
     //    override this.p = <@ fun(x, y) -> x = y @>
 
 
-    let defaultSourceInfo =
-        { SourceInfo.File = "..."
-          StartLine = 0
-          EndLine = 0
-          StartCol = 0
-          EndCol = 0 }
-
-    let internal testGoalInfo
-        (info: ParserInfo)
-        goalInfo
-        (nonLocalNames: string list)
-        (determinism: Determinism)
-        (instMapDelta: (string * BoundInstE) list)
-        =
-        let nonLocals =
-            nonLocalNames
-            |> List.map (fun v -> info.varset.findByName(v).Id)
-            |> TagSet.ofList
-
-        test <@ goalInfo.NonLocals = nonLocals @>
-
-        let mappings = goalInfo.InstMapDelta.mappings ()
-
-        instMapDelta
-        |> List.iter (fun (varName, expectedInst) ->
-            let var = info.varset.findByName(varName).Id
-            let mappingInst = mappings.[var]
-            test <@ mappingInst = expectedInst @>)
-
-        mappings
-        |> Map.iter (fun varId _ ->
-            let var = info.varset.[varId]
-
-            if (not (List.exists (fun (varName, _) -> varName = var.Name) instMapDelta)) then
-                failwith $"unexpected mapping for {var.Name}")
-
-        test <@ goalInfo.Determinism = determinism @>
-
-    let internal newParserInfo (expr: Expr) =
-        let varset = QuotationParser.getVars VarSet.init expr
-
-        let testSourceInfo =
-            match (QuotationParser.getSourceInfo expr) with
-            | Some sourceInfo -> sourceInfo
-            | None -> defaultSourceInfo
-
-        ParserInfo.init (casgliadTest ()) varset testSourceInfo
-
     [<ReflectedDefinitionAttribute>]
     let internal testVarName info var varName = info.varset.[var].Name = varName
 
@@ -125,59 +77,12 @@ module QuotationTests =
                     Determinism = Nondet }
                 ProcId = 1<procIdMeasure> } ]
 
-    let internal compileExpr expr maybeArgModes =
-        let ((args, goal), info) =
-            State.run (QuotationParser.translateExpr expr) (newParserInfo expr)
-
-        let (goal', varset) = Quantification.implicitlyQuantifyGoal args info.varset goal
-
-        let (argModes, det) =
-            match maybeArgModes with
-            | Some(argModes, det) -> (argModes, det)
-            | None -> (args |> List.map (fun _ -> (InstE.Free, BoundInstE.Ground)), Nondet)
-
-        let instTable = InstTable()
-
-        let relationProcId =
-            ({ RelationId.ModuleName = "mod"
-               RelationId.RelationName = UserRelation "pred" },
-             0<procIdMeasure>)
-
-        let (goal'', modeErrors, modeWarnings, _, varset') =
-            Modecheck.modecheckBodyGoal
-                relationProcId
-                varset
-                args
-                argModes
-                instTable
-                lookupRelationModes
-                Builtins.lookupFSharpFunctionModes
-                goal'
-
-        let (goal''', detErrors, detWarnings, inferredDet) =
-            if (modeErrors = []) then
-                DeterminismAnalysis.determinismInferProcedureBody
-                    instTable
-                    relationProcId
-                    args
-                    argModes
-                    det
-                    varset
-                    goal''
-                    lookupRelationModes
-                    Builtins.lookupFSharpFunctionModes
-            else
-                (goal'',
-                 new ResizeArray<DeterminismErrors.DeterminismErrorInfo>(),
-                 new ResizeArray<DeterminismErrors.DeterminismWarningInfo>(),
-                 det)
-
-        ((args, goal'''), { info with varset = varset' })
-
     [<Test>]
     let simple () : unit =
         let expr = <@ fun (x, y) -> x = 4 && y = 2 @>
-        let ((args, goal), info) = compileExpr expr None
+
+        let ((args, goal), info) =
+            compileExpr expr None (casgliadTest ()) lookupRelationModes
 
         test <@ info.errors = [] @>
 
@@ -227,7 +132,9 @@ module QuotationTests =
     [<Test>]
     let singleArg () : unit =
         let expr = <@ fun x -> x = 4 @>
-        let ((args, goal), info) = compileExpr expr None
+
+        let ((args, goal), info) =
+            compileExpr expr None (casgliadTest ()) lookupRelationModes
 
         test <@ info.errors = [] @>
 
@@ -256,7 +163,11 @@ module QuotationTests =
             @>
 
         let ((args, goal), info) =
-            compileExpr expr (Some([ (Bound Ground, Ground); (Free, Ground) ], Det))
+            compileExpr
+                expr
+                (Some([ (Bound Ground, Ground); (Free, Ground) ], Det))
+                (casgliadTest ())
+                lookupRelationModes
 
         test <@ info.errors = [] @>
 
@@ -281,7 +192,11 @@ module QuotationTests =
         let expr = <@ fun (x, y) -> x = 1 && let (a, b) = y in a = b @>
 
         let ((args, goal), info) =
-            compileExpr expr (Some([ (Bound Ground, Ground); (Bound Ground, Ground) ], Det))
+            compileExpr
+                expr
+                (Some([ (Bound Ground, Ground); (Bound Ground, Ground) ], Det))
+                (casgliadTest ())
+                lookupRelationModes
 
         test <@ info.errors = [] @>
 
@@ -314,7 +229,11 @@ module QuotationTests =
             @>
 
         let ((args, goal), info) =
-            compileExpr expr (Some([ (Bound Ground, Ground); (Bound Ground, Ground) ], Det))
+            compileExpr
+                expr
+                (Some([ (Bound Ground, Ground); (Bound Ground, Ground) ], Det))
+                (casgliadTest ())
+                lookupRelationModes
 
         test <@ info.errors = [] @>
 
@@ -349,7 +268,9 @@ module QuotationTests =
     let exists () : unit =
         let expr = <@ fun (x, y) -> casgliad.exists (fun z -> x = 4 && y = 2 && z = 3) @>
 
-        let ((args, goal), info) = compileExpr expr None
+        let ((args, goal), info) =
+            compileExpr expr None (casgliadTest ()) lookupRelationModes
+
         test <@ info.errors = [] @>
 
         match goal.Goal with
@@ -369,7 +290,9 @@ module QuotationTests =
         let expr =
             <@ fun (x, y) -> casgliad.exists (fun (z1, z2) -> x = 4 && y = 2 && z1 = 6 && z2 = 7) @>
 
-        let ((args, goal), info) = compileExpr expr None
+        let ((args, goal), info) =
+            compileExpr expr None (casgliadTest ()) lookupRelationModes
+
         test <@ info.errors = [] @>
 
         match goal.Goal with
@@ -390,5 +313,8 @@ module QuotationTests =
     [<Test>]
     let callRelation () : unit =
         let testModule = casgliadTest ()
-        let ((args, goal), info) = compileExpr testModule.rel4.Body None
+
+        let ((args, goal), info) =
+            compileExpr testModule.rel4.Body None (casgliadTest ()) lookupRelationModes
+
         test <@ info.errors = [] @>

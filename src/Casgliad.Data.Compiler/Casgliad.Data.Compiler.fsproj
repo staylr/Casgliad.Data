@@ -35,7 +35,6 @@
     <Compile Include="Builtins.fs" />
     <Compile Include="Modecheck.fs" />
     <Compile Include="DeterminismErrors.fs" />
-    <Compile Include="DeterminismReport.fs" />
     <Compile Include="DeterminismAnalysis.fs" />
     <Compile Include="DisjunctiveNormalForm.fs" />
     <Compile Include="Magic.fs" />

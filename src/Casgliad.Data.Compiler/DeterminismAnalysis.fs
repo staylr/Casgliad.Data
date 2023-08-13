@@ -653,7 +653,7 @@ let determinismInferProcedure
     lookupRelationModes
     lookupFunctionModes
     (relationProcId: RelationProcId)
-    (relationInfo: RelationInfo)
+    (_relationInfo: RelationInfo)
     (procInfo: ProcInfo)
     (moduleInfo: ModuleInfo)
     =
@@ -669,8 +669,8 @@ let determinismInferProcedure
             lookupRelationModes
             lookupFunctionModes
 
-    (errors,
-     warnings,
+    (errors |> List.ofSeq,
+     warnings |> List.ofSeq,
      { procInfo with
          InferredDeterminism = Some inferredDet
          ProcGoal = goal })
@@ -678,7 +678,6 @@ let determinismInferProcedure
 let determinismInferModule (moduleInfo: ModuleInfo) =
     let detErrors = ResizeArray()
     let detWarnings = ResizeArray()
-
 
     moduleInfo.processProcedures (fun relProcId relInfo procInfo moduleInfo ->
         let procErrors, procWarnings, procInfo' =
