@@ -150,13 +150,13 @@ module internal ModuleInfoModule =
               InstTable = InstTable() }
 
         member this.addRelation(relation) =
-            this.Relations.[relation.Name] = relation |> ignore
+            this.Relations.Add(relation.Name, relation)
 
         member this.processRelations(f: (RelationInfo -> ModuleInfo -> RelationInfo)) : unit =
             let processRelation (m: ModuleInfo) (r: KeyValuePair<RelationId, RelationInfo>) =
                 let r' = f r.Value m
 
-                m.Relations.[r.Key] = r' |> ignore
+                m.Relations.[r.Key] <- r'
 
             this.Relations |> Seq.iter (processRelation this)
 

@@ -6,7 +6,7 @@
   </PropertyGroup>
   <PropertyGroup>
     <Title>Casgliad.Data.Compilerr</Title>
-    <Description>Casgliad.Data does the thing!</Description>
+    <Description>Compiler for Casgliad.</Description>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)'=='Release'">
     <Optimize>true</Optimize>

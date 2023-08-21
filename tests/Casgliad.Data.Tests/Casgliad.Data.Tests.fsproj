@@ -16,6 +16,7 @@
     <Compile Include="IntSetTests.fs" />
     <Compile Include="AssemblyInfo.fs" />
     <Compile Include="QuotationTests.fs" />
+    <Compile Include="ModeErrorTests.fs" />
     <Compile Include="InstTests.fs" />
     <Compile Include="Main.fs" />
   </ItemGroup>

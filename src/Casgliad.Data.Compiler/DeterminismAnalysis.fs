@@ -647,7 +647,7 @@ let determinismInferProcedureBody
               Error = DeterminismError.DeclarationNotSatisfied(declaredDet, inferredDet, diagnoses) }
         )
 
-    (goal', detInfo.Errors, detInfo.Warnings, inferredDet)
+    (goal', detInfo.Errors |> List.ofSeq, detInfo.Warnings |> List.ofSeq, inferredDet)
 
 let determinismInferProcedure
     lookupRelationModes
@@ -669,8 +669,8 @@ let determinismInferProcedure
             lookupRelationModes
             lookupFunctionModes
 
-    (errors |> List.ofSeq,
-     warnings |> List.ofSeq,
+    (errors,
+     warnings,
      { procInfo with
          InferredDeterminism = Some inferredDet
          ProcGoal = goal })

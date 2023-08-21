@@ -63,13 +63,13 @@ type CompilationErrors =
       DeterminismErrors: DeterminismErrors.DeterminismErrorInfo list
       DeterminismWarnings: DeterminismErrors.DeterminismWarningInfo list }
 
-let internal compileModule (moduleType: System.Type) =
+let internal compileModule (instance: casgliadModule) =
     let moduleInfo = ModuleInfo.init
 
-    let instance = System.Activator.CreateInstance(moduleType) :?> casgliadModule
-
     let relationProperties =
-        moduleType.GetProperties(BindingFlags.Public ||| BindingFlags.NonPublic ||| BindingFlags.Instance)
+        instance
+            .GetType()
+            .GetProperties(BindingFlags.Public ||| BindingFlags.NonPublic ||| BindingFlags.Instance)
         |> Seq.filter (fun (p: PropertyInfo) -> notNull (p.GetCustomAttribute typeof<RelationAttribute>))
 
     let parseErrors =
@@ -96,3 +96,7 @@ let internal compileModule (moduleType: System.Type) =
           DeterminismWarnings = determinismWarnings }
 
     (errors, moduleInfo)
+
+let internal compileModuleFromType (moduleType: System.Type) =
+    let instance = System.Activator.CreateInstance(moduleType) :?> casgliadModule
+    compileModule
