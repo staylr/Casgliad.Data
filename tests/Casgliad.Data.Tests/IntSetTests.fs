@@ -25,6 +25,7 @@ open System
 open System.Collections
 open System.Collections.Generic
 open NUnit.Framework
+open NUnit.Framework.Legacy
 
 let inline raToArray (resizeArray: ResizeArray<'T>) : 'T [] = resizeArray.ToArray ()
 
@@ -1146,13 +1147,13 @@ module SetType =
 
         let testStepping () : unit =
             checkThrowsInvalidOperationExn (fun () -> enum.Current |> ignore)
-            Assert.AreEqual (enum.MoveNext (), true)
-            Assert.AreEqual (enum.Current, 1)
-            Assert.AreEqual (enum.MoveNext (), true)
-            Assert.AreEqual (enum.Current, 2)
-            Assert.AreEqual (enum.MoveNext (), true)
-            Assert.AreEqual (enum.Current, 3)
-            Assert.AreEqual (enum.MoveNext (), false)
+            ClassicAssert.AreEqual (enum.MoveNext (), true)
+            ClassicAssert.AreEqual (enum.Current, 1)
+            ClassicAssert.AreEqual (enum.MoveNext (), true)
+            ClassicAssert.AreEqual (enum.Current, 2)
+            ClassicAssert.AreEqual (enum.MoveNext (), true)
+            ClassicAssert.AreEqual (enum.Current, 3)
+            ClassicAssert.AreEqual (enum.MoveNext (), false)
             checkThrowsInvalidOperationExn (fun () -> enum.Current |> ignore)
 
         testStepping ()
@@ -1168,7 +1169,7 @@ module SetType =
         let enum = ie.GetEnumerator ()
 
         checkThrowsInvalidOperationExn (fun () -> enum.Current |> ignore)
-        Assert.AreEqual (enum.MoveNext (), false)
+        ClassicAssert.AreEqual (enum.MoveNext (), false)
         checkThrowsInvalidOperationExn (fun () -> enum.Current |> ignore)
 
     [<Test>]
@@ -1183,13 +1184,13 @@ module SetType =
 
         let testStepping () : unit =
             checkThrowsInvalidOperationExn (fun () -> enum.Current |> ignore)
-            Assert.AreEqual (enum.MoveNext (), true)
-            Assert.AreEqual (enum.Current, 1)
-            Assert.AreEqual (enum.MoveNext (), true)
-            Assert.AreEqual (enum.Current, 2)
-            Assert.AreEqual (enum.MoveNext (), true)
-            Assert.AreEqual (enum.Current, 3)
-            Assert.AreEqual (enum.MoveNext (), false)
+            ClassicAssert.AreEqual (enum.MoveNext (), true)
+            ClassicAssert.AreEqual (enum.Current, 1)
+            ClassicAssert.AreEqual (enum.MoveNext (), true)
+            ClassicAssert.AreEqual (enum.Current, 2)
+            ClassicAssert.AreEqual (enum.MoveNext (), true)
+            ClassicAssert.AreEqual (enum.Current, 3)
+            ClassicAssert.AreEqual (enum.MoveNext (), false)
             checkThrowsInvalidOperationExn (fun () -> enum.Current |> ignore)
 
         testStepping ()
@@ -1205,7 +1206,7 @@ module SetType =
         let enum = ie.GetEnumerator ()
 
         checkThrowsInvalidOperationExn (fun () -> enum.Current |> ignore)
-        Assert.AreEqual (enum.MoveNext (), false)
+        ClassicAssert.AreEqual (enum.MoveNext (), false)
         checkThrowsInvalidOperationExn (fun () -> enum.Current |> ignore)
 
     [<Test>]
@@ -1216,16 +1217,16 @@ module SetType =
 
         let st = new IntSet ([ 1; 2; 3; 4 ])
 
-        Assert.IsTrue (ic.Contains (3))
+        ClassicAssert.IsTrue (ic.Contains (3))
         let newArr = Array.create 5 0
         ic.CopyTo (newArr, 0)
-        Assert.IsTrue (ic.IsReadOnly)
+        ClassicAssert.IsTrue (ic.IsReadOnly)
 
     [<Test>]
     let ``ICollection (Empty)`` () : unit =
         // Empty IC
         let ic = (new IntSet ([])) :> ICollection<int>
-        Assert.IsFalse (ic.Contains (123))
+        ClassicAssert.IsFalse (ic.Contains (123))
         let newArr = Array.create 5 -1
         ic.CopyTo (newArr, 0)
 
@@ -1235,13 +1236,13 @@ module SetType =
         let ic =
             (new IntSet ([ 1; 2; 3; 4 ])) :> IComparable
 
-        Assert.AreEqual (ic.CompareTo (new IntSet ([ 1; 2; 3; 4 ])), 0)
+        ClassicAssert.AreEqual (ic.CompareTo (new IntSet ([ 1; 2; 3; 4 ])), 0)
 
     [<Test>]
     let ``IComparable (Empty)`` () : unit =
         // Empty IC
         let ic = (new IntSet ([])) :> IComparable
-        Assert.AreEqual (ic.CompareTo (IntSet.empty), 0)
+        ClassicAssert.AreEqual (ic.CompareTo (IntSet.empty), 0)
 
 
     // Base class methods
@@ -1250,13 +1251,13 @@ module SetType =
         // Verify order added is independent
         let x = IntSet.ofList [ 1; 2; 3 ]
         let y = IntSet.ofList [ 3; 2; 1 ]
-        Assert.AreEqual (x.GetHashCode (), y.GetHashCode ())
+        ClassicAssert.AreEqual (x.GetHashCode (), y.GetHashCode ())
 
     [<Test>]
     let ObjectToString () : unit =
-        Assert.AreEqual ("intSet [1; 2; 3; ... ]", (new IntSet ([ 1; 2; 3; 4 ])).ToString ())
-        Assert.AreEqual ("intSet []", (IntSet.empty).ToString ())
-        Assert.AreEqual ("intSet [1; 3]", (new IntSet ([ 1; 3 ])).ToString ())
+        ClassicAssert.AreEqual ("intSet [1; 2; 3; ... ]", (new IntSet ([ 1; 2; 3; 4 ])).ToString ())
+        ClassicAssert.AreEqual ("intSet []", (IntSet.empty).ToString ())
+        ClassicAssert.AreEqual ("intSet [1; 3]", (new IntSet ([ 1; 3 ])).ToString ())
 
 
     [<Test>]
@@ -1266,23 +1267,23 @@ module SetType =
         let a = new IntSet ([ 1; 2; 3 ])
         let b = new IntSet ([ 1 .. 3 ])
         let c = new IntSet (seq { 1 .. 3 })
-        Assert.IsTrue ((a = b))
-        Assert.IsTrue ((b = c))
-        Assert.IsTrue ((c = a))
-        Assert.IsTrue (a.Equals (b))
-        Assert.IsTrue (b.Equals (a))
-        Assert.IsTrue (b.Equals (c))
-        Assert.IsTrue (c.Equals (b))
-        Assert.IsTrue (c.Equals (a))
-        Assert.IsTrue (a.Equals (c))
+        ClassicAssert.IsTrue ((a = b))
+        ClassicAssert.IsTrue ((b = c))
+        ClassicAssert.IsTrue ((c = a))
+        ClassicAssert.IsTrue (a.Equals (b))
+        ClassicAssert.IsTrue (b.Equals (a))
+        ClassicAssert.IsTrue (b.Equals (c))
+        ClassicAssert.IsTrue (c.Equals (b))
+        ClassicAssert.IsTrue (c.Equals (a))
+        ClassicAssert.IsTrue (a.Equals (c))
 
         // Self equality
         let a = new IntSet ([ 1 ])
-        Assert.IsTrue ((a = a))
-        Assert.IsTrue (a.Equals (a))
+        ClassicAssert.IsTrue ((a = a))
+        ClassicAssert.IsTrue (a.Equals (a))
 
         // Null
-        Assert.IsFalse (a.Equals (null))
+        ClassicAssert.IsFalse (a.Equals (null))
 
 
     // Instance methods
@@ -1290,125 +1291,125 @@ module SetType =
     let Add () : unit =
         let l = new IntSet ([ 1 .. 10 ])
         let ad = l.Add 88
-        Assert.IsTrue (ad.Contains (88))
+        ClassicAssert.IsTrue (ad.Contains (88))
 
         let e: IntSet = IntSet.empty
         let ade = e.Add 123
-        Assert.IsTrue (ade.Contains (123))
+        ClassicAssert.IsTrue (ade.Contains (123))
 
         let s = IntSet.singleton 168
         let ads = s.Add 100
-        Assert.IsTrue (ads.Contains (100))
+        ClassicAssert.IsTrue (ads.Contains (100))
 
     [<Test>]
     let Contains () : unit =
         let i = new IntSet ([ 1 .. 10 ])
-        Assert.IsTrue (i.Contains (8))
+        ClassicAssert.IsTrue (i.Contains (8))
 
         let e: IntSet = IntSet.empty
-        Assert.IsFalse (e.Contains (123))
+        ClassicAssert.IsFalse (e.Contains (123))
 
         let s = IntSet.singleton 168
-        Assert.IsTrue (s.Contains (168))
+        ClassicAssert.IsTrue (s.Contains (168))
 
     [<Test>]
     let Count () : unit =
         let l = new IntSet ([ 1 .. 10 ])
-        Assert.AreEqual (l.Count, 10)
+        ClassicAssert.AreEqual (l.Count, 10)
 
         let e: IntSet = IntSet.empty
-        Assert.AreEqual (e.Count, 0)
+        ClassicAssert.AreEqual (e.Count, 0)
 
         let s = IntSet.singleton 123
-        Assert.AreEqual (s.Count, 1)
+        ClassicAssert.AreEqual (s.Count, 1)
 
     [<Test>]
     let IsEmpty () : unit =
         let i = new IntSet ([ 1 .. 10 ])
-        Assert.IsFalse (i.IsEmpty)
+        ClassicAssert.IsFalse (i.IsEmpty)
 
         let e: IntSet = IntSet.empty
-        Assert.IsTrue (e.IsEmpty)
+        ClassicAssert.IsTrue (e.IsEmpty)
 
         let s = IntSet.singleton 168
-        Assert.IsFalse (s.IsEmpty)
+        ClassicAssert.IsFalse (s.IsEmpty)
 
     [<Test>]
     let IsSubsetOf () : unit =
         let fir = new IntSet ([ 1 .. 20 ])
         let sec = new IntSet ([ 1 .. 10 ])
-        Assert.IsTrue (sec.IsSubsetOf (fir))
-        Assert.IsTrue (IntSet.isSubset sec fir)
+        ClassicAssert.IsTrue (sec.IsSubsetOf (fir))
+        ClassicAssert.IsTrue (IntSet.isSubset sec fir)
 
         let e: IntSet = IntSet.empty
-        Assert.IsTrue (e.IsSubsetOf (fir))
-        Assert.IsTrue (IntSet.isSubset e fir)
+        ClassicAssert.IsTrue (e.IsSubsetOf (fir))
+        ClassicAssert.IsTrue (IntSet.isSubset e fir)
 
         let s = IntSet.singleton 8
-        Assert.IsTrue (s.IsSubsetOf (fir))
-        Assert.IsTrue (IntSet.isSubset s fir)
+        ClassicAssert.IsTrue (s.IsSubsetOf (fir))
+        ClassicAssert.IsTrue (IntSet.isSubset s fir)
 
         let s100 = IntSet [ 0 .. 100 ]
         let s101 = IntSet [ 0 .. 101 ]
 
         for i = 0 to 100 do
-            Assert.IsFalse ((IntSet [ -1 .. i ]).IsSubsetOf s100)
-            Assert.IsTrue ((IntSet [ 0 .. i ]).IsSubsetOf s100)
-            Assert.IsTrue ((IntSet [ 0 .. i ]).IsProperSubsetOf s101)
+            ClassicAssert.IsFalse ((IntSet [ -1 .. i ]).IsSubsetOf s100)
+            ClassicAssert.IsTrue ((IntSet [ 0 .. i ]).IsSubsetOf s100)
+            ClassicAssert.IsTrue ((IntSet [ 0 .. i ]).IsProperSubsetOf s101)
 
 
     [<Test>]
     let IsSupersetOf () : unit =
         let fir = new IntSet ([ 1 .. 10 ])
         let sec = new IntSet ([ 1 .. 20 ])
-        Assert.IsTrue (sec.IsSupersetOf (fir))
-        Assert.IsTrue (IntSet.isSuperset sec fir)
+        ClassicAssert.IsTrue (sec.IsSupersetOf (fir))
+        ClassicAssert.IsTrue (IntSet.isSuperset sec fir)
 
         let e: IntSet = IntSet.empty
-        Assert.IsFalse (e.IsSupersetOf (fir))
-        Assert.IsFalse (IntSet.isSuperset e fir)
+        ClassicAssert.IsFalse (e.IsSupersetOf (fir))
+        ClassicAssert.IsFalse (IntSet.isSuperset e fir)
 
         let s = IntSet.singleton 168
-        Assert.IsFalse (s.IsSupersetOf (fir))
-        Assert.IsFalse (IntSet.isSuperset s fir)
+        ClassicAssert.IsFalse (s.IsSupersetOf (fir))
+        ClassicAssert.IsFalse (IntSet.isSuperset s fir)
 
         let s100 = IntSet [ 0 .. 100 ]
         let s101 = IntSet [ 0 .. 101 ]
 
         for i = 0 to 100 do
-            Assert.IsFalse (s100.IsSupersetOf (IntSet [ -1 .. i ]))
-            Assert.IsTrue (s100.IsSupersetOf (IntSet [ 0 .. i ]))
-            Assert.IsTrue (s101.IsSupersetOf (IntSet [ 0 .. i ]))
+            ClassicAssert.IsFalse (s100.IsSupersetOf (IntSet [ -1 .. i ]))
+            ClassicAssert.IsTrue (s100.IsSupersetOf (IntSet [ 0 .. i ]))
+            ClassicAssert.IsTrue (s101.IsSupersetOf (IntSet [ 0 .. i ]))
 
     [<Test>]
     let Remove () : unit =
         let i = new IntSet ([ 1; 2; 3; 4 ])
-        Assert.AreEqual (i.Remove 3, (new IntSet ([ 1; 2; 4 ])))
+        ClassicAssert.AreEqual (i.Remove 3, (new IntSet ([ 1; 2; 4 ])))
 
         let e: IntSet = IntSet.empty
-        Assert.AreEqual (e.Remove 123, e)
+        ClassicAssert.AreEqual (e.Remove 123, e)
 
         let s = IntSet.singleton 168
-        Assert.AreEqual (s.Remove 168, IntSet.empty)
+        ClassicAssert.AreEqual (s.Remove 168, IntSet.empty)
 
     [<Test>]
     let MinimumElement () : unit =
         let fir = new IntSet ([ 1 .. 6 ])
         let sec = new IntSet ([ 2; 4; 6 ])
-        Assert.AreEqual (fir.MinimumElement, 1)
-        Assert.AreEqual (sec.MinimumElement, 2)
-        Assert.AreEqual (IntSet.minElement fir, 1)
-        Assert.AreEqual (IntSet.minElement sec, 2)
+        ClassicAssert.AreEqual (fir.MinimumElement, 1)
+        ClassicAssert.AreEqual (sec.MinimumElement, 2)
+        ClassicAssert.AreEqual (IntSet.minElement fir, 1)
+        ClassicAssert.AreEqual (IntSet.minElement sec, 2)
 
 
     [<Test>]
     let MaximumElement () : unit =
         let fir = new IntSet ([ 1 .. 6 ])
         let sec = new IntSet ([ 2; 4; 7 ])
-        Assert.AreEqual (fir.MaximumElement, 6)
-        Assert.AreEqual (sec.MaximumElement, 7)
-        Assert.AreEqual (IntSet.maxElement fir, 6)
-        Assert.AreEqual (IntSet.maxElement sec, 7)
+        ClassicAssert.AreEqual (fir.MaximumElement, 6)
+        ClassicAssert.AreEqual (sec.MaximumElement, 7)
+        ClassicAssert.AreEqual (IntSet.maxElement fir, 6)
+        ClassicAssert.AreEqual (IntSet.maxElement sec, 7)
 
 
     // Static methods
@@ -1416,37 +1417,37 @@ module SetType =
     let Addition () : unit =
         let fir = new IntSet ([ 1; 3; 5 ])
         let sec = new IntSet ([ 2; 4; 6 ])
-        Assert.AreEqual (fir + sec, new IntSet ([ 1; 2; 3; 4; 5; 6 ]))
-        Assert.AreEqual (IntSet.op_Addition (fir, sec), new IntSet ([ 1; 2; 3; 4; 5; 6 ]))
+        ClassicAssert.AreEqual (fir + sec, new IntSet ([ 1; 2; 3; 4; 5; 6 ]))
+        ClassicAssert.AreEqual (IntSet.op_Addition (fir, sec), new IntSet ([ 1; 2; 3; 4; 5; 6 ]))
 
         let e: IntSet = IntSet.empty
-        Assert.AreEqual (e + e, e)
-        Assert.AreEqual (IntSet.op_Addition (e, e), e)
+        ClassicAssert.AreEqual (e + e, e)
+        ClassicAssert.AreEqual (IntSet.op_Addition (e, e), e)
 
         let s1 = IntSet.singleton 8
         let s2 = IntSet.singleton 6
-        Assert.AreEqual (s1 + s2, new IntSet ([ 8; 6 ]))
-        Assert.AreEqual (IntSet.op_Addition (s1, s2), new IntSet ([ 8; 6 ]))
+        ClassicAssert.AreEqual (s1 + s2, new IntSet ([ 8; 6 ]))
+        ClassicAssert.AreEqual (IntSet.op_Addition (s1, s2), new IntSet ([ 8; 6 ]))
 
 
     [<Test>]
     let Subtraction () : unit =
         let fir = new IntSet ([ 1 .. 6 ])
         let sec = new IntSet ([ 2; 4; 6 ])
-        Assert.AreEqual (fir - sec, new IntSet ([ 1; 3; 5 ]))
-        Assert.AreEqual (IntSet.difference fir sec, new IntSet ([ 1; 3; 5 ]))
-        Assert.AreEqual (IntSet.op_Subtraction (fir, sec), new IntSet ([ 1; 3; 5 ]))
+        ClassicAssert.AreEqual (fir - sec, new IntSet ([ 1; 3; 5 ]))
+        ClassicAssert.AreEqual (IntSet.difference fir sec, new IntSet ([ 1; 3; 5 ]))
+        ClassicAssert.AreEqual (IntSet.op_Subtraction (fir, sec), new IntSet ([ 1; 3; 5 ]))
 
         let e: IntSet = IntSet.empty
-        Assert.AreEqual (e - e, e)
-        Assert.AreEqual (IntSet.difference e e, e)
-        Assert.AreEqual (IntSet.op_Subtraction (e, e), e)
+        ClassicAssert.AreEqual (e - e, e)
+        ClassicAssert.AreEqual (IntSet.difference e e, e)
+        ClassicAssert.AreEqual (IntSet.op_Subtraction (e, e), e)
 
         let s1 = IntSet.singleton 8
         let s2 = IntSet.singleton 6
-        Assert.AreEqual (s1 - s2, new IntSet ([ 8 ]))
-        Assert.AreEqual (IntSet.difference s1 s2, new IntSet ([ 8 ]))
-        Assert.AreEqual (IntSet.op_Subtraction (s1, s2), new IntSet ([ 8 ]))
+        ClassicAssert.AreEqual (s1 - s2, new IntSet ([ 8 ]))
+        ClassicAssert.AreEqual (IntSet.difference s1 s2, new IntSet ([ 8 ]))
+        ClassicAssert.AreEqual (IntSet.op_Subtraction (s1, s2), new IntSet ([ 8 ]))
 
 
 (*

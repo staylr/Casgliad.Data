@@ -26,6 +26,7 @@ module TestHelpers
 open System
 open System.Collections.Generic
 open NUnit.Framework
+open NUnit.Framework.Legacy
 
 
 (* Fluent test helpers for use with NUnit and FsUnit. *)
@@ -33,37 +34,37 @@ open NUnit.Framework
 /// Tests that the specified condition is true.
 /// If not, calls Assert.Fail with a formatted string.
 let inline assertf (condition: bool) format : 'T =
-    Printf.ksprintf (fun str -> if not condition then Assert.Fail str) format
+    Printf.ksprintf (fun str -> if not condition then ClassicAssert.Fail str) format
 
 /// Asserts that two values are equal.
-let inline assertEqual<'T when 'T: equality> (expected: 'T) (actual: 'T) = Assert.AreEqual (expected, actual)
+let inline assertEqual<'T when 'T: equality> (expected: 'T) (actual: 'T) = ClassicAssert.AreEqual (expected, actual)
 
 /// Asserts that two values are NOT equal.
-let inline assertNotEqual<'T when 'T: equality> (expected: 'T) (actual: 'T) = Assert.AreNotEqual (expected, actual)
+let inline assertNotEqual<'T when 'T: equality> (expected: 'T) (actual: 'T) = ClassicAssert.AreNotEqual (expected, actual)
 
 /// Asserts that two objects are identical.
-let inline assertSame<'T when 'T: not struct> (expected: 'T) (actual: 'T) = Assert.AreSame (expected, actual)
+let inline assertSame<'T when 'T: not struct> (expected: 'T) (actual: 'T) = ClassicAssert.AreSame (expected, actual)
 
 /// Asserts that two objects are NOT identical.
-let inline assertNotSame<'T when 'T: not struct> (expected: 'T) (actual: 'T) = Assert.AreNotSame (expected, actual)
+let inline assertNotSame<'T when 'T: not struct> (expected: 'T) (actual: 'T) = ClassicAssert.AreNotSame (expected, actual)
 
 /// Asserts that a condition is true.
-let inline assertTrue (condition: bool) = Assert.IsTrue (condition)
+let inline assertTrue (condition: bool) = ClassicAssert.IsTrue (condition)
 
 /// Asserts that a condition is false.
-let inline assertFalse (condition: bool) = Assert.IsFalse (condition)
+let inline assertFalse (condition: bool) = ClassicAssert.IsFalse (condition)
 
 /// Asserts that the given function raises an exception of a specified exception type
 /// or a type which inherits from the specified exception type.
 [<RequiresExplicitTypeArguments>]
 let inline assertRaises<'T when 'T :> exn> assertion =
-    Assert.Catch<'T> (TestDelegate (assertion))
+    ClassicAssert.Catch<'T> (TestDelegate (assertion))
     |> ignore
 
 /// Asserts that the given function raises an exception of exactly the specified exception type.
 [<RequiresExplicitTypeArguments>]
 let inline assertRaisesExact<'T when 'T :> exn> assertion =
-    Assert.Throws<'T> (TestDelegate (assertion))
+    ClassicAssert.Throws<'T> (TestDelegate (assertion))
     |> ignore
 
 /// Assertion functions for collections.
@@ -114,26 +115,26 @@ let countEnumeratorsAndCheckedDisposedAtMostOnceAtEnd (seq: seq<'T>) =
 
         { new System.Collections.Generic.IEnumerator<'T> with
             member __.Current =
-                Assert.IsFalse (!endReached, "MiniTest 'rvlrve0'")
-                Assert.IsFalse (!disposed, "MiniTest 'rvlrve1'")
+                ClassicAssert.IsFalse (!endReached, "MiniTest 'rvlrve0'")
+                ClassicAssert.IsFalse (!disposed, "MiniTest 'rvlrve1'")
                 ie.Current
 
             member __.Dispose() =
-                Assert.IsTrue (!endReached, "MiniTest 'rvlrve2'")
-                Assert.IsFalse (!disposed, "MiniTest 'rvlrve4'")
+                ClassicAssert.IsTrue (!endReached, "MiniTest 'rvlrve2'")
+                ClassicAssert.IsFalse (!disposed, "MiniTest 'rvlrve4'")
                 decr numActiveEnumerators
                 disposed := true
                 ie.Dispose ()
           interface System.Collections.IEnumerator with
               member __.MoveNext() =
-                  Assert.IsFalse (!endReached, "MiniTest 'rvlrve0'")
-                  Assert.IsFalse (!disposed, "MiniTest 'rvlrve3'")
+                  ClassicAssert.IsFalse (!endReached, "MiniTest 'rvlrve0'")
+                  ClassicAssert.IsFalse (!disposed, "MiniTest 'rvlrve3'")
                   endReached := not <| ie.MoveNext ()
                   not !endReached
 
               member __.Current =
-                  Assert.IsFalse (!endReached, "MiniTest 'qrvlrve0'")
-                  Assert.IsFalse (!disposed, "MiniTest 'qrvlrve1'")
+                  ClassicAssert.IsFalse (!endReached, "MiniTest 'qrvlrve0'")
+                  ClassicAssert.IsFalse (!disposed, "MiniTest 'qrvlrve1'")
                   box ie.Current
 
               member __.Reset() = ie.Reset () }
@@ -152,25 +153,25 @@ let countEnumeratorsAndCheckedDisposedAtMostOnce (seq: seq<'T>) =
 
         { new System.Collections.Generic.IEnumerator<'T> with
             member x.Current =
-                Assert.IsFalse (!endReached, "MiniTest 'qrvlrve0'")
-                Assert.IsFalse (!disposed, "MiniTest 'qrvlrve1'")
+                ClassicAssert.IsFalse (!endReached, "MiniTest 'qrvlrve0'")
+                ClassicAssert.IsFalse (!disposed, "MiniTest 'qrvlrve1'")
                 ie.Current
 
             member x.Dispose() =
-                Assert.IsFalse (!disposed, "MiniTest 'qrvlrve4'")
+                ClassicAssert.IsFalse (!disposed, "MiniTest 'qrvlrve4'")
                 decr numActiveEnumerators
                 disposed := true
                 ie.Dispose ()
           interface System.Collections.IEnumerator with
               member x.MoveNext() =
-                  Assert.IsFalse (!endReached, "MiniTest 'qrvlrve0'")
-                  Assert.IsFalse (!disposed, "MiniTest 'qrvlrve3'")
+                  ClassicAssert.IsFalse (!endReached, "MiniTest 'qrvlrve0'")
+                  ClassicAssert.IsFalse (!disposed, "MiniTest 'qrvlrve3'")
                   endReached := not <| ie.MoveNext ()
                   not !endReached
 
               member x.Current =
-                  Assert.IsFalse (!endReached, "MiniTest 'qrvlrve0'")
-                  Assert.IsFalse (!disposed, "MiniTest 'qrvlrve1'")
+                  ClassicAssert.IsFalse (!endReached, "MiniTest 'qrvlrve0'")
+                  ClassicAssert.IsFalse (!disposed, "MiniTest 'qrvlrve1'")
                   box ie.Current
 
               member __.Reset() = ie.Reset () }
